@@ -691,6 +691,16 @@ var DATA = <?!= bootstrap ?>;
       '<div class="f"><div class="k">จำนวนสมาชิก</div><div class="v">' + esc(g.members || '-') + ' คน</div></div>' +
       '<div class="f"><div class="k">ผลิตภัณฑ์</div><div class="v">' + esc(g.products || '-') + '</div></div>' +
       '<div class="f"><div class="k">ช่องทางจำหน่าย</div><div class="v">' + esc(g.channels || '-') + '</div></div></div>';
+    var gs = (DATA.groupSavings || {})[g.id];
+    if (gs) {
+      var gp = gs.goal ? Math.max(0, Math.min(100, Math.round(gs.balance / gs.goal * 100))) : 0;
+      h += '<div class="panel" style="margin-bottom:26px"><h3><span class="ic">🧺</span>กองทุนออมทรัพย์ของกลุ่ม</h3><div class="factbox" style="margin:0">' +
+        '<div class="f"><div class="k">เงินออมกองทุนกลุ่ม</div><div class="v">' + money(gs.balance) + ' บาท</div></div>' +
+        '<div class="f"><div class="k">สมาชิกที่ร่วมออม</div><div class="v">' + gs.savers + ' คน</div></div>' +
+        (gs.monthlyShare ? '<div class="f"><div class="k">เงินสัจจะ</div><div class="v">' + money(gs.monthlyShare) + ' บาท/เดือน</div></div>' : '') +
+        (gs.goal ? '<div class="f"><div class="k">เป้าหมาย</div><div class="v">' + money(gs.goal) + ' บาท (' + gp + '%)</div></div>' : '') + '</div>' +
+        (gs.goal ? '<div class="bar-track" style="display:block;margin-top:14px;height:10px"><span class="bar-fill" style="display:block;height:100%;width:' + gp + '%"></span></div>' : '') + '</div>';
+    }
     if (g.coverUrl) h += '<div class="article"><div class="cover">' + imgTag(g.coverUrl, g.name) + '</div></div>';
     h += '<div class="prose" style="margin:0 auto 26px;max-width:none"><p style="font-size:19px;color:var(--ink)">' + esc(g.summary) + '</p>' +
       (g.memberProfile ? '<p>' + ICON.users.replace('<svg', '<svg width="18" height="18" style="vertical-align:-3px;margin-right:6px;color:var(--brand)"') + esc(g.memberProfile) + '</p>' : '') +

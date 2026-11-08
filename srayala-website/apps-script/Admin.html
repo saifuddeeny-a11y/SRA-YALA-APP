@@ -175,6 +175,13 @@
   .loader.on { display: flex; }
   .note { background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: #6b4f0d; margin-bottom: 14px; }
   .note.info { background: var(--brand-soft); color: var(--brand-ink); }
+  .gbar { height: 8px; border-radius: 999px; background: var(--brand-soft); overflow: hidden; margin-bottom: 3px; }
+  .gbar i { display: block; height: 100%; border-radius: 999px; background: var(--brand); }
+  .mtbl th.mc, .mtbl td.mc { text-align: center; padding: 8px 4px; font-size: 12.5px; min-width: 38px; }
+  .mtbl td.mc { color: #c9c4b5; }
+  .mtbl td.mc.ok { background: #dff2e8; color: var(--ok); font-weight: 700; }
+  .mtbl td.mc.part { background: var(--accent-soft); color: #7a5a10; }
+  .mtbl tfoot th { background: #faf9f5; }
   code { background: #f1efe8; padding: 1px 6px; border-radius: 5px; font-size: 13px; }
 </style>
 </head>
@@ -428,7 +435,7 @@ var SITE_NAME = <?!= JSON.stringify(siteName) ?>;
    * ============================================================ */
   var MENU = [
     { g: 'ภาพรวม' }, { k: 'overview', e: '🏠', l: 'แดชบอร์ดผู้ดูแล' },
-    { g: 'กองทุน & สมาชิก' }, { k: 'members', e: '👥', l: 'สมาชิกกองทุน' }, { k: 'transactions', e: '💵', l: 'บันทึกเงินออม' }, { k: 'forms', e: '📝', l: 'แบบฟอร์มออนไลน์' },
+    { g: 'กองทุน & สมาชิก' }, { k: 'members', e: '👥', l: 'สมาชิกกองทุน' }, { k: 'transactions', e: '💵', l: 'บันทึกเงินออม' }, { k: 'gsavings', e: '🧺', l: 'เงินออมกลุ่มอาชีพ' }, { k: 'forms', e: '📝', l: 'แบบฟอร์มออนไลน์' },
     { g: 'ผลดำเนินการ' }, { k: 'reports', e: '📈', l: 'รายงานผลดำเนินการ' }, { k: 'kpis', e: '🎯', l: 'ตัวชี้วัด' },
     { g: 'เนื้อหา' }, { k: 'news', e: '📰', l: 'ข่าว / กิจกรรม / ประชาสัมพันธ์' }, { k: 'gallery', e: '🖼️', l: 'คลังภาพ / อัลบั้ม' }, { k: 'documents', e: '📁', l: 'เอกสาร & เครื่องมือ' },
     { k: 'groups', e: '🧺', l: 'กลุ่มอาชีพ' }, { k: 'steps', e: '🪜', l: 'กระบวนการ' }, { k: 'pages', e: '📄', l: 'หน้าเว็บ' },
@@ -450,7 +457,7 @@ var SITE_NAME = <?!= JSON.stringify(siteName) ?>;
   function renderSide() {
     var s = DB.settings || {};
     var newMsg = DB.tables.Messages.filter(function (m) { return m.status === 'new'; }).length;
-    var badges = { messages: newMsg, transactions: (DB.tables.Transactions || []).filter(function (t) { return t.status === 'pending'; }).length, forms: (DB.tables.FormResponses || []).filter(function (r) { return r.status === 'new'; }).length };
+    var badges = { messages: newMsg, transactions: (DB.tables.Transactions || []).filter(function (t) { return t.status === 'pending'; }).length, gsavings: (DB.tables.GroupTransactions || []).filter(function (t) { return t.status === 'pending'; }).length, forms: (DB.tables.FormResponses || []).filter(function (r) { return r.status === 'new'; }).length };
     $('#side').innerHTML = '<div class="sb-brand">' + (s.logoUrl ? '<img src="' + esc(s.logoUrl) + '" alt="">' : '') + '<div><b>' + esc(s.siteName || SITE_NAME) + '</b><small>ระบบจัดการเว็บไซต์</small></div></div><nav>' +
       MENU.filter(function (m) { return !m.admin || USER.role === 'admin'; }).map(function (m) {
         if (m.g) return '<div class="grp">' + m.g + '</div>';
@@ -461,8 +468,9 @@ var SITE_NAME = <?!= JSON.stringify(siteName) ?>;
     VIEW = view; VIEW_ARG = arg;
     $$('.side a.it').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-view') === view); });
     var m = MENU.filter(function (x) { return x.k === view; })[0];
-    $('#viewTitle').textContent = m ? m.l : ({ member: 'บัญชีสมาชิก', responses: 'คำตอบแบบฟอร์ม' }[view] || '');
+    $('#viewTitle').textContent = m ? m.l : ({ member: 'บัญชีสมาชิก', responses: 'คำตอบแบบฟอร์ม', gsaving: 'บัญชีเงินออมกลุ่มอาชีพ' }[view] || '');
     if (!m && view === 'member') $$('.side a.it').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-view') === 'members'); });
+    if (!m && view === 'gsaving') $$('.side a.it').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-view') === 'gsavings'); });
     if (!m && view === 'responses') $$('.side a.it').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-view') === 'forms'); });
     var el = $('#view');
     el.innerHTML = (VIEWS[view] || VIEWS.overview)(arg);
@@ -853,7 +861,7 @@ var SITE_NAME = <?!= JSON.stringify(siteName) ?>;
     var ext = 0; ['Gallery', 'News', 'Groups', 'Reports'].forEach(function (k) { t[k].forEach(function (r) { ['url', 'coverUrl'].forEach(function (f) { if (/sitesv\//.test(r[f] || '')) ext++; }); }); });
     var h = '<div class="tiles">' + tile(Number(st.visits || 0).toLocaleString('th-TH'), 'ผู้เข้าชมทั้งหมด', '👁️', 'overview') +
       tile(t.Reports.length, 'รายงานผลดำเนินการ', '📈', 'reports') + tile(t.News.length, 'ข่าว / กิจกรรม', '📰', 'news') + tile(t.Gallery.length, 'ภาพในอัลบั้ม', '🖼️', 'gallery') +
-      tile(t.Documents.length, 'เอกสาร', '📁', 'documents') + tile(t.Groups.length, 'กลุ่มอาชีพ', '🧺', 'groups') + tile(newMsg, 'ข้อความใหม่', '✉️', 'messages') + tile((t.Members || []).length, 'สมาชิกกองทุน', '👥', 'members') + tile((t.Transactions || []).filter(function (x) { return x.status === 'pending'; }).length, 'แจ้งฝากรอตรวจสอบ', '⏳', 'transactions') + tile((t.FormResponses || []).filter(function (x) { return x.status === 'new'; }).length, 'คำตอบแบบฟอร์มใหม่', '📝', 'forms') + '</div>';
+      tile(t.Documents.length, 'เอกสาร', '📁', 'documents') + tile(t.Groups.length, 'กลุ่มอาชีพ', '🧺', 'groups') + tile(newMsg, 'ข้อความใหม่', '✉️', 'messages') + tile((t.Members || []).length, 'สมาชิกกองทุน', '👥', 'members') + tile((t.Transactions || []).filter(function (x) { return x.status === 'pending'; }).length, 'แจ้งฝากรอตรวจสอบ', '⏳', 'transactions') + tile((t.GroupTransactions || []).filter(function (x) { return x.status === 'pending'; }).length, 'เงินกลุ่มรอตรวจสอบ', '🧺', 'gsavings') + tile((t.FormResponses || []).filter(function (x) { return x.status === 'new'; }).length, 'คำตอบแบบฟอร์มใหม่', '📝', 'forms') + '</div>';
     h += '<div class="grid2" style="gap:18px"><div class="box"><h3>⚡ ทางลัด</h3><div class="row">' +
       '<button class="btn sm" data-view="reports">+ รายงานผล</button><button class="btn sm" data-quick="news">+ เพิ่มข่าว</button><button class="btn sm" data-view="gallery">⬆ อัปโหลดภาพ</button><button class="btn sm" data-view="documents">⬆ อัปโหลดเอกสาร</button><button class="btn sm ghost" data-view="settings">ตั้งค่าเว็บ</button></div>' +
       '<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">' +
@@ -1459,6 +1467,266 @@ var SITE_NAME = <?!= JSON.stringify(siteName) ?>;
     };
     bindTxActions(el);
   };
+
+  /* ============================================================
+   *  ระบบออมทรัพย์กลุ่มอาชีพ — กองทุนกลางของแต่ละกลุ่ม
+   * ============================================================ */
+  var GCATS_DEF = {
+    deposit: { share: 'เงินสัจจะสมาชิก', income: 'รายได้จากการขายผลผลิต', support: 'เงินสนับสนุน / บริจาค', repay: 'รับคืนเงินยืม', other: 'รายรับอื่น ๆ' },
+    withdraw: { expense: 'ค่าวัตถุดิบ / ต้นทุนการผลิต', lend: 'ให้สมาชิกยืม', welfare: 'สวัสดิการสมาชิก', dividend: 'ปันผลคืนสมาชิก', other: 'รายจ่ายอื่น ๆ' }
+  };
+  var GCAT_EMO = { share: '🤝', income: '🛒', support: '🎁', repay: '↩️', expense: '🧵', lend: '🤲', welfare: '❤️', dividend: '💸', other: '📌' };
+  var TH_MON = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  function gcats(type) { return ((DB && DB.groupCats) || GCATS_DEF)[type === 'withdraw' ? 'withdraw' : 'deposit']; }
+  function gcatLabel(t) { return gcats(t.type)[t.category] || t.category || '-'; }
+  function groupOf(id) { return findRec('Groups', id) || {}; }
+  function groupMembers(gid) { return rows('Members').filter(function (m) { return m.groupId === gid; }).sort(function (a, b) { return String(a.memberNo).localeCompare(String(b.memberNo), 'th', { numeric: true }); }); }
+  function pendingGtx() { return rows('GroupTransactions').filter(function (t) { return t.status === 'pending'; }); }
+  /** ยอดกองทุนกลุ่ม { groupId: { deposit, withdraw, balance, pending, cats } } — นับเฉพาะที่อนุมัติ */
+  function gBalances() {
+    var out = {};
+    rows('GroupTransactions').forEach(function (t) {
+      var b = out[t.groupId] = out[t.groupId] || { deposit: 0, withdraw: 0, balance: 0, pending: 0, cats: { deposit: {}, withdraw: {} } };
+      var st = t.status || 'approved', type = t.type === 'withdraw' ? 'withdraw' : 'deposit', a = nnum(t.amount);
+      if (st === 'pending') { b.pending++; return; }
+      if (st !== 'approved') return;
+      b[type] += a; b.balance += type === 'withdraw' ? -a : a;
+      b.cats[type][t.category || 'other'] = (b.cats[type][t.category || 'other'] || 0) + a;
+    });
+    return out;
+  }
+  function gBal(gid) { return gBalances()[gid] || { deposit: 0, withdraw: 0, balance: 0, pending: 0, cats: { deposit: {}, withdraw: {} } }; }
+  /** เงินสัจจะที่สมาชิกส่ง { memberId: { total, months: { 'yyyy-MM': n } } } */
+  function shareMap(gid) {
+    var out = {};
+    rows('GroupTransactions').forEach(function (t) {
+      if (t.groupId !== gid || (t.status || 'approved') !== 'approved' || t.type === 'withdraw' || t.category !== 'share' || !t.memberId) return;
+      var o = out[t.memberId] = out[t.memberId] || { total: 0, months: {} }, ym = String(t.date).substr(0, 7);
+      o.total += nnum(t.amount); o.months[ym] = (o.months[ym] || 0) + nnum(t.amount);
+    });
+    return out;
+  }
+  function progBar(val, goal) {
+    goal = nnum(goal); if (!goal) return '<span class="sub">ไม่ได้ตั้งเป้า</span>';
+    var pct = Math.max(0, Math.min(100, Math.round(nnum(val) / goal * 100)));
+    return '<div class="gbar" title="' + pct + '%"><i style="width:' + pct + '%"></i></div><div class="sub">' + pct + '% ของ ' + baht(goal) + '</div>';
+  }
+
+  /* ---------- ภาพรวมทุกกลุ่ม ---------- */
+  var gtxF = { q: '', g: '', type: '', cat: '', st: '', month: '' };
+  VIEWS.gsavings = function () {
+    var groups = sortByOrder(rows('Groups')), bals = gBalances(), all = rows('GroupTransactions'), pend = pendingGtx();
+    var indiv = balancesAll();
+    var ym = todayIso().substr(0, 7);
+    var mon = all.filter(function (t) { return (t.status || 'approved') === 'approved' && String(t.date).substr(0, 7) === ym; });
+    var dep = mon.filter(function (t) { return t.type !== 'withdraw'; }).reduce(function (s, t) { return s + nnum(t.amount); }, 0);
+    var wd = mon.filter(function (t) { return t.type === 'withdraw'; }).reduce(function (s, t) { return s + nnum(t.amount); }, 0);
+    var total = groups.reduce(function (s, g) { return s + ((bals[g.id] || {}).balance || 0); }, 0);
+    var sel = function (id, cur, opts, label) { return '<select class="inp" id="' + id + '" style="width:auto"><option value="">' + label + '</option>' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (cur === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select>'; };
+    var catOpts = [];
+    ['deposit', 'withdraw'].forEach(function (ty) { Object.keys(gcats(ty)).forEach(function (c) { var k = ty + ':' + c; catOpts.push([k, (ty === 'withdraw' ? 'จ่าย · ' : 'รับ · ') + gcats(ty)[c]]); }); });
+    return '<div class="tiles"><div class="tile" style="cursor:default"><span class="e">🧺</span><div class="n" style="font-size:24px">' + baht(total) + '</div><div class="l">เงินกองทุนทุกกลุ่มรวม (บาท)</div></div>' +
+      '<div class="tile" style="cursor:default"><span class="e">➕</span><div class="n" style="font-size:24px">' + baht(dep) + '</div><div class="l">รายรับเดือนนี้ (บาท)</div></div>' +
+      '<div class="tile" style="cursor:default"><span class="e">➖</span><div class="n" style="font-size:24px">' + baht(wd) + '</div><div class="l">รายจ่ายเดือนนี้ (บาท)</div></div>' +
+      '<div class="tile" style="cursor:default"><span class="e">⏳</span><div class="n">' + pend.length + '</div><div class="l">รายการรอตรวจสอบ</div></div></div>' +
+      '<div class="note info">🧺 <b>กองทุนกลุ่ม</b> คือบัญชีกลางของแต่ละกลุ่มอาชีพ แยกจากบัญชีรายบุคคลของสมาชิก — สมาชิกส่ง <b>เงินสัจจะ</b> ผ่านระบบสมาชิก (แท็บ “กลุ่มอาชีพ”) และ <b>เหรัญญิกกลุ่ม</b> แจ้งรายรับ-รายจ่ายของกลุ่มได้ รายการที่แจ้งจะรอเจ้าหน้าที่อนุมัติก่อนนับเข้ายอด<br>ตั้งค่าเงินสัจจะต่อเดือน เป้าหมาย และเหรัญญิกได้ที่ปุ่ม ⚙ ของแต่ละกลุ่ม</div>' +
+      '<div class="tbl-wrap" style="margin-bottom:22px"><table class="tbl"><thead><tr><th>กลุ่มอาชีพ</th><th style="text-align:right">สมาชิกในระบบ</th><th style="text-align:right">เงินสัจจะ/เดือน</th><th style="text-align:right">ยอดกองทุนกลุ่ม</th><th style="min-width:150px">เป้าหมาย</th><th style="text-align:right">เงินออมรายบุคคลของสมาชิก</th><th></th></tr></thead><tbody>' +
+      (groups.length ? groups.map(function (g) {
+        var b = bals[g.id] || { balance: 0, pending: 0 }, ms = groupMembers(g.id);
+        var ind = ms.reduce(function (s, m) { return s + ((indiv[m.id] || {}).total || 0); }, 0);
+        var tr = g.treasurerId ? memberOf(g.treasurerId) : null;
+        return '<tr><td><a href="#" class="ttl" data-view="gsaving" data-arg="' + esc(g.id) + '">' + esc((g.icon ? g.icon + ' ' : '') + g.name) + '</a><div class="sub">' + (tr && tr.name ? 'เหรัญญิก: ' + esc(tr.name) : 'ยังไม่ได้ตั้งเหรัญญิก') + (truthy(g.savingsPublic) ? ' · แสดงยอดบนหน้าเว็บ' : '') + (b.pending ? ' · <span class="pill gold">รอตรวจ ' + b.pending + '</span>' : '') + '</div></td>' +
+          '<td style="text-align:right">' + ms.filter(function (m) { return truthy(m.active); }).length + '</td><td style="text-align:right">' + (nnum(g.monthlyShare) ? baht(g.monthlyShare) : '<span class="sub">-</span>') + '</td>' +
+          '<td style="text-align:right"><b>' + baht(b.balance) + '</b></td><td>' + progBar(b.balance, g.savingsGoal) + '</td><td style="text-align:right">' + baht(ind) + '</td>' +
+          '<td class="acts"><button class="btn sm" data-view="gsaving" data-arg="' + esc(g.id) + '">เปิดบัญชีกลุ่ม</button> <button class="icon-btn" data-gset="' + esc(g.id) + '" title="ตั้งค่ากองทุนกลุ่ม">⚙</button></td></tr>';
+      }).join('') : '<tr><td colspan="7" class="muted" style="text-align:center;padding:30px">ยังไม่มีกลุ่มอาชีพ — เพิ่มกลุ่มที่เมนู “กลุ่มอาชีพ” ก่อน</td></tr>') + '</tbody></table></div>' +
+      (pend.length ? '<div class="box"><h3>⏳ รายการแจ้งจากสมาชิก / เหรัญญิก — รอตรวจสอบ (' + pend.length + ')</h3><div class="tbl-wrap" style="border:0"><table class="tbl"><tbody>' + gtxRows(pend) + '</tbody></table></div></div>' : '') +
+      '<div class="row between" style="margin-bottom:16px"><div class="row" style="flex:1"><input class="search" id="gq" placeholder="ค้นหาสมาชิก / หมายเหตุ..." value="' + esc(gtxF.q) + '">' +
+      sel('gg', gtxF.g, groups.map(function (g) { return [g.id, g.name]; }), 'ทุกกลุ่ม') + sel('gt', gtxF.type, [['deposit', 'รายรับ'], ['withdraw', 'รายจ่าย']], 'รับ+จ่าย') +
+      sel('gc', gtxF.cat, catOpts, 'ทุกหมวด') + sel('gs', gtxF.st, [['approved', 'อนุมัติแล้ว'], ['pending', 'รอตรวจสอบ'], ['rejected', 'ไม่อนุมัติ']], 'ทุกสถานะ') +
+      '<input class="inp" type="month" id="gm" value="' + esc(gtxF.month) + '" style="width:auto" title="เดือน"><button class="btn sm ghost" id="gcsv">⬇ CSV</button></div>' +
+      '<button class="btn" id="addGtx"' + (groups.length ? '' : ' disabled') + '>+ บันทึกรายการกลุ่ม</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>วันที่</th><th>กลุ่ม</th><th>หมวด</th><th>สมาชิก</th><th style="text-align:right">จำนวน (บาท)</th><th>หมายเหตุ</th><th>สถานะ</th><th>ผู้บันทึก</th><th></th></tr></thead><tbody id="gbody"></tbody></table></div><p class="sub" id="gsum"></p>';
+  };
+  function gtxList(gid) {
+    var q = gtxF.q.toLowerCase();
+    return rows('GroupTransactions').filter(function (t) {
+      var m = memberOf(t.memberId), ck = (t.type === 'withdraw' ? 'withdraw' : 'deposit') + ':' + t.category;
+      return (gid ? t.groupId === gid : (!gtxF.g || t.groupId === gtxF.g)) && (!gtxF.type || t.type === gtxF.type) && (!gtxF.cat || ck === gtxF.cat) &&
+        (!gtxF.st || (t.status || 'approved') === gtxF.st) && (!gtxF.month || String(t.date).substr(0, 7) === gtxF.month) &&
+        (!q || ((m.memberNo || '') + ' ' + (m.name || '') + ' ' + (t.note || '')).toLowerCase().indexOf(q) !== -1);
+    });
+  }
+  function gtxSumText(list) {
+    var ok = list.filter(function (t) { return (t.status || 'approved') === 'approved'; });
+    var d = ok.filter(function (t) { return t.type !== 'withdraw'; }).reduce(function (s, t) { return s + nnum(t.amount); }, 0), w = ok.filter(function (t) { return t.type === 'withdraw'; }).reduce(function (s, t) { return s + nnum(t.amount); }, 0);
+    return list.length + ' รายการ · รายรับ ' + baht(d) + ' · รายจ่าย ' + baht(w) + ' · สุทธิ ' + baht(d - w) + ' บาท (นับเฉพาะที่อนุมัติ)';
+  }
+  function gtxCsv(name, list) {
+    dlCsv(name, [['date', 'วันที่'], [function (t) { return groupLabel(t.groupId); }, 'กลุ่ม'], [function (t) { return t.type === 'withdraw' ? 'รายจ่าย' : 'รายรับ'; }, 'ประเภท'], [gcatLabel, 'หมวด'],
+      [function (t) { return memberOf(t.memberId).memberNo || ''; }, 'รหัสสมาชิก'], [function (t) { return memberOf(t.memberId).name || ''; }, 'สมาชิก'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'],
+      [function (t) { return (TX_ST[t.status || 'approved'] || [''])[0]; }, 'สถานะ'], ['recordedBy', 'ผู้บันทึก'], ['slipUrl', 'ลิงก์สลิป']], sortTx(list));
+  }
+  BIND.gsavings = function (el) {
+    var draw = function () { var list = gtxList(); $('#gbody').innerHTML = gtxRows(list.slice()); $('#gsum').textContent = gtxSumText(list); };
+    draw();
+    $('#gq').oninput = function () { gtxF.q = this.value; draw(); };
+    [['#gg', 'g'], ['#gt', 'type'], ['#gc', 'cat'], ['#gs', 'st'], ['#gm', 'month']].forEach(function (p) { $(p[0]).onchange = function () { gtxF[p[1]] = this.value; draw(); }; });
+    $('#addGtx').onclick = function () { gtxEditor(null, gtxF.g ? { groupId: gtxF.g } : null); };
+    $('#gcsv').onclick = function () { gtxCsv('เงินออมกลุ่มอาชีพ' + (gtxF.month ? '-' + gtxF.month : ''), gtxList()); };
+    bindGtxActions(el);
+  };
+
+  /* ---------- บัญชีของกลุ่ม ---------- */
+  var gYear = String(new Date().getFullYear());
+  VIEWS.gsaving = function (gid) {
+    var g = groupOf(gid);
+    if (!g.id) return '<div class="box">ไม่พบกลุ่มอาชีพ <a href="#" data-view="gsavings">← กลับ</a></div>';
+    var b = gBal(gid), ms = groupMembers(gid), share = shareMap(gid), indiv = balancesAll(), ms2 = nnum(g.monthlyShare);
+    var tr = g.treasurerId ? memberOf(g.treasurerId) : null;
+    var years = [gYear]; rows('GroupTransactions').forEach(function (t) { var y = String(t.date || '').substr(0, 4); if (t.groupId === gid && y && years.indexOf(y) === -1) years.push(y); }); years.sort().reverse();
+    var catTbl = function (type) {
+      var c = b.cats[type], keys = Object.keys(c);
+      return '<div class="box"><h3>' + (type === 'withdraw' ? '➖ รายจ่ายตามหมวด' : '➕ รายรับตามหมวด') + '</h3>' + (keys.length ? '<table class="tbl"><tbody>' + keys.sort(function (x, y) { return c[y] - c[x]; }).map(function (k) {
+        return '<tr><td>' + (GCAT_EMO[k] || '') + ' ' + esc(gcats(type)[k] || k) + '</td><td style="text-align:right"><b>' + baht(c[k]) + '</b></td></tr>';
+      }).join('') + '</tbody></table>' : '<p class="sub" style="margin:0">ยังไม่มีรายการ</p>') + '</div>';
+    };
+    var active = ms.filter(function (m) { return truthy(m.active); });
+    var monSum = TH_MON.map(function () { return 0; });
+    var grid = active.map(function (m) {
+      var s = share[m.id] || { total: 0, months: {} }, yr = 0, paid = 0;
+      var cells = TH_MON.map(function (_, i) {
+        var v = s.months[gYear + '-' + ('0' + (i + 1)).slice(-2)] || 0; yr += v; monSum[i] += v;
+        if (v && (!ms2 || v >= ms2)) paid++;
+        return '<td class="mc ' + (v ? (!ms2 || v >= ms2 ? 'ok' : 'part') : '') + '" title="' + (v ? baht(v) + ' บาท' : 'ยังไม่ส่ง') + '">' + (v ? (ms2 && v >= ms2 ? '✓' : baht(v)) : '·') + '</td>';
+      }).join('');
+      return '<tr><td style="white-space:nowrap"><a href="#" data-view="member" data-arg="' + esc(m.id) + '" class="ttl">' + esc(m.name) + '</a><div class="sub">' + esc(m.memberNo) + (g.treasurerId === m.id ? ' · เหรัญญิก' : '') + '</div></td>' + cells +
+        '<td style="text-align:right"><b>' + baht(yr) + '</b><div class="sub">' + paid + '/12 เดือน</div></td><td style="text-align:right">' + baht(s.total) + '</td><td style="text-align:right" class="sub">' + baht((indiv[m.id] || {}).total || 0) + '</td></tr>';
+    }).join('');
+    return '<p><a href="#" data-view="gsavings">← เงินออมกลุ่มอาชีพทั้งหมด</a></p>' +
+      '<div class="box row between"><div><h3 style="margin:0">' + esc((g.icon ? g.icon + ' ' : '') + g.name) + '</h3>' +
+      '<div class="sub">' + (g.location ? esc(g.location) + ' · ' : '') + 'สมาชิกในระบบ ' + active.length + ' คน · เงินสัจจะ ' + (ms2 ? baht(ms2) + ' บาท/เดือน' : 'ยังไม่กำหนด') + ' · ' + (tr && tr.name ? 'เหรัญญิก: ' + esc(tr.name) : 'ยังไม่ได้ตั้งเหรัญญิก') + (truthy(g.savingsPublic) ? ' · แสดงยอดบนหน้าเว็บ' : '') + '</div></div>' +
+      '<div class="row"><button class="btn sm ghost" data-gset="' + esc(gid) + '">⚙ ตั้งค่ากองทุนกลุ่ม</button><button class="btn sm" id="gdShare">🤝 รับเงินสัจจะ</button><button class="btn sm" id="gdDep">+ รายรับ</button><button class="btn sm accent" id="gdWd">− รายจ่าย</button></div></div>' +
+      '<div class="tiles"><div class="tile" style="cursor:default"><span class="e">🧺</span><div class="n" style="font-size:24px">' + baht(b.balance) + '</div><div class="l">ยอดกองทุนกลุ่มคงเหลือ</div></div>' +
+      '<div class="tile" style="cursor:default"><span class="e">➕</span><div class="n" style="font-size:24px">' + baht(b.deposit) + '</div><div class="l">รายรับสะสม</div></div>' +
+      '<div class="tile" style="cursor:default"><span class="e">➖</span><div class="n" style="font-size:24px">' + baht(b.withdraw) + '</div><div class="l">รายจ่ายสะสม</div></div>' +
+      '<div class="tile" style="cursor:default"><span class="e">🎯</span><div class="n" style="font-size:24px">' + (nnum(g.savingsGoal) ? Math.min(100, Math.round(b.balance / nnum(g.savingsGoal) * 100)) + '%' : '-') + '</div><div class="l">' + (nnum(g.savingsGoal) ? 'ของเป้าหมาย ' + baht(g.savingsGoal) + ' บาท' : 'ยังไม่ได้ตั้งเป้าหมาย') + '</div></div></div>' +
+      (b.pending ? '<div class="note">⏳ มีรายการรอตรวจสอบ ' + b.pending + ' รายการ (ดูในตารางด้านล่าง)</div>' : '') +
+      '<div class="grid2" style="gap:18px">' + catTbl('deposit') + catTbl('withdraw') + '</div>' +
+      '<div class="box"><div class="row between" style="margin-bottom:10px"><h3 style="margin:0">🤝 การส่งเงินสัจจะรายเดือน</h3><div class="row"><select class="inp" id="gy" style="width:auto">' + years.map(function (y) { return '<option value="' + y + '"' + (y === gYear ? ' selected' : '') + '>ปี ' + (Number(y) + 543) + '</option>'; }).join('') + '</select><button class="btn sm ghost" id="gyCsv">⬇ CSV</button></div></div>' +
+      (active.length ? '<div class="tbl-wrap" style="border:0"><table class="tbl mtbl"><thead><tr><th>สมาชิก</th>' + TH_MON.map(function (m) { return '<th class="mc">' + m + '</th>'; }).join('') + '<th style="text-align:right">รวมปีนี้</th><th style="text-align:right">สะสมทั้งหมด</th><th style="text-align:right">เงินออมรายบุคคล</th></tr></thead><tbody>' + grid +
+        '</tbody><tfoot><tr><th>รวม</th>' + monSum.map(function (v) { return '<th class="mc">' + (v ? baht(v) : '') + '</th>'; }).join('') + '<th style="text-align:right">' + baht(monSum.reduce(function (s, v) { return s + v; }, 0)) + '</th><th></th><th></th></tr></tfoot></table></div>' +
+        '<p class="sub" style="margin:8px 0 0">✓ = ส่งครบตามเงินสัจจะที่กำหนด · ตัวเลข = ส่งบางส่วน · · = ยังไม่ส่ง</p>'
+        : '<p class="sub">ยังไม่มีสมาชิกในกลุ่มนี้ — กำหนดกลุ่มอาชีพให้สมาชิกที่เมนู “สมาชิกกองทุน”</p>') + '</div>' +
+      '<div class="row between" style="margin:6px 0 12px"><h3 style="margin:0">🧾 รายการเงินของกลุ่ม</h3><button class="btn sm ghost" id="gdCsv">⬇ ส่งออก CSV</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>วันที่</th><th>หมวด</th><th>สมาชิก</th><th style="text-align:right">จำนวน (บาท)</th><th>หมายเหตุ</th><th>สถานะ</th><th>ผู้บันทึก</th><th></th></tr></thead><tbody>' +
+      gtxRows(rows('GroupTransactions').filter(function (t) { return t.groupId === gid; }), true) + '</tbody></table></div>';
+  };
+  BIND.gsaving = function (el, gid) {
+    if (!$('#gdDep')) return;
+    $('#gdShare').onclick = function () { gtxEditor(null, { groupId: gid, type: 'deposit', category: 'share', amount: groupOf(gid).monthlyShare || '' }); };
+    $('#gdDep').onclick = function () { gtxEditor(null, { groupId: gid, type: 'deposit', category: 'income' }); };
+    $('#gdWd').onclick = function () { gtxEditor(null, { groupId: gid, type: 'withdraw', category: 'expense' }); };
+    $('#gy').onchange = function () { gYear = this.value; show('gsaving', gid, true); };
+    $('#gdCsv').onclick = function () { gtxCsv('เงินออมกลุ่ม-' + groupOf(gid).name, rows('GroupTransactions').filter(function (t) { return t.groupId === gid; })); };
+    $('#gyCsv') && ($('#gyCsv').onclick = function () {
+      var share = shareMap(gid);
+      dlCsv('เงินสัจจะ-' + groupOf(gid).name + '-' + (Number(gYear) + 543), [['memberNo', 'รหัสสมาชิก'], ['name', 'ชื่อ-นามสกุล']].concat(TH_MON.map(function (m, i) {
+        return [function (x) { return ((share[x.id] || {}).months || {})[gYear + '-' + ('0' + (i + 1)).slice(-2)] || 0; }, m + ' ' + (Number(gYear) + 543)];
+      })).concat([[function (x) { var s = (share[x.id] || {}).months || {}; return Object.keys(s).filter(function (k) { return k.indexOf(gYear) === 0; }).reduce(function (a, k) { return a + s[k]; }, 0); }, 'รวมปีนี้'], [function (x) { return (share[x.id] || {}).total || 0; }, 'สะสมทั้งหมด']]),
+        groupMembers(gid).filter(function (m) { return truthy(m.active); }));
+    });
+    bindGtxActions(el);
+  };
+
+  /* ---------- ตารางรายการ + ปุ่ม ---------- */
+  function gtxRows(list, hideGroup) {
+    list = sortTx(list);
+    if (!list.length) return '<tr><td colspan="9" class="muted" style="text-align:center;padding:30px">ยังไม่มีรายการ</td></tr>';
+    return list.map(function (t) {
+      var m = t.memberId ? memberOf(t.memberId) : null, st = TX_ST[t.status || 'approved'] || TX_ST.approved, w = t.type === 'withdraw';
+      return '<tr><td class="sub" style="white-space:nowrap">' + thDate(t.date) + '</td>' + (hideGroup ? '' : '<td><a href="#" data-view="gsaving" data-arg="' + esc(t.groupId) + '" class="ttl">' + esc(groupLabel(t.groupId) || '(ลบแล้ว)') + '</a></td>') +
+        '<td style="white-space:nowrap">' + (GCAT_EMO[t.category] || '') + ' ' + esc(gcatLabel(t)) + ' <span class="pill ' + (w ? 'off' : 'on') + '">' + (w ? 'จ่าย' : 'รับ') + '</span></td>' +
+        '<td style="white-space:nowrap">' + (m ? '<a href="#" data-view="member" data-arg="' + esc(t.memberId) + '">' + esc(m.name || '(ลบแล้ว)') + '</a><div class="sub">' + esc(m.memberNo || '') + '</div>' : '<span class="sub">-</span>') + '</td>' +
+        '<td style="text-align:right;font-family:var(--font-head);font-weight:600;color:' + (w ? 'var(--danger)' : 'var(--ok)') + '">' + (w ? '−' : '+') + baht(t.amount) + '</td>' +
+        '<td class="sub">' + esc(t.note || '') + (t.slipUrl ? ' <a href="' + esc(t.slipUrl) + '" target="_blank" rel="noopener">📎 สลิป</a>' : '') + '</td>' +
+        '<td><span class="pill ' + st[1] + '">' + st[0] + '</span></td><td class="sub">' + esc(String(t.recordedBy || '').replace(/^member:/, 'สมาชิกแจ้ง ')) + '</td>' +
+        '<td class="acts" style="white-space:nowrap">' + (t.status === 'pending' ? '<button class="btn sm" data-gok="' + esc(t.id) + '">✓ อนุมัติ</button> <button class="icon-btn" data-gno="' + esc(t.id) + '" title="ไม่อนุมัติ">✕</button> ' : '') +
+        '<button class="icon-btn" data-gedit="' + esc(t.id) + '" title="แก้ไข">✎</button> <button class="icon-btn del" data-gdel="' + esc(t.id) + '" title="ลบ">🗑</button></td></tr>';
+    }).join('');
+  }
+  function bindGtxActions(el) {
+    el.onclick = function (e) {
+      var b;
+      if ((b = e.target.closest('[data-gset]'))) return gsetEditor(b.getAttribute('data-gset'));
+      if ((b = e.target.closest('[data-gok]'))) return setGtxStatus(b.getAttribute('data-gok'), 'approved');
+      if ((b = e.target.closest('[data-gno]'))) return setGtxStatus(b.getAttribute('data-gno'), 'rejected');
+      if ((b = e.target.closest('[data-gedit]'))) return gtxEditor(b.getAttribute('data-gedit'));
+      if ((b = e.target.closest('[data-gdel]'))) {
+        var id = b.getAttribute('data-gdel'), t = findRec('GroupTransactions', id) || {};
+        confirmBox('ลบรายการ “' + esc(gcatLabel(t)) + '” ' + baht(t.amount) + ' บาท ของ ' + esc(groupLabel(t.groupId)) + ' ใช่หรือไม่?', 'ลบ').then(function (r) {
+          if (!r) return; busy(true);
+          api('adminDeleteGroupTransaction', id).then(function () { busy(false); DB.tables.GroupTransactions = DB.tables.GroupTransactions.filter(function (x) { return x.id !== id; }); renderSide(); toast('ลบรายการแล้ว', 'ok'); show(VIEW, VIEW_ARG, true); }).catch(fail);
+        });
+      }
+    };
+  }
+  function setGtxStatus(id, st) {
+    busy(true);
+    api('adminSetGroupTransactionStatus', id, st).then(function (saved) { busy(false); upsertLocal('GroupTransactions', saved); renderSide(); toast(st === 'approved' ? 'อนุมัติแล้ว — นับเข้ายอดกองทุนกลุ่ม' : 'บันทึกว่าไม่อนุมัติ', 'ok'); show(VIEW, VIEW_ARG, true); }).catch(fail);
+  }
+
+  /* ---------- ฟอร์มบันทึกรายการกลุ่ม ---------- */
+  function gtxEditor(id, preset) {
+    var rec = id ? JSON.parse(JSON.stringify(findRec('GroupTransactions', id) || {})) : Object.assign({ date: todayIso(), type: 'deposit', category: 'share', status: 'approved' }, preset || {});
+    if (!rec.groupId) rec.groupId = (sortByOrder(rows('Groups'))[0] || {}).id || '';
+    var catOpts = function () { var c = gcats(rec.type); return Object.keys(c).map(function (k) { return { v: k, l: (GCAT_EMO[k] || '') + ' ' + c[k] }; }); };
+    var memOpts = function () { return groupMembers(rec.groupId).map(function (m) { return { v: m.id, l: m.memberNo + ' · ' + m.name + (truthy(m.active) ? '' : ' (ระงับ)') }; }); };
+    var fields = [
+      { k: 'groupId', l: 'กลุ่มอาชีพ', t: 'select', req: true, opts: groupOpts },
+      { row: [{ k: 'type', l: 'ประเภท', t: 'select', req: true, opts: [{ v: 'deposit', l: '➕ รายรับ (เงินเข้ากองทุน)' }, { v: 'withdraw', l: '➖ รายจ่าย (เงินออกจากกองทุน)' }] }, { k: 'category', l: 'หมวด', t: 'select', req: true, opts: catOpts }] },
+      { k: 'memberId', l: 'สมาชิก (ผู้ส่งเงินสัจจะ / ผู้รับเงิน)', t: 'select', opts: memOpts, hint: 'จำเป็นสำหรับหมวด “เงินสัจจะสมาชิก” — หมวดอื่นไม่ต้องระบุก็ได้' },
+      { row: [{ k: 'amount', l: 'จำนวนเงิน (บาท)', t: 'number', req: true }, { k: 'date', l: 'วันที่', t: 'date', req: true }] },
+      { k: 'note', l: 'หมายเหตุ', t: 'text', ph: 'เช่น ขายเชือกกล้วยตลาดนัด, ซื้อเมล็ดพันธุ์' },
+      { k: 'status', l: 'สถานะ', t: 'select', req: true, opts: [{ v: 'approved', l: 'อนุมัติแล้ว (นับเข้ายอด)' }, { v: 'pending', l: 'รอตรวจสอบ' }, { v: 'rejected', l: 'ไม่อนุมัติ' }] }
+    ];
+    openDrawer(id ? 'แก้ไขรายการเงินกลุ่ม' : 'บันทึกรายการเงินกลุ่ม', '<form id="gtxForm" onsubmit="return false">' + formHtml(fields, rec) +
+      (rec.slipUrl ? '<p><a href="' + esc(rec.slipUrl) + '" target="_blank" rel="noopener">📎 เปิดดูสลิปที่แนบมา</a></p>' : '') + '<div class="sub" id="gtxBal"></div></form>',
+      '<button class="btn ghost" data-close-drawer>ยกเลิก</button><button class="btn" id="gtxSave">💾 บันทึก</button>');
+    var ctx = $('#drawerBody');
+    var fill = function (k, opts, cur, blank) { var el = $('[data-k=' + k + ']', ctx); el.innerHTML = (blank ? '<option value="">— ไม่ระบุ —</option>' : '') + opts.map(function (o) { return '<option value="' + esc(o.v) + '"' + (o.v === cur ? ' selected' : '') + '>' + esc(o.l) + '</option>'; }).join(''); };
+    var showBal = function () { $('#gtxBal').textContent = rec.groupId ? 'ยอดกองทุนกลุ่มคงเหลือปัจจุบัน: ' + baht(gBal(rec.groupId).balance) + ' บาท' : ''; };
+    $('[data-k=groupId]', ctx).onchange = function () { rec.groupId = this.value; fill('memberId', memOpts(), '', true); showBal(); };
+    $('[data-k=type]', ctx).onchange = function () { rec.type = this.value; fill('category', catOpts(), rec.type === 'withdraw' ? 'expense' : 'share', false); };
+    showBal();
+    $('#gtxSave').onclick = function () {
+      var r = readForm(ctx, fields, {});
+      if (r.missing.length) { toast('กรุณากรอก: ' + r.missing.join(', '), 'err'); return; }
+      if (!(nnum(r.data.amount) > 0)) { toast('จำนวนเงินต้องมากกว่า 0', 'err'); return; }
+      if (r.data.type === 'deposit' && r.data.category === 'share' && !r.data.memberId) { toast('เงินสัจจะต้องระบุสมาชิกผู้ส่ง', 'err'); return; }
+      if (id) r.data.id = id;
+      busy(true);
+      api('adminSaveGroupTransaction', r.data).then(function (saved) { busy(false); upsertLocal('GroupTransactions', saved); closeDrawer(); renderSide(); toast('บันทึกรายการเรียบร้อย', 'ok'); show(VIEW, VIEW_ARG, true); }).catch(fail);
+    };
+  }
+
+  /* ---------- ตั้งค่ากองทุนกลุ่ม ---------- */
+  function gsetEditor(gid) {
+    var g = groupOf(gid);
+    var fields = [
+      { row: [{ k: 'monthlyShare', l: 'เงินสัจจะต่อเดือน (บาท/คน)', t: 'number', hint: 'ใช้ตรวจว่าสมาชิกส่งครบแต่ละเดือนหรือไม่' }, { k: 'savingsGoal', l: 'เป้าหมายกองทุนกลุ่ม (บาท)', t: 'number' }] },
+      { k: 'treasurerId', l: 'เหรัญญิกกลุ่ม', t: 'select', opts: function () { return groupMembers(gid).filter(function (m) { return truthy(m.active); }).map(function (m) { return { v: m.id, l: m.memberNo + ' · ' + m.name }; }); }, hint: 'เหรัญญิกแจ้งรายรับ-รายจ่ายของกลุ่ม และดูการส่งเงินสัจจะของทุกคนได้ในระบบสมาชิก (รายการที่แจ้งยังต้องรออนุมัติ)' },
+      { k: 'savingsPublic', l: 'แสดงยอดเงินออมกลุ่มบนหน้าเว็บ (หน้ากลุ่มอาชีพ)', t: 'bool', def: false }
+    ];
+    openDrawer('ตั้งค่ากองทุนกลุ่ม: ' + g.name, '<form id="gsetForm" onsubmit="return false">' + formHtml(fields, g) + (groupMembers(gid).length ? '' : '<div class="note">ยังไม่มีสมาชิกในกลุ่มนี้ — กำหนดกลุ่มให้สมาชิกที่เมนู “สมาชิกกองทุน” ก่อนจึงจะเลือกเหรัญญิกได้</div>') + '</form>',
+      '<button class="btn ghost" data-close-drawer>ยกเลิก</button><button class="btn" id="gsetSave">💾 บันทึก</button>');
+    var ctx = $('#drawerBody');
+    $('#gsetSave').onclick = function () {
+      var r = readForm(ctx, fields, {});
+      busy(true);
+      api('adminSaveGroupSavings', gid, r.data).then(function (saved) { busy(false); upsertLocal('Groups', saved); closeDrawer(); toast('บันทึกการตั้งค่าแล้ว', 'ok'); show(VIEW, VIEW_ARG, true); }).catch(fail);
+    };
+  }
 
   /* ============================================================
    *  แบบฟอร์มออนไลน์ + คำตอบ

@@ -9,6 +9,7 @@
  *    - Transactions  รายการฝาก/ถอน แยก 3 บัญชี
  *    - Forms         แบบฟอร์มที่สร้างจากหลังบ้าน
  *    - FormResponses คำตอบแบบฟอร์ม
+ *  (เงินออมกลุ่มอาชีพอยู่ในไฟล์ GroupSavings.gs)
  * ============================================================
  */
 
@@ -148,6 +149,7 @@ function memberGetData(token) {
   return {
     member: publicMember_(m),
     groupName: group ? group.name : '',
+    group: memberGroupData_(m),
     balances: computeBalances_(txs),
     transactions: txs,
     forms: publicForms_().filter(function (f) { return f.status !== 'closed'; }),
@@ -192,25 +194,12 @@ function memberNotifyDeposit(token, payload) {
   var pending = readTable_('Transactions').filter(function (t) { return t.memberId === m.id && t.status === 'pending'; }).length;
   if (pending >= 20) throw new Error('มีรายการรอตรวจสอบจำนวนมาก กรุณารอเจ้าหน้าที่ตรวจสอบก่อน');
 
-  var slipFileId = '', slipUrl = '';
-  if (payload.slip && payload.slip.data) {
-    var mime = String(payload.slip.mimeType || '');
-    if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(mime) && mime !== 'application/pdf') throw new Error('สลิปต้องเป็นไฟล์ภาพหรือ PDF');
-    var bytes = Utilities.base64Decode(payload.slip.data);
-    if (bytes.length > MAX_SLIP_BYTES) throw new Error('ไฟล์สลิปใหญ่เกิน 5 MB');
-    var props = PropertiesService.getScriptProperties();
-    var folderId = props.getProperty('FOLDER_SLIPS') || props.getProperty('ROOT_FOLDER_ID');
-    var name = 'slip-' + String(m.memberNo).replace(/[^a-zA-Z0-9_-]/g, '') + '-' + date + '-' + new Date().getTime() + (mime === 'application/pdf' ? '.pdf' : '.jpg');
-    // สลิปเป็นข้อมูลส่วนบุคคล: ไม่แชร์สาธารณะ เปิดได้เฉพาะเจ้าของ Drive / ผู้ดูแล
-    var file = DriveApp.getFolderById(folderId).createFile(Utilities.newBlob(bytes, mime, name));
-    slipFileId = file.getId();
-    slipUrl = driveViewUrl_(slipFileId);
-  }
+  var slip = saveSlip_(payload.slip, String(m.memberNo).replace(/[^a-zA-Z0-9_-]/g, ''), date);
 
   var now = nowIso_();
   var rec = {
     id: newId_(), memberId: m.id, date: date, account: account, type: 'deposit', amount: String(amount),
-    note: String(payload.note || '').trim().substr(0, 300), slipFileId: slipFileId, slipUrl: slipUrl,
+    note: String(payload.note || '').trim().substr(0, 300), slipFileId: slip.slipFileId, slipUrl: slip.slipUrl,
     status: 'pending', recordedBy: 'member:' + m.memberNo, createdAt: now, updatedAt: now
   };
   var lock = LockService.getScriptLock();
@@ -229,6 +218,23 @@ function memberNotifyDeposit(token, payload) {
     } catch (err) { }
   }
   return { ok: true, id: rec.id };
+}
+
+/**
+ * บันทึกสลิปลงโฟลเดอร์ Slips (ไม่แชร์สาธารณะ เพราะเป็นข้อมูลส่วนบุคคล — เปิดได้เฉพาะเจ้าของ Drive / ผู้ดูแล)
+ * slip = { name, mimeType, data(base64) } หรือ null → คืน { slipFileId, slipUrl }
+ */
+function saveSlip_(slip, label, date) {
+  if (!slip || !slip.data) return { slipFileId: '', slipUrl: '' };
+  var mime = String(slip.mimeType || '');
+  if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(mime) && mime !== 'application/pdf') throw new Error('สลิปต้องเป็นไฟล์ภาพหรือ PDF');
+  var bytes = Utilities.base64Decode(slip.data);
+  if (bytes.length > MAX_SLIP_BYTES) throw new Error('ไฟล์สลิปใหญ่เกิน 5 MB');
+  var props = PropertiesService.getScriptProperties();
+  var folderId = props.getProperty('FOLDER_SLIPS') || props.getProperty('ROOT_FOLDER_ID');
+  var name = 'slip-' + label + '-' + date + '-' + new Date().getTime() + (mime === 'application/pdf' ? '.pdf' : '.jpg');
+  var file = DriveApp.getFolderById(folderId).createFile(Utilities.newBlob(bytes, mime, name));
+  return { slipFileId: file.getId(), slipUrl: driveViewUrl_(file.getId()) };
 }
 
 /* ------------------------------------------------------------

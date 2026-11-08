@@ -28,6 +28,8 @@ function getPublicData_() {
   var pub = function (r) { return r.published === '' || isTrue_(r.published); };
 
   var groups = readTable_('Groups').filter(pub).sort(byOrder_);
+  var groupSavings = publicGroupSavings_(groups);
+  groups.forEach(function (g) { delete g.treasurerId; });
 
   var news = readTable_('News').filter(pub).map(function (n) {
     try { n.images = n.images ? JSON.parse(n.images) : []; } catch (err) { n.images = []; }
@@ -63,7 +65,7 @@ function getPublicData_() {
   var data = {
     settings: settings, pages: pages, groups: groups, news: news, gallery: gallery,
     documents: documents, reports: reports, kpis: kpis, albums: albums, links: links, indicators: indicators, steps: steps,
-    forms: publicForms_(), accounts: accountLabels_(settings),
+    forms: publicForms_(), accounts: accountLabels_(settings), groupSavings: groupSavings,
     generatedAt: nowIso_()
   };
   cachePutBig_(key, JSON.stringify(data), PUBLIC_CACHE_TTL);
@@ -223,6 +225,8 @@ function adminGetAll(token) {
   });
   out.tables.Members = readTable_('Members').map(stripMember_);
   out.tables.Transactions = readTable_('Transactions');
+  out.tables.GroupTransactions = readTable_('GroupTransactions');
+  out.groupCats = GTX_CATS;
   out.accounts = accountLabels_(out.settings);
   if (user.role === 'admin') {
     out.tables.Users = readTable_('Users').map(stripSecret_);
@@ -306,6 +310,10 @@ function adminDelete(token, table, id, trashFile) {
   try {
     var row = getRow_(table, id);
     if (!row) return false;
+    if (table === 'Groups') {
+      var gtx = readTable_('GroupTransactions').filter(function (t) { return t.groupId === id; }).length;
+      if (gtx) throw new Error('กลุ่มนี้มีรายการเงินออมกลุ่ม ' + gtx + ' รายการ — ลบรายการเงินก่อน หรือซ่อนกลุ่มแทนการลบ');
+    }
     if (trashFile && row.fileId) {
       try { DriveApp.getFileById(row.fileId).setTrashed(true); } catch (err) { }
       if (table !== 'Media') {

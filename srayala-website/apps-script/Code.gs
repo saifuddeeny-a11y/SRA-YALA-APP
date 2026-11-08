@@ -38,7 +38,7 @@ var PUBLIC_CACHE_TTL = 600;
 var SCHEMA = {
   Settings:   ['key', 'value'],
   Pages:      ['id', 'title', 'subtitle', 'content', 'imageUrl', 'updatedAt'],
-  Groups:     ['id', 'name', 'shortName', 'location', 'members', 'memberProfile', 'summary', 'strengths', 'limitations', 'products', 'income', 'channels', 'detail', 'coverUrl', 'icon', 'order', 'published', 'updatedAt'],
+  Groups:     ['id', 'name', 'shortName', 'location', 'members', 'memberProfile', 'summary', 'strengths', 'limitations', 'products', 'income', 'channels', 'detail', 'coverUrl', 'icon', 'order', 'published', 'updatedAt', 'savingsGoal', 'monthlyShare', 'treasurerId', 'savingsPublic'],
   News:       ['id', 'title', 'subtitle', 'category', 'date', 'coverUrl', 'images', 'content', 'linkUrl', 'linkLabel', 'featured', 'published', 'order', 'createdAt', 'updatedAt'],
   Gallery:    ['id', 'section', 'url', 'fileId', 'caption', 'order', 'published', 'createdAt'],
   Documents:  ['id', 'kind', 'title', 'category', 'page', 'description', 'icon', 'url', 'fileId', 'fileName', 'mimeType', 'size', 'coverUrl', 'downloads', 'published', 'order', 'createdAt', 'updatedAt'],
@@ -55,6 +55,8 @@ var SCHEMA = {
   /* ---------- ระบบสมาชิกกองทุนออมทรัพย์และบัญชีฮัจย์-อุมเราะห์ ---------- */
   Members:      ['id', 'memberNo', 'name', 'phone', 'groupId', 'address', 'joinDate', 'savingsGoal', 'hajjGoal', 'umrahGoal', 'note', 'passwordHash', 'salt', 'mustChangePw', 'active', 'lastLogin', 'createdAt', 'updatedAt'],
   Transactions: ['id', 'memberId', 'date', 'account', 'type', 'amount', 'note', 'slipFileId', 'slipUrl', 'status', 'recordedBy', 'createdAt', 'updatedAt'],
+  /* ---------- ระบบออมทรัพย์กลุ่มอาชีพ (กองทุนกลางของกลุ่ม) ---------- */
+  GroupTransactions: ['id', 'groupId', 'date', 'type', 'category', 'amount', 'memberId', 'note', 'slipFileId', 'slipUrl', 'status', 'recordedBy', 'createdAt', 'updatedAt'],
   /* ---------- แบบฟอร์มออนไลน์ (บันทึกลง Google Sheet) ---------- */
   Forms:        ['id', 'title', 'description', 'icon', 'audience', 'fields', 'status', 'successMessage', 'order', 'published', 'createdAt', 'updatedAt'],
   FormResponses:['id', 'formId', 'memberId', 'memberName', 'data', 'status', 'createdAt']

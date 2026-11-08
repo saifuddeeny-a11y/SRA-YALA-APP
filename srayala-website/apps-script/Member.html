@@ -143,6 +143,21 @@
   .facts div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
   .facts small { display: block; color: var(--muted); font-family: var(--font-head); font-size: 13px; }
   .facts b { font-family: var(--font-head); color: var(--brand-ink); font-weight: 600; word-break: break-word; }
+  .total.grp { background: radial-gradient(circle at 90% 0, rgba(243,207,116,.35), transparent 40%), linear-gradient(130deg, #2b4a1f, #4f7a2c); }
+  .months { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  @media (max-width: 420px) { .months { grid-template-columns: repeat(4, 1fr); } }
+  .months div { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 6px 4px; text-align: center; font-family: var(--font-head); font-size: 14px; color: #b9b3a3; }
+  .months div small { display: block; font-size: 12px; color: var(--muted); }
+  .months div.ok { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-ink); font-weight: 700; }
+  .months div.part { background: var(--accent-soft); border-color: var(--accent); color: #8a6512; }
+  .mtab { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .mtab th, .mtab td { padding: 7px 5px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+  .mtab th { font-family: var(--font-head); font-weight: 500; color: var(--muted); font-size: 12.5px; }
+  .mtab td:first-child, .mtab th:first-child { text-align: left; }
+  .mtab td small { display: block; color: var(--muted); font-size: 12px; }
+  .mtab td { color: #c9c4b5; } .mtab td:first-child, .mtab td:last-child { color: var(--ink); }
+  .mtab td.ok { background: var(--brand-soft); color: var(--brand-ink); font-weight: 700; }
+  .mtab td.part { background: var(--accent-soft); color: #8a6512; }
   .loading { min-height: 70vh; display: grid; place-items: center; text-align: center; color: var(--muted); }
   .print-head { display: none; }
   @media print {
@@ -218,7 +233,7 @@ var CFG = <?!= memberConfig ?>;
     root.innerHTML = '<div class="ml"><aside class="ml-side">' + brandBlock() +
       '<div><h1>ออมวันนี้ <span class="hl">เพื่อการเดินทาง</span>แห่งศรัทธา</h1>' +
       '<p>เข้าสู่ระบบเพื่อดูยอดเงินออม บัญชีฮัจย์ และบัญชีอุมเราะห์ของคุณ ติดตามความก้าวหน้าสู่เป้าหมาย และกรอกแบบฟอร์มของกองทุน</p>' +
-      '<div class="ml-feats"><div><span>💰</span>ยอดคงเหลือแยกตามบัญชี อัปเดตจากเจ้าหน้าที่</div><div><span>🎯</span>ความก้าวหน้าสู่เป้าหมายฮัจย์-อุมเราะห์</div><div><span>🧾</span>แจ้งฝากเงินพร้อมแนบสลิป</div><div><span>📝</span>แบบฟอร์มและบันทึกรายรับ-รายจ่าย</div></div></div>' +
+      '<div class="ml-feats"><div><span>💰</span>ยอดคงเหลือแยกตามบัญชี อัปเดตจากเจ้าหน้าที่</div><div><span>🎯</span>ความก้าวหน้าสู่เป้าหมายฮัจย์-อุมเราะห์</div><div><span>🧾</span>แจ้งฝากเงินพร้อมแนบสลิป</div><div><span>🧺</span>เงินออมกองทุนกลุ่มอาชีพและเงินสัจจะ</div><div><span>📝</span>แบบฟอร์มและบันทึกรายรับ-รายจ่าย</div></div></div>' +
       '<div class="ml-foot">' + esc(CFG.organization || '') + '</div></aside>' +
       '<main class="ml-main"><form class="ml-card" id="lf" novalidate autocomplete="on">' +
       '<h2>เข้าสู่ระบบสมาชิก</h2><p class="sub">กรอกรหัสสมาชิกและรหัสผ่านที่ได้รับจากเจ้าหน้าที่กองทุน</p>' +
@@ -295,7 +310,7 @@ var CFG = <?!= memberConfig ?>;
   /* ================================================================
    *  SHELL
    * ================================================================ */
-  var TABS = [['home', '🏠 ภาพรวม'], ['tx', '🧾 รายการเคลื่อนไหว'], ['deposit', '➕ แจ้งฝากเงิน'], ['forms', '📝 แบบฟอร์ม'], ['me', '👤 ข้อมูลของฉัน']];
+  var TABS = [['home', '🏠 ภาพรวม'], ['tx', '🧾 รายการเคลื่อนไหว'], ['deposit', '➕ แจ้งฝากเงิน'], ['group', '🧺 กลุ่มอาชีพ'], ['forms', '📝 แบบฟอร์ม'], ['me', '👤 ข้อมูลของฉัน']];
   function shell() {
     root.innerHTML = '<header class="mt"><div class="container"><a class="br" href="' + esc(BASE_URL) + '" target="_top">' + (CFG.logoUrl ? '<img src="' + esc(CFG.logoUrl) + '" alt="">' : '') +
       '<span><b>' + esc(CFG.fundName) + '</b><small>' + esc(CFG.siteName) + ' · ระบบสมาชิก</small></span></a>' +
@@ -307,8 +322,10 @@ var CFG = <?!= memberConfig ?>;
   }
   function drawTabs() {
     var pend = D.transactions.filter(function (t) { return t.status === 'pending'; }).length;
-    $('#tabs').innerHTML = TABS.filter(function (t) { return t[0] !== 'deposit' || CFG.allowDepositNotice; }).map(function (t) {
-      return '<a data-tab="' + t[0] + '" class="' + (TAB === t[0] || (TAB === 'form' && t[0] === 'forms') ? 'on' : '') + '">' + t[1] + (t[0] === 'tx' && pend ? '<span class="bd">' + pend + '</span>' : '') + '</a>';
+    var gpend = D.group ? D.group.transactions.filter(function (t) { return t.status === 'pending'; }).length : 0;
+    $('#tabs').innerHTML = TABS.filter(function (t) { return (t[0] !== 'deposit' || CFG.allowDepositNotice) && (t[0] !== 'group' || D.group); }).map(function (t) {
+      var badge = t[0] === 'tx' ? pend : t[0] === 'group' ? gpend : 0;
+      return '<a data-tab="' + t[0] + '" class="' + (TAB === t[0] || (TAB === 'form' && t[0] === 'forms') || (TAB === 'gsend' && t[0] === 'group') ? 'on' : '') + '">' + t[1] + (badge ? '<span class="bd">' + badge + '</span>' : '') + '</a>';
     }).join('');
   }
   function show(tab, arg, keep) {
@@ -421,9 +438,8 @@ var CFG = <?!= memberConfig ?>;
       r.readAsDataURL(file);
     });
   }
-  BIND.deposit = function () {
-    var f = $('#df'); if (!f) return;
-    var box = $('#slip');
+  /** กล่องเลือกไฟล์สลิป — เรียก onChange(slip | null) เมื่อเลือก/นำออก */
+  function slipPicker(box, onChange) {
     var pick = function () {
       var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,application/pdf';
       inp.onchange = function () {
@@ -431,18 +447,22 @@ var CFG = <?!= memberConfig ?>;
         if (file.size > 12 * 1048576) { toast('ไฟล์ใหญ่เกินไป', 'err'); return; }
         box.innerHTML = '<span class="spinner"></span> กำลังเตรียมไฟล์...';
         shrink(file).then(function (s) {
-          if (s.data.length * 0.75 > 5 * 1048576) { slip = null; box.innerHTML = '✕ ไฟล์ใหญ่เกิน 5 MB — คลิกเพื่อเลือกใหม่'; return; }
-          slip = s;
+          if (s.data.length * 0.75 > 5 * 1048576) { onChange(null); box.innerHTML = '✕ ไฟล์ใหญ่เกิน 5 MB — คลิกเพื่อเลือกใหม่'; return; }
+          onChange(s);
           box.innerHTML = '✓ ' + esc(file.name) + ' <a href="#" data-rm>นำออก</a>' + (s.preview ? '<img src="' + s.preview + '" alt="ตัวอย่างสลิป">' : '');
         }).catch(function () { box.textContent = '✕ อ่านไฟล์ไม่ได้ — คลิกเพื่อเลือกใหม่'; });
       };
       inp.click();
     };
     box.addEventListener('click', function (e) {
-      if (e.target.closest('[data-rm]')) { e.preventDefault(); e.stopPropagation(); slip = null; box.textContent = '📎 คลิกเพื่อเลือกภาพสลิป หรือไฟล์ PDF (ไม่เกิน 5 MB)'; return; }
+      if (e.target.closest('[data-rm]')) { e.preventDefault(); e.stopPropagation(); onChange(null); box.textContent = '📎 คลิกเพื่อเลือกภาพสลิป หรือไฟล์ PDF (ไม่เกิน 5 MB)'; return; }
       pick();
     });
     box.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+  }
+  BIND.deposit = function () {
+    var f = $('#df'); if (!f) return;
+    slipPicker($('#slip'), function (s) { slip = s; });
     var syncAcc = function () { $$('.acc-pick label', f).forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); }); };
     $$('.acc-pick input', f).forEach(function (i) { i.addEventListener('change', syncAcc); }); syncAcc();
     f.addEventListener('submit', function (e) {
@@ -456,6 +476,111 @@ var CFG = <?!= memberConfig ?>;
         .then(function () { toast('ส่งแจ้งฝากเงินเรียบร้อย รอเจ้าหน้าที่ตรวจสอบ', 'ok'); return refresh(); })
         .then(function () { show('tx'); })
         .catch(function (er) { b.disabled = false; b.textContent = 'ส่งแจ้งฝากเงิน'; toast(er.message, 'err'); });
+    });
+  };
+
+  /* ---------- กลุ่มอาชีพ (กองทุนกลุ่ม) ---------- */
+  var GCAT_ICON = { share: '🤝', income: '🛒', support: '🎁', repay: '↩️', expense: '🧵', lend: '🤲', welfare: '❤️', dividend: '💸', other: '📌' };
+  var gYear = String(new Date().getFullYear());
+  function gcatName(t) { var c = ((D.group || {}).cats || {})[t.type === 'withdraw' ? 'withdraw' : 'deposit'] || {}; return c[t.category] || t.category || ''; }
+  function gtxRow(t) {
+    var w = t.type === 'withdraw', st = t.status || 'approved';
+    var cls = 'tx' + (w ? ' w' : '') + (st === 'pending' ? ' p' : st === 'rejected' ? ' r' : '');
+    return '<div class="' + cls + '"><div class="ic">' + (GCAT_ICON[t.category] || '🧺') + '</div><div><div class="t">' + esc(gcatName(t)) + (t.mine ? ' · ของฉัน' : '') +
+      (st === 'pending' ? '<span class="pill p">รอตรวจสอบ</span>' : st === 'rejected' ? '<span class="pill r">ไม่อนุมัติ</span>' : '') + '</div>' +
+      '<div class="s">' + thDate(t.date) + (t.memberName && !t.mine ? ' · ' + esc(t.memberName) : '') + (t.note ? ' · ' + esc(t.note) : '') + (t.hasSlip ? ' · 📎 แนบสลิป' : '') + '</div></div>' +
+      '<div class="a">' + (w ? '−' : '+') + money(t.amount) + '</div></div>';
+  }
+  function monthsHtml(months, share) {
+    return '<div class="months">' + TM.map(function (m, i) {
+      var v = num(months[gYear + '-' + ('0' + (i + 1)).slice(-2)]);
+      var ok = v && (!share || v >= share);
+      return '<div class="' + (v ? (ok ? 'ok' : 'part') : '') + '" title="' + (v ? money(v) + ' บาท' : 'ยังไม่ส่ง') + '"><small>' + m + '</small>' + (v ? (ok ? '✓' : money(v)) : '—') + '</div>';
+    }).join('') + '</div>';
+  }
+  function yearSum(months) { return Object.keys(months || {}).filter(function (k) { return k.indexOf(gYear) === 0; }).reduce(function (s, k) { return s + num(months[k]); }, 0); }
+  VIEWS.group = function (arg) {
+    var G = D.group;
+    if (!G) return '<div class="panel"><div class="empty">บัญชีของคุณยังไม่ได้อยู่ในกลุ่มอาชีพ กรุณาติดต่อเจ้าหน้าที่กองทุน</div></div>';
+    var g = G.group, b = G.balance, share = num(g.monthlyShare);
+    var ym = today().substr(0, 7), paidNow = num(G.mine.months[ym]);
+    var recent = arg === 'all' ? G.transactions : G.transactions.slice(0, 12);
+    var h = '<div class="hello"><div><h2>' + esc((g.icon ? g.icon + ' ' : '') + g.name) + '</h2><p>' + (g.location ? esc(g.location) + ' · ' : '') + 'สมาชิก ' + G.memberCount + ' คน' + (g.treasurerName ? ' · เหรัญญิก ' + esc(g.treasurerName) : '') + (G.isTreasurer ? ' <span class="pill p">คุณเป็นเหรัญญิกกลุ่ม</span>' : '') + '</p></div>' +
+      (CFG.allowDepositNotice ? '<div class="row"><button class="btn accent" data-tab="gsend">🤝 ส่งเงินสัจจะ</button>' + (G.isTreasurer ? '<button class="btn" data-tab="gsend" data-arg="book">📒 บันทึกรายรับ-รายจ่ายกลุ่ม</button>' : '') + '</div>' : '') + '</div>' +
+      '<div class="total grp"><div class="k">เงินออมกองทุนกลุ่ม</div><div class="v">' + money(b.balance) + '<small>บาท</small></div><div class="n">รายรับสะสม ' + money(b.deposit) + ' · รายจ่ายสะสม ' + money(b.withdraw) + ' บาท · นับเฉพาะรายการที่เจ้าหน้าที่ตรวจสอบแล้ว</div></div>' +
+      (g.savingsGoal ? '<div class="panel"><h3>🎯 เป้าหมายกองทุนกลุ่ม</h3>' + goalHtml(b.balance, g.savingsGoal) + '</div>' : '') +
+      '<div class="grid2">' +
+      '<div class="panel"><h3>🤝 เงินสัจจะของฉัน</h3><div class="sumrow" style="grid-template-columns:1fr 1fr"><div><small>ส่งแล้วปี ' + (Number(gYear) + 543) + '</small><b>' + money(yearSum(G.mine.months)) + '</b></div><div><small>สะสมทั้งหมด</small><b>' + money(G.mine.total) + '</b></div></div>' +
+      (share ? '<p class="muted" style="margin:-4px 0 10px;font-size:14.5px">กลุ่มกำหนดเงินสัจจะ <b>' + money(share) + ' บาท/เดือน</b> · เดือนนี้' + (paidNow >= share ? ' <b style="color:var(--ok)">ส่งครบแล้ว ✓</b>' : (paidNow ? 'ส่งแล้ว ' + money(paidNow) + ' บาท' : ' <b style="color:#8a6512">ยังไม่ได้ส่ง</b>')) + '</p>' : '') +
+      (G.mine.pending ? '<div class="pend" style="margin-bottom:10px">⏳ รอตรวจสอบ ' + money(G.mine.pending) + ' บาท</div>' : '') + monthsHtml(G.mine.months, share) + '</div>' +
+      '<div class="panel"><h3>📊 สรุปกองทุนกลุ่ม</h3>' + catList(b.cats.deposit, 'deposit', 'รายรับ') + catList(b.cats.withdraw, 'withdraw', 'รายจ่าย') + '</div></div>';
+    if (G.isTreasurer && G.members) {
+      h += '<div class="panel"><div class="row between" style="margin-bottom:10px"><h3 style="margin:0">👥 การส่งเงินสัจจะของสมาชิก ปี ' + (Number(gYear) + 543) + '</h3><span class="muted" style="font-size:13.5px">เห็นเฉพาะเหรัญญิก</span></div><div style="overflow-x:auto"><table class="mtab"><thead><tr><th>สมาชิก</th>' +
+        TM.map(function (m) { return '<th>' + m + '</th>'; }).join('') + '<th>รวมปีนี้</th></tr></thead><tbody>' + G.members.map(function (x) {
+          return '<tr><td><b>' + esc(x.name) + '</b><small>' + esc(x.memberNo) + '</small></td>' + TM.map(function (_, i) {
+            var v = num(x.months[gYear + '-' + ('0' + (i + 1)).slice(-2)]), ok = v && (!share || v >= share);
+            return '<td class="' + (v ? (ok ? 'ok' : 'part') : '') + '">' + (v ? (ok ? '✓' : money(v)) : '·') + '</td>';
+          }).join('') + '<td><b>' + money(yearSum(x.months)) + '</b></td></tr>';
+        }).join('') + '</tbody></table></div></div>';
+    }
+    h += '<div class="panel"><h3>🧾 รายการเงินของกลุ่มล่าสุด</h3>' + (recent.length ? recent.map(gtxRow).join('') : '<div class="empty">ยังไม่มีรายการเงินของกลุ่ม</div>') +
+      (G.transactions.length > recent.length ? '<p style="margin:12px 0 0;text-align:center"><a href="#" data-tab="group" data-arg="all">ดูทั้งหมด ' + G.transactions.length + ' รายการ →</a></p>' : '') + '</div>';
+    return h;
+  };
+  function catList(c, type, label) {
+    var keys = Object.keys(c || {});
+    if (!keys.length) return '<p class="muted" style="font-size:14.5px;margin:0 0 10px">' + label + ': ยังไม่มีรายการ</p>';
+    return '<div style="margin-bottom:12px"><small class="muted" style="font-family:var(--font-head)">' + label + '</small>' + keys.sort(function (a, b) { return c[b] - c[a]; }).map(function (k) {
+      return '<div class="row between" style="padding:6px 0;border-bottom:1px dashed var(--line)"><span>' + (GCAT_ICON[k] || '') + ' ' + esc(gcatName({ type: type, category: k })) + '</span><b style="font-family:var(--font-head);color:' + (type === 'withdraw' ? 'var(--danger)' : 'var(--ok)') + '">' + money(c[k]) + '</b></div>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- ส่งเงินสัจจะ / เหรัญญิกบันทึกรายรับ-รายจ่ายกลุ่ม ---------- */
+  var gslip = null;
+  VIEWS.gsend = function (arg) {
+    var G = D.group;
+    if (!G) return VIEWS.group();
+    if (!CFG.allowDepositNotice) return '<div class="panel"><div class="empty">ขณะนี้ปิดการแจ้งเงินออนไลน์ กรุณาติดต่อเหรัญญิกกลุ่มหรือเจ้าหน้าที่กองทุน</div></div>';
+    gslip = null;
+    var book = arg === 'book' && G.isTreasurer, share = num(G.group.monthlyShare);
+    var catSel = function (type) { var c = G.cats[type] || {}; return Object.keys(c).map(function (k) { return '<option value="' + k + '">' + (GCAT_ICON[k] || '') + ' ' + esc(c[k]) + '</option>'; }).join(''); };
+    return '<p><a href="#" data-tab="group">← กลุ่มอาชีพของฉัน</a></p><div class="panel" style="max-width:720px">' +
+      (book ? '<h3>📒 บันทึกรายรับ-รายจ่ายของกลุ่ม</h3><p class="muted" style="margin-top:-6px">สำหรับเหรัญญิก — แจ้งรายได้จากการขาย เงินสนับสนุน ค่าวัตถุดิบ หรือเงินสัจจะที่รับจากสมาชิก เจ้าหน้าที่จะตรวจสอบก่อนนับเข้ายอดกองทุน</p>'
+        : '<h3>🤝 ส่งเงินสัจจะกลุ่ม</h3><p class="muted" style="margin-top:-6px">แจ้งการโอนหรือส่งเงินสัจจะเข้ากองทุน ' + esc(G.group.name) + ' เจ้าหน้าที่จะตรวจสอบและอนุมัติ ยอดจึงจะเข้ากองทุนกลุ่ม</p>') +
+      '<form id="gf" novalidate>' +
+      (book ? '<div class="acc-pick" style="grid-template-columns:1fr 1fr" role="radiogroup" aria-label="ประเภท"><label><input type="radio" name="type" value="deposit" checked><span>➕</span>รายรับ</label><label><input type="radio" name="type" value="withdraw"><span>➖</span>รายจ่าย</label></div>' +
+        '<div class="grid2"><label class="fld"><span>หมวด *</span><select class="sel" name="cat" style="border-radius:12px;width:100%">' + catSel('deposit') + '</select></label>' +
+        '<label class="fld"><span>สมาชิก (ผู้ส่งเงินสัจจะ / ผู้รับเงิน)</span><select class="sel" name="mem" style="border-radius:12px;width:100%"><option value="">— ไม่ระบุ —</option>' + (G.members || []).map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.memberNo + ' · ' + x.name) + '</option>'; }).join('') + '</select></label></div>' : '') +
+      '<div class="grid2"><label class="fld"><span>จำนวนเงิน (บาท) *</span><input name="amt" type="number" inputmode="decimal" min="1" step="any" required placeholder="0" value="' + (book || !share ? '' : share) + '"></label>' +
+      '<label class="fld"><span>วันที่ *</span><input name="date" type="date" required value="' + today() + '" max="' + today() + '"></label></div>' +
+      '<label class="fld"><span>หมายเหตุ</span><input name="note" maxlength="300" placeholder="' + (book ? 'เช่น ขายผลผลิตที่ตลาดนัด, ซื้อวัตถุดิบ' : 'เช่น เงินสัจจะเดือนนี้, โอนผ่านธนาคาร') + '"></label>' +
+      '<div class="fld"><span>แนบสลิป / หลักฐาน (ไม่บังคับ)</span><div class="slip" id="gslip" tabindex="0">📎 คลิกเพื่อเลือกภาพสลิป หรือไฟล์ PDF (ไม่เกิน 5 MB)</div></div>' +
+      '<button class="btn" type="submit" id="gbtn">' + (book ? 'ส่งรายการให้เจ้าหน้าที่ตรวจสอบ' : 'ส่งแจ้งเงินสัจจะ') + '</button></form></div>';
+  };
+  BIND.gsend = function (v, arg) {
+    var f = $('#gf'); if (!f) return;
+    var book = arg === 'book' && D.group.isTreasurer;
+    slipPicker($('#gslip'), function (s) { gslip = s; });
+    if (book) {
+      var syncType = function () {
+        var t = (f.querySelector('input[name=type]:checked') || {}).value || 'deposit', c = D.group.cats[t] || {};
+        f.cat.innerHTML = Object.keys(c).map(function (k) { return '<option value="' + k + '">' + (GCAT_ICON[k] || '') + ' ' + esc(c[k]) + '</option>'; }).join('');
+        $$('.acc-pick label', f).forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
+      };
+      $$('input[name=type]', f).forEach(function (i) { i.addEventListener('change', syncType); }); syncType();
+    }
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var amt = num(f.amt.value);
+      if (!(amt > 0)) { toast('กรุณากรอกจำนวนเงิน', 'err'); f.amt.focus(); return; }
+      if (!f.date.value) { toast('กรุณาระบุวันที่', 'err'); return; }
+      var p = { amount: amt, date: f.date.value, note: f.note.value, slip: gslip ? { name: gslip.name, mimeType: gslip.mimeType, data: gslip.data } : null };
+      if (book) { p.type = (f.querySelector('input[name=type]:checked') || {}).value; p.category = f.cat.value; p.memberId = f.mem.value; }
+      var b = $('#gbtn'), label = b.textContent; b.disabled = true; b.innerHTML = spin() + ' กำลังส่ง...';
+      api('memberNotifyGroupTransaction', p)
+        .then(function () { toast('ส่งรายการเรียบร้อย รอเจ้าหน้าที่ตรวจสอบ', 'ok'); return refresh(); })
+        .then(function () { show('group'); })
+        .catch(function (er) { b.disabled = false; b.textContent = label; toast(er.message, 'err'); });
     });
   };
 
