@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SRA Savings — ออมทรัพย์กลุ่มอาชีพ และคลินิกแก้หนี้</title>
+<meta name="description" content="บันทึกเงินออม ฝาก-ถอน รายรับ-รายจ่ายกลุ่มอาชีพ แดชบอร์ด คลินิกแก้หนี้ และผู้ช่วยการเงิน">
+<meta name="theme-color" content="#0f5e4b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SRA Savings">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://script.google.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600&family=Sarabun:wght@400;500&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+  :root { --brand: #0f5e4b; --brand-ink: #0a3f33; --gold: #f3cf74; --accent: #c79a2b; --font: 'Sarabun', Tahoma, sans-serif; --font-head: 'Prompt', 'Sarabun', sans-serif;
+    --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--brand-ink); font-family: var(--font); color: #fff; overscroll-behavior: none; }
+  [hidden] { display: none !important; }
+  #frame { position: fixed; left: 0; right: 0; bottom: 0; top: var(--safe-t); width: 100%; height: calc(100% - var(--safe-t)); border: 0; background: #f6f5f0; }
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 30px 22px; text-align: center;
+    background: radial-gradient(circle at 85% 0, rgba(243,207,116,.28), transparent 45%), linear-gradient(160deg, var(--brand), var(--brand-ink)); transition: opacity .35s; }
+  .screen.out { opacity: 0; pointer-events: none; }
+  .screen img { width: 104px; height: 104px; border-radius: 26px; box-shadow: 0 12px 34px rgba(0,0,0,.3); }
+  .screen h1 { margin: 0; font-family: var(--font-head); font-size: 25px; font-weight: 600; }
+  .screen p { margin: 0; opacity: .88; max-width: 34ch; line-height: 1.6; }
+  .dots { display: flex; gap: 7px; } .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); animation: d 1.1s infinite ease-in-out; }
+  .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes d { 0%, 80%, 100% { transform: scale(.5); opacity: .4; } 40% { transform: scale(1); opacity: 1; } }
+  .btn { border: 0; border-radius: 999px; padding: 12px 24px; font-family: var(--font-head); font-size: 16px; cursor: pointer; background: var(--gold); color: #231803; text-decoration: none; display: inline-block; }
+  .btn.light { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.35); }
+  .box { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 16px; padding: 14px 16px; text-align: left; font-size: 14.5px; line-height: 1.7; max-width: 440px; }
+  .box code { background: rgba(0,0,0,.25); padding: 1px 6px; border-radius: 6px; }
+  #install { position: fixed; z-index: 20; left: 50%; transform: translateX(-50%); bottom: calc(86px + var(--safe-b)); background: #1d2a25; color: #fff; border-radius: 14px; padding: 10px 12px 10px 16px;
+    display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.35); width: min(440px, calc(100% - 24px)); font-size: 14.5px; }
+  #install .btn { padding: 8px 16px; font-size: 14.5px; }
+  #install .x { background: none; border: 0; color: #fff; opacity: .7; font-size: 18px; cursor: pointer; }
+</style>
+</head>
+<body>
+<iframe id="frame" title="SRA Savings" allow="clipboard-write" hidden></iframe>
+
+<div class="screen" id="splash">
+  <img src="icons/icon-192.png" alt="">
+  <h1 id="appName">SRA Savings</h1>
+  <p id="appOrg">ระบบออมทรัพย์กลุ่มอาชีพ และคลินิกแก้หนี้</p>
+  <div class="dots" id="dots"><i></i><i></i><i></i></div>
+  <p id="slow" hidden style="font-size:14px">อินเทอร์เน็ตช้า กำลังเชื่อมต่อ...<br><button class="btn light" style="margin-top:10px" onclick="location.reload()">ลองใหม่</button></p>
+</div>
+
+<div class="screen" id="setup" hidden>
+  <img src="icons/icon-192.png" alt="">
+  <h1>ตั้งค่าแอปครั้งแรก</h1>
+  <div class="box">ยังไม่ได้ใส่ลิงก์ระบบ ให้ผู้ดูแลเปิดไฟล์ <code>config.js</code> แล้ววางลิงก์ Web App (ลงท้ายด้วย <code>/exec</code>) ที่ <code>APP_URL</code> แล้วอัปโหลดใหม่<br>ดูขั้นตอนใน README ของแอป</div>
+  <a class="btn" href="demo/index.html?app=1" id="demoBtn">ทดลองใช้ด้วยข้อมูลตัวอย่าง</a>
+  <p style="font-size:13.5px">สมาชิก M001 / PIN 1234 · เจ้าหน้าที่ officer1 / demo12345</p>
+</div>
+
+<div class="screen" id="offline" hidden>
+  <div style="font-size:54px">📶</div>
+  <h1>ไม่มีการเชื่อมต่ออินเทอร์เน็ต</h1>
+  <p>แอปต้องใช้อินเทอร์เน็ตเพื่อโหลดข้อมูลล่าสุดจาก Google Sheet ข้อมูลของคุณยังปลอดภัยอยู่ในระบบ</p>
+  <button class="btn" onclick="location.reload()">ลองอีกครั้ง</button>
+</div>
+
+<div id="install" hidden><span style="flex:1" id="installTxt">ติดตั้งแอปไว้บนหน้าจอ เปิดได้เร็วเหมือนแอปทั่วไป</span><button class="btn" id="installBtn">ติดตั้ง</button><button class="x" id="installX" aria-label="ปิด">✕</button></div>
+
+<script>
+(function () {
+  'use strict';
+  var C = window.SAVINGS_APP || {};
+  var $ = function (id) { return document.getElementById(id); };
+  if (C.NAME) { $('appName').textContent = C.NAME; document.title = C.NAME; }
+  if (C.ORG) $('appOrg').textContent = C.ORG;
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  function hideSplash() { $('splash').classList.add('out'); setTimeout(function () { $('splash').hidden = true; }, 400); }
+
+  if (!C.APP_URL) {
+    $('splash').hidden = true; $('setup').hidden = false;
+  } else if (!navigator.onLine) {
+    $('splash').hidden = true; $('offline').hidden = false;
+  } else {
+    var url = C.APP_URL + (C.APP_URL.indexOf('?') === -1 ? '?' : '&') + 'app=1';
+    var f = $('frame');
+    f.onload = function () { f.hidden = false; hideSplash(); };
+    f.src = url;
+    setTimeout(function () { if (!$('splash').hidden) { $('dots').hidden = true; $('slow').hidden = false; } }, 15000);
+  }
+  window.addEventListener('offline', function () { if (C.APP_URL) $('offline').hidden = false; });
+  window.addEventListener('online', function () { $('offline').hidden = true; });
+
+  /* ---------- ชวนติดตั้งแอป ---------- */
+  var deferred = null, dismissed = false;
+  try { dismissed = localStorage.getItem('ss_install_x') === '1'; } catch (e) { }
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault(); deferred = e;
+    if (!dismissed && !standalone) $('install').hidden = false;
+  });
+  var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  if (ios && !standalone && !dismissed) {
+    setTimeout(function () { $('installTxt').innerHTML = 'ติดตั้งบน iPhone: กด <b>แชร์</b> ⎋ แล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b>'; $('installBtn').hidden = true; $('install').hidden = false; }, 4000);
+  }
+  $('installBtn').onclick = function () {
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function () { deferred = null; $('install').hidden = true; });
+  };
+  $('installX').onclick = function () { $('install').hidden = true; try { localStorage.setItem('ss_install_x', '1'); } catch (e) { } };
+  window.addEventListener('appinstalled', function () { $('install').hidden = true; });
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { }); });
+  }
+})();
+</script>
+</body>
+</html>

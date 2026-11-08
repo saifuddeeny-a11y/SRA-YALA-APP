@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f5e4b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #0f5e4b; --brand-ink: #0a3f33; --brand-soft: #e3efe9; --accent: #c79a2b; --accent-soft: #fbf1d8;
+    --bg: #f6f5f0; --surface: #ffffff; --surface-2: #faf9f5; --ink: #1d2a25; --ink-2: #3c4a44; --muted: #66756e; --line: #e3e6e0;
+    --ok: #1d7a4f; --warn: #a86b00; --danger: #b3382c; --ok-soft: #e1f3e9; --warn-soft: #fdf0d5; --danger-soft: #fbe7e4;
+    --s1: #2a78d6; --s2: #eb6834;
+    --radius: 16px; --shadow: 0 6px 22px rgba(20, 40, 32, .07);
+    --font: 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif; --font-head: 'Prompt', 'Sarabun', sans-serif;
+    --nav-h: 66px; --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.55; }
+  body { min-height: 100vh; }
+  [hidden] { display: none !important; }
+  h1, h2, h3, h4 { font-family: var(--font-head); font-weight: 600; margin: 0 0 8px; line-height: 1.3; color: var(--ink); }
+  h2 { font-size: 21px; } h3 { font-size: 17px; }
+  a { color: var(--brand); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .muted { color: var(--muted); } .small { font-size: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .between { justify-content: space-between; }
+  .grow { flex: 1; min-width: 0; }
+
+  /* ---------- ปุ่ม / ฟอร์ม ---------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 999px; padding: 10px 18px; background: var(--brand); color: #fff;
+    font-family: var(--font-head); font-size: 15px; cursor: pointer; text-decoration: none; white-space: nowrap; min-height: 42px; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.sm { padding: 6px 13px; font-size: 14px; min-height: 34px; }
+  .btn.ghost { background: transparent; color: var(--brand); border: 1.5px solid var(--line); }
+  .btn.gold { background: var(--accent); color: #231803; }
+  .btn.red { background: var(--danger); }
+  .btn.block { width: 100%; }
+  .icon-btn { border: 0; background: var(--surface-2); border: 1px solid var(--line); width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+  .fld { display: grid; gap: 5px; margin-bottom: 13px; }
+  .fld > span { font-family: var(--font-head); font-size: 14px; color: var(--ink-2); }
+  .fld input, .fld select, .fld textarea, .inp { width: 100%; padding: 11px 13px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; font-size: 16px; }
+  .fld textarea { resize: vertical; min-height: 76px; }
+  .fld input:focus, .fld select:focus, .fld textarea:focus, .inp:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+  .hint { font-size: 13px; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 4px; gap: 4px; margin-bottom: 14px; }
+  .seg button { border: 0; background: none; padding: 9px 6px; border-radius: 10px; font-family: var(--font-head); font-size: 15px; cursor: pointer; color: var(--ink-2); }
+  .seg button.on { background: var(--surface); color: var(--brand-ink); box-shadow: 0 1px 4px rgba(0,0,0,.08); font-weight: 600; }
+  .seg button.on.dep { color: var(--ok); } .seg button.on.wd { color: var(--danger); }
+  .switch { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; margin-bottom: 12px; }
+  .switch input { width: 20px; height: 20px; accent-color: var(--brand); }
+
+  /* ---------- เข้าสู่ระบบ ---------- */
+  .login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+    background: radial-gradient(circle at 90% 0, rgba(243, 207, 116, .3), transparent 42%), linear-gradient(160deg, var(--brand), var(--brand-ink)); }
+  .login .card { width: min(420px, 100%); background: #fff; border-radius: 22px; padding: 26px 22px; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+  .login .logo { width: 62px; height: 62px; border-radius: 18px; background: var(--brand-soft); display: grid; place-items: center; font-size: 32px; margin-bottom: 12px; }
+  .msg { padding: 10px 13px; border-radius: 12px; font-size: 14.5px; margin-bottom: 12px; }
+  .msg.err { background: var(--danger-soft); color: var(--danger); } .msg.ok { background: var(--ok-soft); color: var(--ok); } .msg.info { background: var(--brand-soft); color: var(--brand-ink); }
+
+  /* ---------- โครงแอป ---------- */
+  .top { position: sticky; top: 0; z-index: 30; background: rgba(246, 245, 240, .94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .top .in { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; min-height: 58px; }
+  .top .ttl { flex: 1; min-width: 0; }
+  .top .ttl b { font-family: var(--font-head); font-size: 17.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .top .ttl small { color: var(--muted); font-size: 13px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .back { border: 0; background: var(--surface); border: 1px solid var(--line); width: 38px; height: 38px; border-radius: 12px; cursor: pointer; font-size: 18px; flex: none; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px 16px calc(var(--nav-h) + var(--safe-b) + 90px); }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #fff; border-top: 1px solid var(--line); display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b); box-shadow: 0 -4px 16px rgba(0,0,0,.05); }
+  .nav button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font-family: var(--font-head); font-size: 12px; cursor: pointer; position: relative; }
+  .nav button .e { font-size: 21px; line-height: 1; filter: grayscale(.6); opacity: .85; }
+  .nav button.on { color: var(--brand); } .nav button.on .e { filter: none; opacity: 1; }
+  .nav button.on::before { content: ''; position: absolute; top: 0; left: 26%; right: 26%; height: 3px; border-radius: 0 0 4px 4px; background: var(--brand); }
+  .nav .bd { position: absolute; top: 7px; left: 56%; background: var(--danger); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px; }
+  .fab { position: fixed; right: 16px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); z-index: 41; width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), #e2b64a); color: #231803; font-size: 26px; box-shadow: 0 8px 22px rgba(120, 80, 0, .35); }
+  @media (min-width: 900px) {
+    .nav { top: 58px; bottom: 0; right: auto; width: 210px; height: auto; grid-auto-flow: row; grid-auto-rows: 58px; align-content: start; border-top: 0; border-right: 1px solid var(--line); padding: 10px 0; box-shadow: none; }
+    .nav button { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 0 22px; font-size: 15px; }
+    .nav button.on { background: var(--brand-soft); }
+    .nav button.on::before { top: 10px; bottom: 10px; left: 0; right: auto; width: 4px; height: auto; border-radius: 0 4px 4px 0; }
+    .nav .bd { position: static; }
+    main, .top .in { padding-left: 236px; max-width: 1340px; }
+    main { padding-bottom: 90px; }
+    .fab { bottom: 22px; right: 22px; }
+  }
+
+  /* ---------- การ์ด / ตัวเลข ---------- */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+  .card > h3 { display: flex; align-items: center; gap: 8px; }
+  .hero { border-radius: 20px; padding: 20px; color: #fff; margin-bottom: 14px; box-shadow: var(--shadow);
+    background: radial-gradient(circle at 92% 0, rgba(243, 207, 116, .35), transparent 40%), linear-gradient(130deg, var(--brand-ink), var(--brand)); }
+  .hero .k { font-family: var(--font-head); opacity: .88; font-size: 15px; }
+  .hero .v { font-family: var(--font-head); font-weight: 700; font-size: clamp(30px, 8vw, 42px); line-height: 1.15; }
+  .hero .v small { font-size: 16px; font-weight: 500; opacity: .85; margin-left: 4px; }
+  .hero .n { font-size: 14px; opacity: .88; margin-top: 4px; }
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+  @media (min-width: 700px) { .tiles { grid-template-columns: repeat(4, 1fr); } }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; min-width: 0; }
+  .tile .l { font-size: 13.5px; color: var(--muted); font-family: var(--font-head); }
+  .tile .n { font-family: var(--font-head); font-weight: 700; font-size: 22px; color: var(--brand-ink); line-height: 1.25; word-break: break-word; }
+  .tile .n small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 3px; }
+  .tile .s { font-size: 12.5px; color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 999px; font-size: 12.5px; font-family: var(--font-head); background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .pill.bad { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+  .goal .bar, .pbar { height: 9px; border-radius: 999px; background: var(--brand-soft); overflow: hidden; }
+  .goal .bar i, .pbar i { display: block; height: 100%; border-radius: 999px; background: var(--brand); }
+  .hero .goal .bar { background: rgba(255,255,255,.2); } .hero .goal .bar i { background: #f3cf74; }
+  .goal .gt { display: flex; justify-content: space-between; font-size: 13px; font-family: var(--font-head); margin: 4px 0; }
+
+  /* ---------- รายการ ---------- */
+  .list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+  .li { display: grid; grid-template-columns: 42px 1fr auto; gap: 11px; align-items: center; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .li:last-child { border-bottom: 0; }
+  .li.tap { cursor: pointer; } .li.tap:hover { background: var(--surface-2); }
+  .li .ic { width: 42px; height: 42px; border-radius: 12px; background: var(--brand-soft); display: grid; place-items: center; font-size: 19px; }
+  .li .ic.w { background: var(--danger-soft); }
+  .li .t { font-family: var(--font-head); font-weight: 500; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; }
+  .li .s { font-size: 13.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .li .a { font-family: var(--font-head); font-weight: 700; text-align: right; white-space: nowrap; }
+  .li .a.p { color: var(--ok); } .li .a.m { color: var(--danger); }
+  .li .a small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); padding: 28px 12px; }
+  .search { width: 100%; padding: 11px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; font-size: 16px; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filters select, .filters input { padding: 9px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; font-size: 15px; max-width: 100%; }
+
+  /* ---------- กราฟ ---------- */
+  .chart { position: relative; height: 190px; margin: 6px 0 4px 36px; }
+  .chart .gl { position: absolute; left: 0; right: 0; border-top: 1px solid #eceee9; }
+  .chart .gl span { position: absolute; right: 100%; top: -9px; padding-right: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .chart .cols { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 6px; }
+  .chart .col { flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; position: relative; cursor: default; min-width: 0; }
+  .chart .col:hover { background: rgba(15, 94, 75, .05); border-radius: 6px 6px 0 0; }
+  .chart .bar { flex: 1; max-width: 16px; border-radius: 4px 4px 0 0; min-height: 0; }
+  .chart .col .x { position: absolute; top: 100%; margin-top: 4px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .chart-x { height: 22px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-2); margin-bottom: 4px; }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .hbars { display: grid; gap: 10px; }
+  .hb { display: grid; grid-template-columns: minmax(90px, 32%) 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
+  .hb .lb { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hb .tr { height: 14px; background: var(--surface-2); border-radius: 0 4px 4px 0; }
+  .hb .tr i { display: block; height: 100%; background: var(--brand); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .hb .v { font-family: var(--font-head); font-weight: 600; white-space: nowrap; }
+  #tip { position: fixed; z-index: 90; pointer-events: none; background: #1d2a25; color: #fff; padding: 7px 10px; border-radius: 9px; font-size: 13px; line-height: 1.45; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: pre; transform: translate(-50%, calc(-100% - 12px)); }
+  table.tb { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tb th, .tb td { padding: 8px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  .tb th:first-child, .tb td:first-child { text-align: left; }
+  .tb th { font-family: var(--font-head); font-weight: 500; color: var(--muted); font-size: 13px; }
+  .tbl-wrap { overflow-x: auto; }
+  details.raw summary { cursor: pointer; font-size: 14px; color: var(--brand); margin-top: 6px; }
+
+  /* ---------- แผ่นฟอร์มล่าง (bottom sheet) ---------- */
+  .scrim { position: fixed; inset: 0; background: rgba(10, 30, 24, .45); z-index: 60; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 61; background: #fff; border-radius: 22px 22px 0 0; max-height: 92vh; overflow-y: auto;
+    padding: 8px 18px calc(18px + var(--safe-b)); transform: translateY(105%); transition: transform .25s cubic-bezier(.2,.8,.2,1); box-shadow: 0 -10px 40px rgba(0,0,0,.18); }
+  .sheet.on { transform: none; }
+  @media (min-width: 700px) { .sheet { left: 50%; right: auto; width: 560px; margin-left: -280px; bottom: auto; top: 50%; border-radius: 20px; transform: translateY(-40%) scale(.97); opacity: 0; pointer-events: none; transition: all .2s; }
+    .sheet.on { transform: translateY(-50%); opacity: 1; pointer-events: auto; } }
+  .sheet .grab { width: 42px; height: 5px; border-radius: 9px; background: #d6dbd7; margin: 2px auto 12px; }
+  .sheet .foot { display: flex; gap: 10px; margin-top: 6px; }
+  .sheet .foot .btn { flex: 1; }
+  .toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + var(--safe-b) + 16px); z-index: 80; display: grid; gap: 8px; width: min(420px, calc(100% - 32px)); }
+  .toast { background: #1d2a25; color: #fff; padding: 11px 15px; border-radius: 12px; font-size: 14.5px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+  .toast.ok { background: var(--ok); } .toast.err { background: var(--danger); }
+  .spin { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(15, 94, 75, .2); border-top-color: var(--brand); border-radius: 50%; animation: sp .8s linear infinite; vertical-align: -3px; }
+  .btn .spin { border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .loading { min-height: 70vh; display: grid; place-items: center; color: var(--muted); text-align: center; }
+  .busy { position: fixed; top: 0; left: 0; height: 3px; width: 100%; z-index: 99; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: bz 1s linear infinite; }
+  @keyframes bz { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+
+  /* ---------- แชต ---------- */
+  .chat { display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 86%; padding: 10px 14px; border-radius: 18px; white-space: pre-wrap; word-break: break-word; font-size: 15.5px; line-height: 1.6; }
+  .bubble.u { align-self: flex-end; background: var(--brand); color: #fff; border-bottom-right-radius: 6px; }
+  .bubble.b { align-self: flex-start; background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+  .bubble .src { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; font-family: var(--font-head); color: var(--brand-ink); }
+  .chip:hover { border-color: var(--brand); }
+  .composer { position: sticky; bottom: calc(var(--nav-h) + var(--safe-b) + 8px); display: flex; gap: 8px; background: var(--bg); padding: 8px 0; }
+  .composer textarea { flex: 1; resize: none; min-height: 48px; max-height: 140px; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); font-size: 16px; background: #fff; }
+  @media (min-width: 900px) { .composer { bottom: 8px; } }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading"><div><span class="spin" style="width:34px;height:34px;border-width:4px"></span><p>กำลังโหลด...</p></div></div></div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toasts" id="toasts"></div>
+<div id="tip" hidden></div>
+
+<script>
+var CFG = <?!= cfg ?>;
+(function () {
+  'use strict';
+  const root = document.getElementById('root');
+  const hasGas = typeof google !== 'undefined' && google.script && google.script.run;
+  let TOKEN = null, D = null, VIEW = '', ARG = null, HIST = [];
+  try { TOKEN = sessionStorage.getItem('ss_token'); } catch (e) { }
+  if (CFG.themeColor) document.documentElement.style.setProperty('--brand', CFG.themeColor);
+
+  /* ================= helpers ================= */
+  const $ = (s, c) => (c || document).querySelector(s);
+  const $$ = (s, c) => Array.prototype.slice.call((c || document).querySelectorAll(s));
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = v => { const n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; };
+  const money = v => num(v).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+  const short = v => { v = num(v); const a = Math.abs(v); return a >= 1e6 ? (v / 1e6).toLocaleString('th-TH', { maximumFractionDigits: 1 }) + ' ล.' : a >= 1e4 ? (v / 1e3).toLocaleString('th-TH', { maximumFractionDigits: 0 }) + 'K' : money(v); };
+  const TM = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const thDate = s => { if (!s) return '-'; const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T00:00:00') : new Date(s); return isNaN(d) ? esc(s) : d.getDate() + ' ' + TM[d.getMonth()] + ' ' + (d.getFullYear() + 543); };
+  const ymLabel = ym => TM[Number(ym.substr(5, 2)) - 1] + ' ' + String(Number(ym.substr(0, 4)) + 543).substr(2);
+  const today = () => { const d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+  const truthy = v => v === true || String(v).toUpperCase() === 'TRUE';
+  function toast(msg, type) { const el = document.createElement('div'); el.className = 'toast ' + (type || ''); el.textContent = msg; $('#toasts').appendChild(el); setTimeout(() => el.remove(), 3800); }
+  function busy(on) { let b = $('#busyBar'); if (on && !b) { b = document.createElement('div'); b.id = 'busyBar'; b.className = 'busy'; document.body.appendChild(b); } else if (!on && b) b.remove(); }
+
+  function call(fn, ...args) {
+    return new Promise((resolve, reject) => {
+      if (!hasGas) { reject(new Error('ต้องเปิดผ่านเว็บแอป Google Apps Script')); return; }
+      const r = google.script.run.withSuccessHandler(resolve).withFailureHandler(err => {
+        let msg = (err && err.message) || String(err);
+        if (/AUTH:/.test(msg)) { msg = msg.replace(/.*AUTH:\s*/, ''); logout(msg); }
+        reject(new Error(msg));
+      });
+      r[fn].apply(r, args);
+    });
+  }
+  const api = (fn, ...args) => call(fn, TOKEN, ...args);
+  /** บันทึก/ลบ แล้วรับข้อมูลชุดใหม่ทั้งหมด */
+  function mutate(fn, ...args) {
+    busy(true);
+    return api(fn, ...args).then(d => { busy(false); D = d; return d; }).catch(e => { busy(false); toast(e.message, 'err'); throw e; });
+  }
+
+  /* lookup */
+  const isStaff = () => D && D.user.role !== 'member';
+  const isAdmin = () => D && D.user.role === 'admin';
+  const groupOf = id => (D.groups || []).find(g => g.id === id) || {};
+  const memberOf = id => (D.members || []).find(m => m.id === id) || {};
+  const groupName = id => groupOf(id).name || '-';
+  const activeMembers = () => D.members.filter(m => truthy(m.active)).sort((a, b) => String(a.memberNo).localeCompare(String(b.memberNo), 'th', { numeric: true }));
+  function balanceOf(memberId) { return D.savings.reduce((s, t) => t.memberId === memberId ? s + (t.type === 'withdraw' ? -num(t.amount) : num(t.amount)) : s, 0); }
+  function debtInfo(memberId) {
+    const paid = {};
+    D.payments.forEach(p => { paid[p.debtId] = (paid[p.debtId] || 0) + num(p.amount); });
+    const list = D.debts.filter(d => d.memberId === memberId).map(d => Object.assign({}, d, { paid: paid[d.id] || 0, outstanding: Math.max(0, num(d.principal) - (paid[d.id] || 0)) }));
+    const act = list.filter(d => d.status !== 'closed' && d.outstanding > 0);
+    const m = memberOf(memberId);
+    const monthly = act.reduce((s, d) => s + num(d.monthlyPayment), 0);
+    const income = num(m.income);
+    return { list, active: act, total: act.reduce((s, d) => s + d.outstanding, 0), monthly, income, dti: income ? monthly / income * 100 : null };
+  }
+  function dtiPill(dti) {
+    if (dti == null) return '<span class="pill">ยังไม่ระบุรายได้</span>';
+    const p = Math.round(dti);
+    if (dti <= 30) return '<span class="pill ok">✓ ' + p + '% ปลอดภัย</span>';
+    if (dti <= 40) return '<span class="pill warn">! ' + p + '% ควรระวัง</span>';
+    if (dti <= 50) return '<span class="pill bad">!! ' + p + '% หนัก</span>';
+    return '<span class="pill bad">⚠ ' + p + '% วิกฤต</span>';
+  }
+  function goalHtml(val, goal, label) {
+    goal = num(goal); if (!goal) return '';
+    const pct = Math.max(0, Math.min(100, Math.round(num(val) / goal * 100)));
+    return '<div class="goal"><div class="gt"><span>' + esc(label || 'เป้าหมาย') + ' ' + money(goal) + ' บาท</span><span>' + pct + '%</span></div><div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+  }
+  function dlCsv(name, cols, rows) {
+    const csv = '﻿' + cols.map(c => c[1]).join(',') + '\n' + rows.map(r => cols.map(c => { const v = typeof c[0] === 'function' ? c[0](r) : r[c[0]]; return '"' + String(v == null ? '' : v).replace(/"/g, '""').replace(/\n/g, ' ') + '"'; }).join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = name + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  }
+  const sortDate = list => list.sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.createdAt).localeCompare(String(a.createdAt)));
+  const catName = (type, c) => ((D.cats || {})[type] || {})[c] || c || '-';
+  const CAT_E = { sales: '🛒', share: '🤝', support: '🎁', fee: '🧾', material: '🧵', wage: '👷', transport: '🚚', welfare: '❤️', dividend: '💸', other: '📌' };
+  const KIND_E = { bank: '🏦', coop: '🤝', card: '💳', leasing: '🛵', student: '🎓', informal: '⚠️', family: '👪', other: '📌' };
+
+  /* ================= tooltip สำหรับกราฟ ================= */
+  const tip = $('#tip');
+  function showTip(el, x, y) { tip.textContent = el.getAttribute('data-tip'); tip.hidden = false; tip.style.left = Math.max(70, Math.min(window.innerWidth - 70, x)) + 'px'; tip.style.top = y + 'px'; }
+  document.addEventListener('pointermove', e => { const t = e.target.closest && e.target.closest('[data-tip]'); if (t) showTip(t, e.clientX, e.clientY); else tip.hidden = true; });
+  document.addEventListener('pointerdown', e => { const t = e.target.closest && e.target.closest('[data-tip]'); if (t && e.pointerType !== 'mouse') { const r = t.getBoundingClientRect(); showTip(t, r.left + r.width / 2, r.top + 30); } });
+  window.addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+
+  /* ================= bottom sheet ================= */
+  function openSheet(title, body, foot) {
+    const sh = $('#sheet');
+    sh.onclick = null;
+    sh.innerHTML = '<div class="grab"></div><div class="row between" style="margin-bottom:10px"><h3 style="margin:0">' + title + '</h3><button class="icon-btn" data-close aria-label="ปิด">✕</button></div>' + body + (foot ? '<div class="foot">' + foot + '</div>' : '');
+    sh.classList.add('on'); $('#scrim').classList.add('on');
+    const first = sh.querySelector('input:not([type=hidden]):not([type=checkbox]),select,textarea');
+    if (first && window.innerWidth > 700) setTimeout(() => first.focus(), 150);
+    return sh;
+  }
+  function closeSheet() { $('#sheet').classList.remove('on'); $('#scrim').classList.remove('on'); }
+  $('#scrim').onclick = closeSheet;
+  $('#sheet').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeSheet(); });
+  function confirmBox(msg, ok) {
+    return new Promise(res => {
+      openSheet('ยืนยัน', '<p>' + msg + '</p>', '<button class="btn ghost" data-close>ยกเลิก</button><button class="btn red" id="cfOk">' + esc(ok || 'ลบ') + '</button>');
+      const sh = $('#sheet');
+      function h(e) { if (e.target.closest('[data-close]')) { sh.removeEventListener('click', h); res(false); } }
+      sh.addEventListener('click', h);
+      $('#cfOk').onclick = () => { sh.removeEventListener('click', h); closeSheet(); res(true); };
+    });
+  }
+  function formVal(sh, name) { const el = sh.querySelector('[name="' + name + '"]'); if (!el) return undefined; return el.type === 'checkbox' ? (el.checked ? 'TRUE' : 'FALSE') : el.value.trim(); }
+  function formData(sh, names) { const o = {}; names.forEach(n => { o[n] = formVal(sh, n); }); return o; }
+  function opt(list, cur, blank) { return (blank ? '<option value="">' + esc(blank) + '</option>' : '') + list.map(o => '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(cur) ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join(''); }
+  function segHtml(name, cur, opts) { return '<div class="seg" data-seg="' + name + '">' + opts.map(o => '<button type="button" data-v="' + o[0] + '" class="' + (o[2] || '') + (o[0] === cur ? ' on' : '') + '">' + o[1] + '</button>').join('') + '</div><input type="hidden" name="' + name + '" value="' + esc(cur) + '">'; }
+  function bindSeg(ctx, onChange) {
+    $$('[data-seg]', ctx).forEach(seg => seg.addEventListener('click', e => {
+      const b = e.target.closest('button[data-v]'); if (!b) return;
+      $$('button', seg).forEach(x => x.classList.toggle('on', x === b));
+      ctx.querySelector('input[name="' + seg.getAttribute('data-seg') + '"]').value = b.getAttribute('data-v');
+      if (onChange) onChange(seg.getAttribute('data-seg'), b.getAttribute('data-v'));
+    }));
+  }
+  function saveBtn(btn, p, done) {
+    const label = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spin"></span> กำลังบันทึก';
+    return p.then(d => { closeSheet(); if (done) done(d); render(); }).catch(() => { btn.disabled = false; btn.innerHTML = label; });
+  }
+
+  /* ================= LOGIN ================= */
+  function showLogin(msg, type) {
+    let mode = 'member';
+    try { mode = localStorage.getItem('ss_mode') || 'member'; } catch (e) { }
+    root.innerHTML = '<div class="login"><form class="card" id="lf" novalidate autocomplete="on"><div class="logo">🌱</div>' +
+      '<h2 style="margin-bottom:2px">' + esc(CFG.appName) + '</h2><p class="muted small" style="margin:0 0 16px">' + esc(CFG.org) + ' · ระบบออมทรัพย์กลุ่มอาชีพ และคลินิกแก้หนี้</p>' +
+      '<div id="lmsg"' + (msg ? ' class="msg ' + (type || 'err') + '"' : ' hidden') + ' role="alert">' + esc(msg || '') + '</div>' +
+      segHtml('mode', mode, [['member', '👤 สมาชิก'], ['staff', '🧑‍💼 เจ้าหน้าที่']]) +
+      '<label class="fld"><span id="lu">รหัสสมาชิก</span><input name="u" autocomplete="username" required></label>' +
+      '<label class="fld"><span id="lp">PIN</span><input name="p" type="password" autocomplete="current-password" required></label>' +
+      '<button class="btn block" id="lbtn" type="submit">เข้าสู่ระบบ</button>' +
+      '<p class="muted small" style="margin:14px 0 0;text-align:center">ลืมรหัส? ติดต่อเจ้าหน้าที่กลุ่มอาชีพ' + (CFG.phone ? ' โทร ' + esc(CFG.phone) : '') + '</p></form></div>';
+    const f = $('#lf');
+    const sync = m => { mode = m; $('#lu').textContent = m === 'staff' ? 'ชื่อผู้ใช้' : 'รหัสสมาชิก'; $('#lp').textContent = m === 'staff' ? 'รหัสผ่าน' : 'PIN'; f.p.setAttribute('inputmode', m === 'staff' ? 'text' : 'numeric'); try { localStorage.setItem('ss_mode', m); } catch (e) { } };
+    bindSeg(f, (k, v) => sync(v)); sync(mode);
+    try { const last = localStorage.getItem('ss_user_' + mode); if (last) f.u.value = last; } catch (e) { }
+    f.addEventListener('submit', e => {
+      e.preventDefault();
+      const m = $('#lmsg'), b = $('#lbtn');
+      if (!f.u.value.trim() || !f.p.value) { m.hidden = false; m.className = 'msg err'; m.textContent = 'กรุณากรอกข้อมูลให้ครบ'; return; }
+      b.disabled = true; b.innerHTML = '<span class="spin"></span> กำลังตรวจสอบ';
+      call(mode === 'staff' ? 'staffLogin' : 'memberLogin', f.u.value.trim(), f.p.value).then(res => {
+        TOKEN = res.token; HIST = [];
+        try { sessionStorage.setItem('ss_token', TOKEN); localStorage.setItem('ss_user_' + mode, f.u.value.trim()); } catch (er) { }
+        boot();
+      }).catch(err => { b.disabled = false; b.textContent = 'เข้าสู่ระบบ'; m.hidden = false; m.className = 'msg err'; m.textContent = err.message; f.p.value = ''; f.p.focus(); });
+    });
+  }
+  function logout(msg) {
+    if (TOKEN && !msg && hasGas) { try { google.script.run.logout(TOKEN); } catch (e) { } }
+    TOKEN = null; D = null; VIEW = ''; HIST = [];
+    try { sessionStorage.removeItem('ss_token'); sessionStorage.removeItem('ss_chat'); } catch (e) { }
+    closeSheet();
+    showLogin(msg || 'ออกจากระบบแล้ว', msg ? 'err' : 'ok');
+  }
+  function boot() {
+    root.innerHTML = '<div class="loading"><div><span class="spin" style="width:34px;height:34px;border-width:4px"></span><p>กำลังโหลดข้อมูล...</p></div></div>';
+    api('getAll').then(d => {
+      D = d; CFG = Object.assign(CFG, d.config || {});
+      try { HIST = JSON.parse(sessionStorage.getItem('ss_chat') || '[]'); } catch (e) { HIST = []; }
+      shell(); go(isStaff() ? 'dash' : 'home');
+    }).catch(e => { if (TOKEN) showLogin(e.message); });
+  }
+
+  /* ================= SHELL ================= */
+  const NAV_STAFF = [['dash', '📊', 'ภาพรวม'], ['entry', '✍️', 'บันทึก'], ['members', '👥', 'สมาชิก'], ['clinic', '🩺', 'คลินิกหนี้'], ['more', '☰', 'เพิ่มเติม']];
+  const NAV_MEMBER = [['home', '🏠', 'หน้าแรก'], ['mysav', '💰', 'เงินออม'], ['clinic', '🩺', 'คลินิกหนี้'], ['chat', '💬', 'ผู้ช่วย'], ['me', '👤', 'ฉัน']];
+  const TITLES = { dash: 'ภาพรวมกลุ่มอาชีพ', entry: 'บันทึกรายการ', members: 'สมาชิก', member: 'ข้อมูลสมาชิก', clinic: 'คลินิกแก้หนี้', cmember: 'คลินิกแก้หนี้', more: 'เพิ่มเติม', groups: 'กลุ่มอาชีพ',
+    settings: 'ตั้งค่า', users: 'ผู้ใช้งาน', faq: 'คลังคำตอบแชตบอต', chatlog: 'คำถามที่ถามแชตบอต', chat: 'ผู้ช่วยการเงิน', home: 'หน้าแรก', mysav: 'เงินออมของฉัน', me: 'ข้อมูลของฉัน', ledger: 'รายรับ-รายจ่ายกลุ่ม' };
+  const PARENT = { member: 'members', cmember: 'clinic', groups: 'more', settings: 'more', users: 'more', faq: 'more', chatlog: 'more', ledger: 'more' };
+  function shell() {
+    const nav = isStaff() ? NAV_STAFF : NAV_MEMBER;
+    root.innerHTML = '<header class="top"><div class="in"><button class="back" id="backBtn" hidden aria-label="ย้อนกลับ">←</button><div class="ttl"><b id="vt"></b><small>' + esc(CFG.appName) + ' · ' + esc(D.user.name) +
+      (D.user.role === 'officer' ? ' · ' + esc(groupName(D.user.groupId)) : D.user.role === 'admin' ? ' · ผู้ดูแลระบบ' : '') + '</small></div></div></header>' +
+      '<main id="view"></main><nav class="nav" id="nav">' + nav.map(n => '<button data-go="' + n[0] + '"><span class="e">' + n[1] + '</span>' + n[2] + '</button>').join('') + '</nav>' +
+      (isStaff() ? '<button class="fab" data-go="chat" aria-label="ผู้ช่วยการเงิน" title="ผู้ช่วยการเงิน (แชตบอต)">💬</button>' : '');
+    if (isStaff()) PARENT.chat = 'more'; else delete PARENT.chat;
+    $('#backBtn').onclick = () => { const p = STACK.pop(); if (p) { VIEW = p[0]; ARG = p[1]; render(); window.scrollTo(0, 0); } else go(PARENT[VIEW] || (isStaff() ? 'dash' : 'home'), null, true); };
+  }
+  const STACK = [];
+  function go(view, arg, replace) {
+    if (!PARENT[view]) STACK.length = 0;          // เมนูหลัก = เริ่มลำดับย้อนกลับใหม่
+    else if (VIEW && !replace) { STACK.push([VIEW, ARG]); if (STACK.length > 30) STACK.shift(); }
+    VIEW = view; ARG = arg == null ? null : arg;
+    render(); window.scrollTo(0, 0);
+  }
+  let rendering = false;
+  function render() {
+    if (!D || !$('#view') || rendering) return;   // กันการวาดซ้อน (เช่น ช่องกรอกส่ง change ตอนถูกนำออก)
+    rendering = true;
+    try { renderNow(); } finally { rendering = false; }
+  }
+  function renderNow() {
+    tip.hidden = true;
+    const top = PARENT[VIEW] || VIEW;
+    $$('#nav button').forEach(b => b.classList.toggle('on', b.getAttribute('data-go') === top));
+    $('#vt').textContent = TITLES[VIEW] || '';
+    $('#backBtn').hidden = !PARENT[VIEW];
+    const old = $('#view'), v = old.cloneNode(false);  // ใช้ element ใหม่ทุกครั้ง เพื่อล้างตัวจับเหตุการณ์ของหน้าก่อน
+    old.replaceWith(v);
+    v.innerHTML = (VIEWS[VIEW] || VIEWS[isStaff() ? 'dash' : 'home'])(ARG);
+    if (BIND[VIEW]) BIND[VIEW](v, ARG);
+  }
+  document.addEventListener('click', e => {
+    const g = e.target.closest('[data-go]');
+    if (g && D) { e.preventDefault(); go(g.getAttribute('data-go'), g.getAttribute('data-arg')); }
+  });
+  const VIEWS = {}, BIND = {};
+
+  /* ================= กราฟ ================= */
+  function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; }
+  /** กราฟแท่งคู่รายเดือน — series = [{ name, color, values }] */
+  function colChart(months, series) {
+    const max = niceMax(Math.max(1, ...series.flatMap(s => s.values)));
+    const grid = [0, .5, 1].map(f => '<div class="gl" style="bottom:' + f * 100 + '%"><span>' + short(max * f) + '</span></div>').join('');
+    const cols = months.map((m, i) => {
+      const tipTxt = ymLabel(m) + '\n' + series.map(s => s.name + ': ' + money(s.values[i]) + ' บาท').join('\n');
+      return '<div class="col" data-tip="' + esc(tipTxt) + '">' + series.map(s => '<div class="bar" style="height:' + (s.values[i] / max * 100) + '%;background:' + s.color + '"></div>').join('') +
+        (i % 2 === (months.length - 1) % 2 ? '<span class="x">' + ymLabel(m) + '</span>' : '') + '</div>';
+    }).join('');
+    return '<div class="legend">' + series.map(s => '<span><i style="background:' + s.color + '"></i>' + esc(s.name) + '</span>').join('') + '</div>' +
+      '<div class="chart" role="img" aria-label="' + esc(series.map(s => s.name).join(' และ ') + ' รายเดือน') + '">' + grid + '<div class="cols">' + cols + '</div></div><div class="chart-x"></div>' +
+      '<details class="raw"><summary>ดูเป็นตาราง</summary><div class="tbl-wrap"><table class="tb"><thead><tr><th>เดือน</th>' + series.map(s => '<th>' + esc(s.name) + '</th>').join('') + '</tr></thead><tbody>' +
+      months.map((m, i) => '<tr><td>' + ymLabel(m) + '</td>' + series.map(s => '<td>' + money(s.values[i]) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div></details>';
+  }
+  function hBars(rows) {
+    const max = Math.max(1, ...rows.map(r => r.v));
+    return '<div class="hbars">' + rows.map(r => '<div class="hb" data-tip="' + esc(r.l + '\n' + money(r.v) + ' บาท') + '"><span class="lb">' + esc(r.l) + '</span><span class="tr"><i style="width:' + Math.max(0, r.v) / max * 100 + '%"></i></span><span class="v">' + short(r.v) + '</span></div>').join('') + '</div>';
+  }
+
+  /* ================= เจ้าหน้าที่: ภาพรวม ================= */
+  let dashG = '';
+  VIEWS.dash = function () {
+    const db = D.dashboard, gs = db.groups.filter(g => !dashG || g.id === dashG);
+    const T = gs.reduce((t, g) => { ['members', 'savings', 'depMonth', 'wdMonth', 'fund', 'income', 'expense', 'debt', 'debtors'].forEach(k => t[k] = (t[k] || 0) + g[k]); return t; }, { members: 0, savings: 0, depMonth: 0, wdMonth: 0, fund: 0, income: 0, expense: 0, debt: 0, debtors: 0 });
+    const tr = dashG ? db.trendByGroup[dashG] : db.trend;
+    let h = '<div class="filters"><select id="dg" aria-label="เลือกกลุ่ม">' + opt(db.groups.map(g => [g.id, (g.icon ? g.icon + ' ' : '') + g.name]), dashG, 'ทุกกลุ่มอาชีพ (' + db.groups.length + ')') + '</select></div>';
+    if (!db.groups.length) return h + '<div class="card empty">ยังไม่มีกลุ่มอาชีพ' + (isAdmin() ? ' — <a href="#" data-go="groups">เพิ่มกลุ่มอาชีพ</a>' : '') + '</div>';
+    h += '<div class="hero"><div class="k">เงินออมสมาชิกรวม' + (dashG ? ' · ' + esc(groupName(dashG)) : '') + '</div><div class="v">' + money(T.savings) + '<small>บาท</small></div>' +
+      '<div class="n">เดือนนี้ ฝาก +' + money(T.depMonth) + ' · ถอน −' + money(T.wdMonth) + ' บาท</div></div>' +
+      '<div class="tiles"><div class="tile"><div class="l">สมาชิก</div><div class="n">' + T.members + '<small>คน</small></div><div class="s">' + gs.length + ' กลุ่มอาชีพ</div></div>' +
+      '<div class="tile"><div class="l">กองทุนกลุ่ม (รับ−จ่าย)</div><div class="n">' + money(T.fund) + '<small>บาท</small></div><div class="s">รับ ' + short(T.income) + ' · จ่าย ' + short(T.expense) + '</div></div>' +
+      '<div class="tile"><div class="l">หนี้คงค้าง (คลินิก)</div><div class="n">' + money(T.debt) + '<small>บาท</small></div><div class="s">' + T.debtors + ' คนที่มีหนี้</div></div>' +
+      '<div class="tile"><div class="l">เงินออมเฉลี่ย/คน</div><div class="n">' + money(T.members ? Math.round(T.savings / T.members) : 0) + '<small>บาท</small></div><div class="s">เฉพาะสมาชิกที่ใช้งาน</div></div></div>';
+    h += '<div class="card"><h3>💰 ฝาก-ถอนเงินออมรายเดือน</h3>' + colChart(db.months, [{ name: 'ฝาก', color: 'var(--s1)', values: tr.dep }, { name: 'ถอน', color: 'var(--s2)', values: tr.wd }]) + '</div>';
+    h += '<div class="card"><h3>🧺 รายรับ-รายจ่ายกองทุนกลุ่มรายเดือน</h3>' + colChart(db.months, [{ name: 'รายรับ', color: 'var(--s1)', values: tr.inc }, { name: 'รายจ่าย', color: 'var(--s2)', values: tr.exp }]) + '</div>';
+    if (!dashG && db.groups.length > 1) h += '<div class="card"><h3>🏆 เงินออมสมาชิกแยกตามกลุ่ม</h3>' + hBars(db.groups.slice().sort((a, b) => b.savings - a.savings).map(g => ({ l: g.name, v: g.savings }))) + '</div>';
+    h += '<div class="card"><div class="row between" style="margin-bottom:8px"><h3 style="margin:0">📋 สรุปรายกลุ่ม</h3><button class="btn sm ghost" id="dcsv">⬇ CSV</button></div><div class="tbl-wrap"><table class="tb"><thead><tr><th>กลุ่มอาชีพ</th><th>สมาชิก</th><th>เงินออม</th><th>กองทุนกลุ่ม</th><th>หนี้คงค้าง</th><th>มีหนี้</th><th>เป้าหมายออม</th></tr></thead><tbody>' +
+      gs.map(g => '<tr><td>' + esc((g.icon ? g.icon + ' ' : '') + g.name) + '</td><td>' + g.members + '</td><td>' + money(g.savings) + '</td><td>' + money(g.fund) + '</td><td>' + money(g.debt) + '</td><td>' + g.debtors + '</td><td>' + (g.goal ? Math.round(g.savings / g.goal * 100) + '%' : '-') + '</td></tr>').join('') +
+      '</tbody></table></div></div>';
+    return h;
+  };
+  BIND.dash = function () {
+    const s = $('#dg'); if (s) s.onchange = function () { dashG = this.value; render(); };
+    const c = $('#dcsv'); if (c) c.onclick = () => dlCsv('สรุปกลุ่มอาชีพ', [['name', 'กลุ่มอาชีพ'], ['members', 'สมาชิก'], ['savings', 'เงินออมสมาชิก'], ['income', 'รายรับกลุ่ม'], ['expense', 'รายจ่ายกลุ่ม'], ['fund', 'กองทุนกลุ่ม'], ['debt', 'หนี้คงค้าง'], ['debtors', 'จำนวนผู้มีหนี้']], D.dashboard.groups);
+  };
+
+  /* ================= เจ้าหน้าที่: บันทึกรายการ ================= */
+  let entryTab = 'sav', entF = { month: '', g: '' };
+  VIEWS.entry = function () {
+    const sav = entryTab === 'sav';
+    return '<div class="seg" id="etab"><button data-t="sav" class="' + (sav ? 'on' : '') + '">💰 ฝาก / ถอน สมาชิก</button><button data-t="led" class="' + (!sav ? 'on' : '') + '">🧺 รายรับ-รายจ่ายกลุ่ม</button></div>' +
+      '<div class="row" style="margin-bottom:12px"><button class="btn" id="eNew1">' + (sav ? '➕ ฝากเงิน' : '➕ รายรับ') + '</button><button class="btn gold" id="eNew2">' + (sav ? '➖ ถอนเงิน' : '➖ รายจ่าย') + '</button></div>' +
+      '<div class="filters">' + (isAdmin() || !sav ? '<select id="eg">' + opt(D.groups.map(g => [g.id, g.name]), entF.g, 'ทุกกลุ่ม') + '</select>' : '') +
+      '<input type="month" id="em" value="' + esc(entF.month) + '" aria-label="เดือน"><button class="btn sm ghost" id="ecsv">⬇ CSV</button></div><p class="small muted" id="esum"></p><div id="elist"></div>';
+  };
+  function entryRows() {
+    if (entryTab === 'sav') return sortDate(D.savings.filter(t => (!entF.g || memberOf(t.memberId).groupId === entF.g) && (!entF.month || String(t.date).substr(0, 7) === entF.month)));
+    return sortDate(D.ledger.filter(t => (!entF.g || t.groupId === entF.g) && (!entF.month || String(t.date).substr(0, 7) === entF.month)));
+  }
+  function savRow(t, showName) {
+    const w = t.type === 'withdraw', m = memberOf(t.memberId);
+    return '<div class="li tap" data-sav="' + esc(t.id) + '"><div class="ic' + (w ? ' w' : '') + '">' + (w ? '➖' : '➕') + '</div><div style="min-width:0"><div class="t">' + (showName ? esc(m.name || '(ลบแล้ว)') : (w ? 'ถอนเงินออม' : 'ฝากเงินออม')) + '</div>' +
+      '<div class="s">' + thDate(t.date) + (showName ? ' · ' + esc(m.memberNo || '') + ' · ' + (w ? 'ถอน' : 'ฝาก') : '') + (t.note ? ' · ' + esc(t.note) : '') + '</div></div><div class="a ' + (w ? 'm' : 'p') + '">' + (w ? '−' : '+') + money(t.amount) + '</div></div>';
+  }
+  function ledRow(t) {
+    const e = t.type === 'expense';
+    return '<div class="li tap" data-led="' + esc(t.id) + '"><div class="ic' + (e ? ' w' : '') + '">' + (CAT_E[t.category] || '📌') + '</div><div style="min-width:0"><div class="t">' + esc(catName(t.type, t.category)) + '</div>' +
+      '<div class="s">' + thDate(t.date) + ' · ' + esc(groupName(t.groupId)) + (t.note ? ' · ' + esc(t.note) : '') + '</div></div><div class="a ' + (e ? 'm' : 'p') + '">' + (e ? '−' : '+') + money(t.amount) + '</div></div>';
+  }
+  BIND.entry = function (v) {
+    const draw = () => {
+      const rows = entryRows(), sav = entryTab === 'sav';
+      const pos = rows.filter(t => sav ? t.type !== 'withdraw' : t.type === 'income').reduce((s, t) => s + num(t.amount), 0), neg = rows.filter(t => sav ? t.type === 'withdraw' : t.type === 'expense').reduce((s, t) => s + num(t.amount), 0);
+      $('#esum').textContent = rows.length + ' รายการ · ' + (sav ? 'ฝาก ' : 'รับ ') + money(pos) + ' · ' + (sav ? 'ถอน ' : 'จ่าย ') + money(neg) + ' · สุทธิ ' + money(pos - neg) + ' บาท';
+      $('#elist').innerHTML = rows.length ? '<div class="list">' + rows.slice(0, 300).map(t => sav ? savRow(t, true) : ledRow(t)).join('') + '</div>' + (rows.length > 300 ? '<p class="small muted">แสดง 300 รายการล่าสุด — ใช้ตัวกรองเดือนหรือส่งออก CSV</p>' : '') : '<div class="card empty">ยังไม่มีรายการ</div>';
+    };
+    draw();
+    $('#etab').onclick = e => { const b = e.target.closest('[data-t]'); if (b) { entryTab = b.getAttribute('data-t'); render(); } };
+    $('#eNew1').onclick = () => entryTab === 'sav' ? savingForm(null, { type: 'deposit' }) : ledgerForm(null, { type: 'income' });
+    $('#eNew2').onclick = () => entryTab === 'sav' ? savingForm(null, { type: 'withdraw' }) : ledgerForm(null, { type: 'expense' });
+    const eg = $('#eg'); if (eg) eg.onchange = function () { entF.g = this.value; draw(); };
+    $('#em').onchange = function () { entF.month = this.value; draw(); };
+    $('#ecsv').onclick = () => entryTab === 'sav'
+      ? dlCsv('เงินออมสมาชิก' + (entF.month ? '-' + entF.month : ''), [['date', 'วันที่'], [t => memberOf(t.memberId).memberNo, 'รหัสสมาชิก'], [t => memberOf(t.memberId).name, 'ชื่อ'], [t => groupName(memberOf(t.memberId).groupId), 'กลุ่ม'], [t => t.type === 'withdraw' ? 'ถอน' : 'ฝาก', 'ประเภท'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'], ['recordedBy', 'ผู้บันทึก']], entryRows())
+      : dlCsv('รายรับรายจ่ายกลุ่ม' + (entF.month ? '-' + entF.month : ''), [['date', 'วันที่'], [t => groupName(t.groupId), 'กลุ่ม'], [t => t.type === 'expense' ? 'รายจ่าย' : 'รายรับ', 'ประเภท'], [t => catName(t.type, t.category), 'หมวด'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'], ['recordedBy', 'ผู้บันทึก']], entryRows());
+    v.addEventListener('click', e => {
+      const a = e.target.closest('[data-sav]'); if (a) return savingForm(a.getAttribute('data-sav'));
+      const b = e.target.closest('[data-led]'); if (b) return ledgerForm(b.getAttribute('data-led'));
+    });
+  };
+
+  /** ฟอร์มฝาก/ถอนเงินออมสมาชิก */
+  function savingForm(id, preset) {
+    const r = id ? Object.assign({}, D.savings.find(t => t.id === id)) : Object.assign({ type: 'deposit', date: today() }, preset || {});
+    const ms = activeMembers().filter(m => !entF.g || !isAdmin() || m.groupId === entF.g || m.id === r.memberId);
+    const sh = openSheet(id ? 'แก้ไขรายการเงินออม' : (r.type === 'withdraw' ? '➖ ถอนเงินออม' : '➕ ฝากเงินออม'),
+      segHtml('type', r.type, [['deposit', '➕ ฝาก', 'dep'], ['withdraw', '➖ ถอน', 'wd']]) +
+      (r.memberId && preset && preset.memberId ? '<input type="hidden" name="memberId" value="' + esc(r.memberId) + '"><p><b>' + esc(memberOf(r.memberId).name) + '</b> <span class="muted">' + esc(memberOf(r.memberId).memberNo) + '</span></p>'
+        : '<label class="fld"><span>สมาชิก *</span><input class="inp" id="msq" placeholder="🔍 พิมพ์ชื่อหรือรหัสเพื่อค้นหา" style="margin-bottom:6px"><select name="memberId">' + opt(ms.map(m => [m.id, m.memberNo + ' · ' + m.name + (isAdmin() ? ' (' + groupName(m.groupId) + ')' : '')]), r.memberId, '— เลือกสมาชิก —') + '</select></label>') +
+      '<p class="small muted" id="mbal" style="margin:-6px 0 10px"></p>' +
+      '<div class="grid2"><label class="fld"><span>จำนวนเงิน (บาท) *</span><input name="amount" type="number" inputmode="decimal" min="0" step="any" value="' + esc(r.amount || '') + '"></label>' +
+      '<label class="fld"><span>วันที่ *</span><input name="date" type="date" value="' + esc(r.date) + '" max="' + today() + '"></label></div>' +
+      '<label class="fld"><span>หมายเหตุ</span><input name="note" maxlength="300" value="' + esc(r.note || '') + '" placeholder="เช่น เงินสัจจะประจำเดือน"></label>',
+      (id ? '<button class="btn ghost" id="sDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="sOk">💾 บันทึก</button>');
+    bindSeg(sh);
+    const showBal = () => { const mid = formVal(sh, 'memberId'); $('#mbal').textContent = mid ? 'เงินออมคงเหลือ ' + money(balanceOf(mid)) + ' บาท' : ''; };
+    const sel = sh.querySelector('select[name=memberId]');
+    if (sel) {
+      sel.onchange = showBal;
+      $('#msq').oninput = function () {
+        const q = this.value.toLowerCase();
+        sel.innerHTML = opt(ms.filter(m => (m.memberNo + ' ' + m.name + ' ' + (m.phone || '')).toLowerCase().indexOf(q) !== -1).map(m => [m.id, m.memberNo + ' · ' + m.name]), '', q ? 'พบ ' + ms.filter(m => (m.memberNo + ' ' + m.name + ' ' + (m.phone || '')).toLowerCase().indexOf(q) !== -1).length + ' คน — เลือก' : '— เลือกสมาชิก —');
+        if (sel.options.length === 2) sel.selectedIndex = 1;
+        showBal();
+      };
+    }
+    showBal();
+    $('#sOk').onclick = function () {
+      const d = formData(sh, ['type', 'memberId', 'amount', 'date', 'note']);
+      if (!d.memberId) return toast('กรุณาเลือกสมาชิก', 'err');
+      if (!(num(d.amount) > 0)) return toast('กรุณากรอกจำนวนเงิน', 'err');
+      if (id) d.id = id;
+      saveBtn(this, mutate('saveRecord', 'Savings', d), () => toast((d.type === 'withdraw' ? 'บันทึกการถอน ' : 'บันทึกการฝาก ') + money(d.amount) + ' บาท เรียบร้อย', 'ok'));
+    };
+    if (id) $('#sDel').onclick = () => confirmBox('ลบรายการ ' + money(r.amount) + ' บาท ของ ' + esc(memberOf(r.memberId).name) + ' ใช่หรือไม่?').then(ok => ok && mutate('deleteRecord', 'Savings', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));
+  }
+
+  /** ฟอร์มรายรับ-รายจ่ายของกลุ่ม */
+  function ledgerForm(id, preset) {
+    const r = id ? Object.assign({}, D.ledger.find(t => t.id === id)) : Object.assign({ type: 'income', date: today(), groupId: D.user.groupId || entF.g || (D.groups[0] || {}).id }, preset || {});
+    const cats = t => Object.keys(D.cats[t]).map(k => [k, (CAT_E[k] || '') + ' ' + D.cats[t][k]]);
+    const sh = openSheet(id ? 'แก้ไขรายรับ-รายจ่าย' : (r.type === 'expense' ? '➖ รายจ่ายของกลุ่ม' : '➕ รายรับของกลุ่ม'),
+      segHtml('type', r.type, [['income', '➕ รายรับ', 'dep'], ['expense', '➖ รายจ่าย', 'wd']]) +
+      (isAdmin() ? '<label class="fld"><span>กลุ่มอาชีพ *</span><select name="groupId">' + opt(D.groups.map(g => [g.id, g.name]), r.groupId) + '</select></label>' : '<input type="hidden" name="groupId" value="' + esc(D.user.groupId) + '"><p class="muted small">กลุ่ม: <b>' + esc(groupName(D.user.groupId)) + '</b></p>') +
+      '<label class="fld"><span>หมวด *</span><select name="category">' + opt(cats(r.type), r.category) + '</select></label>' +
+      '<div class="grid2"><label class="fld"><span>จำนวนเงิน (บาท) *</span><input name="amount" type="number" inputmode="decimal" min="0" step="any" value="' + esc(r.amount || '') + '"></label>' +
+      '<label class="fld"><span>วันที่ *</span><input name="date" type="date" value="' + esc(r.date) + '" max="' + today() + '"></label></div>' +
+      '<label class="fld"><span>รายละเอียด</span><input name="note" maxlength="300" value="' + esc(r.note || '') + '" placeholder="เช่น ขายผลผลิตตลาดนัด, ซื้อวัตถุดิบ"></label>',
+      (id ? '<button class="btn ghost" id="lDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="lOk">💾 บันทึก</button>');
+    bindSeg(sh, (k, t) => { sh.querySelector('[name=category]').innerHTML = opt(cats(t), ''); });
+    $('#lOk').onclick = function () {
+      const d = formData(sh, ['type', 'groupId', 'category', 'amount', 'date', 'note']);
+      if (!(num(d.amount) > 0)) return toast('กรุณากรอกจำนวนเงิน', 'err');
+      if (id) d.id = id;
+      saveBtn(this, mutate('saveRecord', 'Ledger', d), () => toast('บันทึกรายการกลุ่มเรียบร้อย', 'ok'));
+    };
+    if (id) $('#lDel').onclick = () => confirmBox('ลบรายการ “' + esc(catName(r.type, r.category)) + '” ' + money(r.amount) + ' บาท ใช่หรือไม่?').then(ok => ok && mutate('deleteRecord', 'Ledger', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));
+  }
+
+  /* ================= เจ้าหน้าที่: สมาชิก ================= */
+  let memQ = '', memG = '';
+  VIEWS.members = function () {
+    return '<div class="row" style="margin-bottom:12px"><input class="search grow" id="mq" placeholder="🔍 ค้นหาชื่อ รหัส เบอร์โทร" value="' + esc(memQ) + '"><button class="btn" id="mAdd">＋ เพิ่ม</button></div>' +
+      (isAdmin() ? '<div class="filters"><select id="mg">' + opt(D.groups.map(g => [g.id, g.name]), memG, 'ทุกกลุ่ม') + '</select><button class="btn sm ghost" id="mcsv">⬇ CSV</button></div>' : '<div class="filters"><button class="btn sm ghost" id="mcsv">⬇ CSV</button></div>') +
+      '<p class="small muted" id="mcount"></p><div id="mlist"></div>';
+  };
+  function memList() { const q = memQ.toLowerCase(); return D.members.filter(m => (!memG || m.groupId === memG) && (!q || (m.memberNo + ' ' + m.name + ' ' + (m.phone || '')).toLowerCase().indexOf(q) !== -1)).sort((a, b) => String(a.memberNo).localeCompare(String(b.memberNo), 'th', { numeric: true })); }
+  BIND.members = function () {
+    const draw = () => {
+      const list = memList();
+      $('#mcount').textContent = list.length + ' คน';
+      $('#mlist').innerHTML = list.length ? '<div class="list">' + list.map(m => {
+        const di = debtInfo(m.id);
+        return '<div class="li tap" data-go="member" data-arg="' + esc(m.id) + '"><div class="ic">' + (truthy(m.active) ? '👤' : '🚫') + '</div><div style="min-width:0"><div class="t">' + esc(m.name) + '</div><div class="s">' + esc(m.memberNo) + (isAdmin() ? ' · ' + esc(groupName(m.groupId)) : '') + (di.total ? ' · 🩺 หนี้ ' + short(di.total) : '') + (truthy(m.active) ? '' : ' · ระงับ') + '</div></div>' +
+          '<div class="a">' + money(balanceOf(m.id)) + '<small>เงินออม</small></div></div>';
+      }).join('') + '</div>' : '<div class="card empty">' + (D.members.length ? 'ไม่พบสมาชิก' : 'ยังไม่มีสมาชิก — กด “＋ เพิ่ม”') + '</div>';
+    };
+    draw();
+    $('#mq').oninput = function () { memQ = this.value; draw(); };
+    const mg = $('#mg'); if (mg) mg.onchange = function () { memG = this.value; draw(); };
+    $('#mAdd').onclick = () => memberForm(null);
+    $('#mcsv').onclick = () => dlCsv('สมาชิก', [['memberNo', 'รหัสสมาชิก'], ['name', 'ชื่อ-นามสกุล'], ['phone', 'โทรศัพท์'], [m => groupName(m.groupId), 'กลุ่ม'], ['occupation', 'อาชีพ'], ['joinDate', 'วันที่เข้า'], [m => balanceOf(m.id), 'เงินออมคงเหลือ'], [m => debtInfo(m.id).total, 'หนี้คงค้าง'], ['income', 'รายได้/เดือน'], ['expense', 'รายจ่าย/เดือน'], [m => truthy(m.active) ? 'ใช้งาน' : 'ระงับ', 'สถานะ']], memList());
+  };
+  function nextMemberNo() {
+    let max = 0, pre = 'M', w = 4;
+    D.members.forEach(m => { const x = /^([A-Za-zก-๙]*)(\d+)$/.exec(String(m.memberNo)); if (x && Number(x[2]) >= max) { max = Number(x[2]); pre = x[1]; w = x[2].length; } });
+    let n = String(max + 1); while (n.length < w) n = '0' + n; return pre + n;
+  }
+  function memberForm(id) {
+    const r = id ? Object.assign({}, memberOf(id)) : { memberNo: nextMemberNo(), joinDate: today(), groupId: D.user.groupId || memG || (D.groups[0] || {}).id, active: 'TRUE' };
+    const sh = openSheet(id ? 'แก้ไขสมาชิก' : 'เพิ่มสมาชิก',
+      '<div class="grid2"><label class="fld"><span>รหัสสมาชิก *</span><input name="memberNo" value="' + esc(r.memberNo) + '"></label><label class="fld"><span>เบอร์โทร</span><input name="phone" type="tel" value="' + esc(r.phone || '') + '"></label></div>' +
+      '<label class="fld"><span>ชื่อ-นามสกุล *</span><input name="name" value="' + esc(r.name || '') + '"></label>' +
+      (isAdmin() ? '<label class="fld"><span>กลุ่มอาชีพ *</span><select name="groupId">' + opt(D.groups.map(g => [g.id, g.name]), r.groupId) + '</select></label>' : '<input type="hidden" name="groupId" value="' + esc(D.user.groupId) + '">') +
+      '<div class="grid2"><label class="fld"><span>อาชีพ</span><input name="occupation" value="' + esc(r.occupation || '') + '"></label><label class="fld"><span>วันที่เป็นสมาชิก</span><input name="joinDate" type="date" value="' + esc(r.joinDate || '') + '"></label></div>' +
+      '<div class="grid2"><label class="fld"><span>รายได้ครัวเรือน/เดือน</span><input name="income" type="number" inputmode="decimal" value="' + esc(r.income || '') + '"></label><label class="fld"><span>รายจ่าย/เดือน</span><input name="expense" type="number" inputmode="decimal" value="' + esc(r.expense || '') + '"></label></div>' +
+      '<label class="fld"><span>เป้าหมายเงินออม (บาท)</span><input name="savingsGoal" type="number" inputmode="decimal" value="' + esc(r.savingsGoal || '') + '"></label>' +
+      '<label class="fld"><span>' + (id ? 'ตั้ง PIN ใหม่ (เว้นว่าง = ไม่เปลี่ยน)' : 'PIN เริ่มต้น * (อย่างน้อย 4 ตัว)') + '</span><input name="pin" inputmode="numeric" autocomplete="off" placeholder="เช่น 4 หลักท้ายเบอร์โทร"><span class="hint">สมาชิกใช้รหัสสมาชิก + PIN เข้าแอป และเปลี่ยน PIN เองได้</span></label>' +
+      '<label class="fld"><span>หมายเหตุ (เห็นเฉพาะเจ้าหน้าที่)</span><input name="note" value="' + esc(r.note || '') + '"></label>' +
+      '<label class="switch"><input type="checkbox" name="active"' + (truthy(r.active) ? ' checked' : '') + '> เปิดใช้งาน</label>',
+      (id && isAdmin() ? '<button class="btn ghost" id="mDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="mOk">💾 บันทึก</button>');
+    $('#mOk').onclick = function () {
+      const d = formData(sh, ['memberNo', 'phone', 'name', 'groupId', 'occupation', 'joinDate', 'income', 'expense', 'savingsGoal', 'pin', 'note', 'active']);
+      if (!d.memberNo || !d.name) return toast('กรุณากรอกรหัสและชื่อ', 'err');
+      if (!id && (d.pin || '').length < 4) return toast('กรุณาตั้ง PIN อย่างน้อย 4 ตัว', 'err');
+      if (id) d.id = id;
+      saveBtn(this, mutate('saveRecord', 'Members', d), () => toast('บันทึกสมาชิกแล้ว' + (d.pin ? ' — แจ้ง PIN ให้สมาชิก' : ''), 'ok'));
+    };
+    if (id && isAdmin()) $('#mDel').onclick = () => confirmBox('ลบสมาชิก “' + esc(r.name) + '”? (ลบได้เฉพาะสมาชิกที่ไม่มีรายการเงิน/หนี้)').then(ok => ok && mutate('deleteRecord', 'Members', id).then(() => { toast('ลบแล้ว', 'ok'); go('members', null, true); }));
+  }
+
+  VIEWS.member = function (id) {
+    const m = memberOf(id);
+    if (!m.id) return '<div class="card empty">ไม่พบสมาชิก</div>';
+    const bal = balanceOf(id), di = debtInfo(id), txs = sortDate(D.savings.filter(t => t.memberId === id));
+    const dep = txs.filter(t => t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0), wd = txs.filter(t => t.type === 'withdraw').reduce((s, t) => s + num(t.amount), 0);
+    return '<div class="card"><div class="row between"><div class="grow"><h3 style="margin:0">' + esc(m.name) + ' ' + (truthy(m.active) ? '' : '<span class="pill bad">ระงับ</span>') + '</h3><div class="small muted">' + esc(m.memberNo) + ' · ' + esc(groupName(m.groupId)) + (m.phone ? ' · ☎ <a href="tel:' + esc(m.phone) + '">' + esc(m.phone) + '</a>' : '') + (m.occupation ? ' · ' + esc(m.occupation) : '') + '</div></div><button class="btn sm ghost" id="mdEdit">✎ แก้ไข</button></div></div>' +
+      '<div class="hero"><div class="k">เงินออมคงเหลือ</div><div class="v">' + money(bal) + '<small>บาท</small></div><div class="n">ฝากรวม ' + money(dep) + ' · ถอนรวม ' + money(wd) + '</div>' + goalHtml(bal, m.savingsGoal) + '</div>' +
+      '<div class="row" style="margin-bottom:14px"><button class="btn" id="mdDep">➕ ฝาก</button><button class="btn gold" id="mdWd">➖ ถอน</button><button class="btn ghost" data-go="cmember" data-arg="' + esc(id) + '">🩺 คลินิกหนี้' + (di.total ? ' (' + short(di.total) + ')' : '') + '</button></div>' +
+      '<h3>รายการเงินออม</h3>' + (txs.length ? '<div class="list">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class="card empty">ยังไม่มีรายการ</div>');
+  };
+  BIND.member = function (v, id) {
+    if (!$('#mdEdit')) return;
+    $('#mdEdit').onclick = () => memberForm(id);
+    $('#mdDep').onclick = () => savingForm(null, { memberId: id, type: 'deposit' });
+    $('#mdWd').onclick = () => savingForm(null, { memberId: id, type: 'withdraw' });
+    v.addEventListener('click', e => { const a = e.target.closest('[data-sav]'); if (a) savingForm(a.getAttribute('data-sav')); });
+  };
+
+  /* ================= คลินิกแก้หนี้ ================= */
+  let clQ = '';
+  VIEWS.clinic = function () {
+    if (!isStaff()) return VIEWS.cmember(D.user.id);
+    const rows = D.members.map(m => Object.assign({ m: m }, debtInfo(m.id))).filter(x => x.list.length);
+    const tot = rows.reduce((s, x) => s + x.total, 0), heavy = rows.filter(x => x.dti != null && x.dti > 40).length;
+    return '<div class="hero"><div class="k">🩺 หนี้คงค้างของสมาชิกในคลินิก</div><div class="v">' + money(tot) + '<small>บาท</small></div><div class="n">' + rows.filter(x => x.total).length + ' คนที่ยังมีหนี้ · ภาระหนี้เกิน 40% ของรายได้ ' + heavy + ' คน</div></div>' +
+      '<div class="row" style="margin-bottom:12px"><input class="search grow" id="cq" placeholder="🔍 ค้นหาสมาชิกเพื่อเปิดแฟ้มคลินิก" value="' + esc(clQ) + '"></div><div id="clist"></div>' +
+      '<p class="small muted">แตะชื่อสมาชิกเพื่อบันทึกหนี้ การชำระ แผนปลดหนี้ และบันทึกการให้คำปรึกษา · สมาชิกเปิดดูแฟ้มของตนเองได้ในแอป</p>';
+  };
+  BIND.clinic = function () {
+    if (!isStaff()) return BIND.cmember($('#view'), D.user.id);
+    const draw = () => {
+      const q = clQ.toLowerCase();
+      const list = D.members.filter(m => q ? (m.memberNo + ' ' + m.name).toLowerCase().indexOf(q) !== -1 : D.debts.some(d => d.memberId === m.id))
+        .map(m => Object.assign({ m: m }, debtInfo(m.id))).sort((a, b) => (b.dti || 0) - (a.dti || 0) || b.total - a.total);
+      $('#clist').innerHTML = list.length ? '<div class="list">' + list.map(x => '<div class="li tap" data-go="cmember" data-arg="' + esc(x.m.id) + '"><div class="ic' + (x.dti > 40 ? ' w' : '') + '">' + (x.total ? '🩺' : '✅') + '</div><div style="min-width:0"><div class="t">' + esc(x.m.name) + '</div><div class="s">' + esc(x.m.memberNo) + ' · ' + x.active.length + ' หนี้ค้าง · ผ่อน ' + money(x.monthly) + '/เดือน</div><div style="margin-top:3px">' + dtiPill(x.dti) + '</div></div><div class="a m">' + money(x.total) + '<small>คงเหลือ</small></div></div>').join('') + '</div>'
+        : '<div class="card empty">' + (q ? 'ไม่พบสมาชิก' : 'ยังไม่มีสมาชิกที่บันทึกหนี้ — ค้นหาชื่อสมาชิกด้านบนเพื่อเปิดแฟ้มคลินิก') + '</div>';
+    };
+    draw();
+    $('#cq').oninput = function () { clQ = this.value; draw(); };
+  };
+
+  let planExtra = '', planMethod = 'avalanche';
+  /** จำลองแผนปลดหนี้รายเดือน (ดอกเบี้ยลดต้นลดดอก) */
+  function simulate(debts, extra, method) {
+    let ds = debts.map(d => ({ id: d.id, name: d.creditor, bal: d.outstanding, rate: num(d.rate), min: num(d.monthlyPayment), done: 0 }));
+    const budget = ds.reduce((s, d) => s + d.min, 0) + num(extra);
+    if (!ds.length) return null;
+    if (budget <= 0) return { error: 'ใส่ยอดผ่อนต่อเดือนในรายการหนี้ หรือใส่เงินโปะเพิ่ม เพื่อคำนวณแผน' };
+    let month = 0, interest = 0;
+    while (ds.some(d => d.bal > 0.005) && month < 600) {
+      month++;
+      ds.forEach(d => { if (d.bal > 0) { const i = d.bal * d.rate / 1200; d.bal += i; interest += i; } });
+      let left = budget;
+      ds.forEach(d => { if (d.bal > 0) { const p = Math.min(d.bal, d.min, left); d.bal -= p; left -= p; } });
+      const order = ds.filter(d => d.bal > 0.005).sort((a, b) => method === 'snowball' ? a.bal - b.bal : b.rate - a.rate || a.bal - b.bal);
+      for (const d of order) { if (left <= 0) break; const p = Math.min(d.bal, left); d.bal -= p; left -= p; }
+      ds.forEach(d => { if (d.bal <= 0.005 && !d.done) { d.bal = 0; d.done = month; } });
+      if (month === 1 && ds.every(d => d.bal > 0) && left <= 0 && ds.reduce((s, d) => s + d.bal, 0) >= debts.reduce((s, d) => s + d.outstanding, 0)) return { error: 'ยอดผ่อนรวม ' + money(budget) + ' บาท/เดือน ไม่พอจ่ายดอกเบี้ย หนี้จะไม่ลดลง — ควรเพิ่มยอดผ่อนหรือเจรจาลดดอกเบี้ยกับเจ้าหนี้' };
+    }
+    if (month >= 600) return { error: 'ตามยอดผ่อนนี้ใช้เวลาเกิน 50 ปี — ควรเพิ่มยอดผ่อนหรือเจรจาปรับโครงสร้างหนี้' };
+    return { months: month, interest: interest, budget: budget, order: ds.slice().sort((a, b) => a.done - b.done) };
+  }
+  function monthsText(n) { const y = Math.floor(n / 12), m = n % 12; return (y ? y + ' ปี ' : '') + (m ? m + ' เดือน' : (y ? '' : '0 เดือน')); }
+  function addMonths(n) { const d = new Date(); d.setMonth(d.getMonth() + n); return TM[d.getMonth()] + ' ' + (d.getFullYear() + 543); }
+
+  VIEWS.cmember = function (id) {
+    const m = memberOf(id);
+    if (!m.id) return '<div class="card empty">ไม่พบสมาชิก</div>';
+    const di = debtInfo(id), self = D.user.role === 'member';
+    const notes = sortDate(D.counsel.filter(c => c.memberId === id));
+    const left = di.income ? di.income - num(m.expense) - di.monthly : null;
+    let h = (self ? '' : '<div class="card"><b>' + esc(m.name) + '</b> <span class="muted small">' + esc(m.memberNo) + ' · ' + esc(groupName(m.groupId)) + '</span></div>');
+    h += '<div class="hero"><div class="k">หนี้คงเหลือรวม</div><div class="v">' + money(di.total) + '<small>บาท</small></div><div class="n">' + di.active.length + ' รายการที่ยังผ่อน · ผ่อนรวม ' + money(di.monthly) + ' บาท/เดือน</div></div>';
+    h += '<div class="tiles"><div class="tile"><div class="l">หนี้ต่อรายได้</div><div style="margin-top:4px">' + dtiPill(di.dti) + '</div><div class="s">ควรไม่เกิน 30–40%</div></div>' +
+      '<div class="tile"><div class="l">รายได้/เดือน</div><div class="n">' + (di.income ? money(di.income) : '-') + '</div><div class="s">รายจ่าย ' + (m.expense ? money(m.expense) : '-') + '</div></div>' +
+      '<div class="tile"><div class="l">เหลือหลังจ่ายทุกอย่าง</div><div class="n" style="color:' + (left != null && left < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' + (left == null ? '-' : money(left)) + '</div><div class="s">รายได้ − รายจ่าย − ผ่อนหนี้</div></div>' +
+      '<div class="tile"><div class="l">เงินออมในกลุ่ม</div><div class="n">' + money(balanceOf(id)) + '</div><div class="s">ไม่ควรถอนมาโปะจนไม่มีเงินฉุกเฉิน</div></div></div>';
+    if (self && !di.income) h += '<div class="msg info">ใส่รายได้และรายจ่ายต่อเดือนที่หน้า “ฉัน” เพื่อดูสัดส่วนหนี้ต่อรายได้</div>';
+    h += '<div class="row between" style="margin:4px 0 10px"><h3 style="margin:0">📋 รายการหนี้</h3><button class="btn sm" id="dAdd">＋ เพิ่มหนี้</button></div>';
+    h += di.list.length ? '<div class="list">' + di.list.sort((a, b) => (a.status === 'closed') - (b.status === 'closed') || b.outstanding - a.outstanding).map(d => {
+      const pct = num(d.principal) ? Math.min(100, Math.round(d.paid / num(d.principal) * 100)) : 0, closed = d.status === 'closed' || d.outstanding <= 0;
+      return '<div class="li" style="grid-template-columns:42px 1fr"><div class="ic' + (d.kind === 'informal' ? ' w' : '') + '">' + (KIND_E[d.kind] || '📌') + '</div><div style="min-width:0">' +
+        '<div class="row between"><div class="t grow">' + esc(d.creditor) + ' ' + (closed ? '<span class="pill ok">✓ ปิดแล้ว</span>' : d.kind === 'informal' ? '<span class="pill bad">หนี้นอกระบบ</span>' : '') + '</div><div class="a m">' + money(d.outstanding) + '</div></div>' +
+        '<div class="s">' + esc(D.debtKinds[d.kind] || d.kind) + ' · ยอดกู้ ' + money(d.principal) + (d.rate !== '' ? ' · ดอกเบี้ย ' + esc(d.rate) + '%/ปี' : '') + (d.monthlyPayment ? ' · ผ่อน ' + money(d.monthlyPayment) + '/เดือน' : '') + '</div>' +
+        '<div class="pbar" style="margin:7px 0 4px"><i style="width:' + pct + '%"></i></div><div class="s">ชำระแล้ว ' + money(d.paid) + ' (' + pct + '%)</div>' +
+        '<div class="row" style="margin-top:8px">' + (closed ? '' : '<button class="btn sm" data-pay="' + esc(d.id) + '">💵 บันทึกการชำระ</button>') + '<button class="btn sm ghost" data-dhist="' + esc(d.id) + '">ประวัติ</button><button class="btn sm ghost" data-dedit="' + esc(d.id) + '">✎</button></div></div></div>';
+    }).join('') + '</div>' : '<div class="card empty">ยังไม่มีรายการหนี้ — กด “＋ เพิ่มหนี้” เพื่อเริ่มต้นวางแผน</div>';
+    if (di.active.length) {
+      const a = simulate(di.active, planExtra, planMethod);
+      h += '<div class="card"><h3>🗓️ แผนปลดหนี้</h3><div class="grid2"><label class="fld"><span>เงินโปะเพิ่มต่อเดือน (บาท)</span><input id="pX" type="number" inputmode="decimal" min="0" value="' + esc(planExtra) + '" placeholder="0"></label>' +
+        '<label class="fld"><span>วิธีปลดหนี้</span><select id="pM">' + opt([['avalanche', 'ดอกเบี้ยสูงก่อน (ประหยัดสุด)'], ['snowball', 'ก้อนเล็กก่อน (สร้างกำลังใจ)']], planMethod) + '</select></label></div>';
+      if (!a || a.error) h += '<div class="msg err">' + esc(a ? a.error : '') + '</div>';
+      else {
+        const base = num(planExtra) ? simulate(di.active, 0, planMethod) : null;
+        h += '<div class="tiles" style="grid-template-columns:repeat(2,1fr)"><div class="tile"><div class="l">หมดหนี้ใน</div><div class="n">' + monthsText(a.months) + '</div><div class="s">ประมาณ ' + addMonths(a.months) + '</div></div>' +
+          '<div class="tile"><div class="l">ดอกเบี้ยรวมโดยประมาณ</div><div class="n">' + money(Math.round(a.interest)) + '</div><div class="s">ผ่อนรวม ' + money(a.budget) + '/เดือน</div></div></div>' +
+          (base && !base.error ? '<div class="msg ok">โปะเพิ่ม ' + money(planExtra) + ' บาท/เดือน หมดหนี้เร็วขึ้น ' + monthsText(Math.max(0, base.months - a.months)) + ' และประหยัดดอกเบี้ย ' + money(Math.max(0, Math.round(base.interest - a.interest))) + ' บาท</div>' : '') +
+          '<p class="small" style="margin:6px 0 4px"><b>ลำดับการปิดหนี้</b></p><ol class="small" style="margin:0;padding-left:20px">' + a.order.map(d => '<li>' + esc(d.name) + ' — ปิดได้ใน ' + monthsText(d.done) + '</li>').join('') + '</ol>' +
+          '<p class="hint" style="margin-top:8px">คำนวณแบบลดต้นลดดอกรายเดือน จากยอดคงเหลือ อัตราดอกเบี้ย และยอดผ่อนที่บันทึกไว้ เป็นค่าประมาณเพื่อวางแผนเท่านั้น</p>';
+      }
+      h += '</div>';
+    }
+    h += '<div class="row between" style="margin:4px 0 10px"><h3 style="margin:0">🗒️ บันทึกการให้คำปรึกษา</h3>' + (self ? '' : '<button class="btn sm" id="nAdd">＋ บันทึก</button>') + '</div>';
+    h += notes.length ? '<div class="list">' + notes.map(c => '<div class="li" style="grid-template-columns:1fr' + (self ? '' : ' auto') + '"><div><div class="t">' + esc(c.topic || 'ให้คำปรึกษา') + '</div><div class="s">' + thDate(c.date) + ' · ' + esc(c.counselor || '') + (c.nextDate ? ' · นัดครั้งถัดไป ' + thDate(c.nextDate) : '') + '</div>' +
+      (c.advice ? '<div style="white-space:pre-wrap;margin-top:4px;font-size:14.5px">' + esc(c.advice) + '</div>' : '') + '</div>' + (self ? '' : '<button class="icon-btn" data-nedit="' + esc(c.id) + '">✎</button>') + '</div>').join('') + '</div>'
+      : '<div class="card empty">' + (self ? 'ยังไม่มีบันทึกจากเจ้าหน้าที่ — ขอรับคำปรึกษาได้ที่เจ้าหน้าที่กลุ่ม หรือถาม “ผู้ช่วย” ได้ตลอดเวลา' : 'ยังไม่มีบันทึก') + '</div>';
+    h += '<div class="card" style="background:var(--surface-2)"><h3>📞 แหล่งช่วยเหลือ</h3><div class="small">คลินิกแก้หนี้ (บสส.) <a href="tel:1443">1443</a> · ศคง. ธนาคารแห่งประเทศไทย <a href="tel:1213">1213</a> · ถูกทวงหนี้ข่มขู่ แจ้งตำรวจ <a href="tel:191">191</a> / <a href="tel:1599">1599</a> · ศูนย์ดำรงธรรม <a href="tel:1567">1567</a> · สุขภาพจิต <a href="tel:1323">1323</a></div>' +
+      '<button class="btn sm gold" style="margin-top:10px" data-go="chat">💬 ถามผู้ช่วยการเงิน</button></div>';
+    return h;
+  };
+  BIND.cmember = function (v, id) {
+    if (!$('#dAdd')) return;
+    $('#dAdd').onclick = () => debtForm(null, id);
+    const px = $('#pX'), pm = $('#pM');
+    if (px) px.onchange = function () { planExtra = this.value; render(); };
+    if (pm) pm.onchange = function () { planMethod = this.value; render(); };
+    const na = $('#nAdd'); if (na) na.onclick = () => counselForm(null, id);
+    v.addEventListener('click', e => {
+      let b;
+      if ((b = e.target.closest('[data-pay]'))) return payForm(b.getAttribute('data-pay'));
+      if ((b = e.target.closest('[data-dedit]'))) return debtForm(b.getAttribute('data-dedit'), id);
+      if ((b = e.target.closest('[data-dhist]'))) return payHistory(b.getAttribute('data-dhist'));
+      if ((b = e.target.closest('[data-nedit]'))) return counselForm(b.getAttribute('data-nedit'), id);
+    });
+  };
+  function debtForm(did, memberId) {
+    const r = did ? Object.assign({}, D.debts.find(d => d.id === did)) : { kind: 'bank', status: 'active', startDate: '' };
+    const sh = openSheet(did ? 'แก้ไขรายการหนี้' : 'เพิ่มรายการหนี้',
+      '<label class="fld"><span>เจ้าหนี้ / แหล่งเงินกู้ *</span><input name="creditor" value="' + esc(r.creditor || '') + '" placeholder="เช่น ธ.ก.ส., กองทุนหมู่บ้าน, นายทุนในหมู่บ้าน"></label>' +
+      '<label class="fld"><span>ประเภทหนี้</span><select name="kind">' + opt(Object.keys(D.debtKinds).map(k => [k, (KIND_E[k] || '') + ' ' + D.debtKinds[k]]), r.kind) + '</select></label>' +
+      '<div class="grid2"><label class="fld"><span>ยอดหนี้ที่ต้องชำระ *</span><input name="principal" type="number" inputmode="decimal" value="' + esc(r.principal || '') + '"><span class="hint">ยอดคงค้าง ณ วันที่เริ่มบันทึก</span></label>' +
+      '<label class="fld"><span>ดอกเบี้ย (% ต่อปี)</span><input name="rate" type="number" inputmode="decimal" step="any" value="' + esc(r.rate || '') + '"><span class="hint">ร้อยละ 20 ต่อเดือน = 240 ต่อปี</span></label></div>' +
+      '<div class="grid2"><label class="fld"><span>ผ่อนต่อเดือน (บาท)</span><input name="monthlyPayment" type="number" inputmode="decimal" value="' + esc(r.monthlyPayment || '') + '"></label>' +
+      '<label class="fld"><span>วันที่เริ่ม</span><input name="startDate" type="date" value="' + esc(r.startDate || '') + '"></label></div>' +
+      '<label class="fld"><span>หมายเหตุ</span><input name="note" value="' + esc(r.note || '') + '"></label>' +
+      (did ? '<label class="switch"><input type="checkbox" name="closed"' + (r.status === 'closed' ? ' checked' : '') + '> ปิดหนี้แล้ว</label>' : ''),
+      (did ? '<button class="btn ghost" id="dDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="dOk">💾 บันทึก</button>');
+    $('#dOk').onclick = function () {
+      const d = formData(sh, ['creditor', 'kind', 'principal', 'rate', 'monthlyPayment', 'startDate', 'note']);
+      if (!d.creditor || !(num(d.principal) > 0)) return toast('กรุณากรอกเจ้าหนี้และยอดหนี้', 'err');
+      d.memberId = memberId; d.status = formVal(sh, 'closed') === 'TRUE' ? 'closed' : 'active';
+      if (did) d.id = did;
+      saveBtn(this, mutate('saveRecord', 'Debts', d), () => toast('บันทึกรายการหนี้แล้ว', 'ok'));
+    };
+    if (did) $('#dDel').onclick = () => confirmBox('ลบหนี้ “' + esc(r.creditor) + '” และประวัติการชำระทั้งหมด?').then(ok => ok && mutate('deleteRecord', 'Debts', did).then(() => { toast('ลบแล้ว', 'ok'); render(); }));
+  }
+  function payForm(did) {
+    const d = debtInfo(D.debts.find(x => x.id === did).memberId).list.find(x => x.id === did);
+    const sh = openSheet('💵 บันทึกการชำระหนี้', '<p class="small muted" style="margin-top:0">' + esc(d.creditor) + ' · คงเหลือ <b>' + money(d.outstanding) + '</b> บาท</p>' +
+      '<div class="grid2"><label class="fld"><span>จำนวนที่ชำระ (บาท) *</span><input name="amount" type="number" inputmode="decimal" value="' + esc(d.monthlyPayment && num(d.monthlyPayment) <= d.outstanding ? d.monthlyPayment : '') + '"></label>' +
+      '<label class="fld"><span>วันที่ *</span><input name="date" type="date" value="' + today() + '" max="' + today() + '"></label></div><label class="fld"><span>หมายเหตุ</span><input name="note"></label>' +
+      '<p class="hint">ใส่เฉพาะส่วนที่ตัดเงินต้น ถ้าทราบ (ถ้าไม่ทราบ ใส่ยอดที่จ่ายทั้งหมด)</p>',
+      '<button class="btn ghost" data-close>ยกเลิก</button><button class="btn" id="pOk">💾 บันทึก</button>');
+    $('#pOk').onclick = function () {
+      const x = formData(sh, ['amount', 'date', 'note']);
+      if (!(num(x.amount) > 0)) return toast('กรุณากรอกจำนวนเงิน', 'err');
+      x.debtId = did;
+      saveBtn(this, mutate('saveRecord', 'DebtPayments', x), () => toast(num(x.amount) >= d.outstanding - 0.001 ? '🎉 ปิดหนี้ก้อนนี้แล้ว ยินดีด้วย!' : 'บันทึกการชำระแล้ว', 'ok'));
+    };
+  }
+  function payHistory(did) {
+    const d = D.debts.find(x => x.id === did), ps = sortDate(D.payments.filter(p => p.debtId === did));
+    const sh = openSheet('ประวัติการชำระ: ' + esc(d.creditor), ps.length ? '<div class="list">' + ps.map(p => '<div class="li" style="grid-template-columns:1fr auto auto"><div><div class="t">' + thDate(p.date) + '</div><div class="s">' + esc(p.note || '') + ' · ' + esc(String(p.recordedBy || '').replace(/^member:/, 'สมาชิกบันทึก ')) + '</div></div><div class="a p">' + money(p.amount) + '</div><button class="icon-btn" data-pdel="' + esc(p.id) + '" aria-label="ลบ">🗑</button></div>').join('') + '</div>' : '<div class="empty">ยังไม่มีการชำระ</div>');
+    sh.onclick = e => { const b = e.target.closest('[data-pdel]'); if (b) { const pid = b.getAttribute('data-pdel'); sh.onclick = null; confirmBox('ลบรายการชำระนี้?').then(ok => ok && mutate('deleteRecord', 'DebtPayments', pid).then(() => { toast('ลบแล้ว', 'ok'); render(); })); } };
+  }
+  function counselForm(cid, memberId) {
+    const r = cid ? Object.assign({}, D.counsel.find(c => c.id === cid)) : { date: today(), counselor: D.user.name };
+    const sh = openSheet(cid ? 'แก้ไขบันทึกคำปรึกษา' : 'บันทึกการให้คำปรึกษา',
+      '<div class="grid2"><label class="fld"><span>วันที่</span><input name="date" type="date" value="' + esc(r.date || '') + '"></label><label class="fld"><span>นัดครั้งถัดไป</span><input name="nextDate" type="date" value="' + esc(r.nextDate || '') + '"></label></div>' +
+      '<label class="fld"><span>หัวข้อ</span><input name="topic" value="' + esc(r.topic || '') + '" placeholder="เช่น วางแผนปิดหนี้นอกระบบ"></label>' +
+      '<label class="fld"><span>คำแนะนำ / ข้อตกลง</span><textarea name="advice" rows="5">' + esc(r.advice || '') + '</textarea><span class="hint">สมาชิกจะเห็นบันทึกนี้ในแฟ้มคลินิกของตน</span></label>' +
+      '<label class="fld"><span>ผู้ให้คำปรึกษา</span><input name="counselor" value="' + esc(r.counselor || '') + '"></label>',
+      (cid ? '<button class="btn ghost" id="cDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="cOk">💾 บันทึก</button>');
+    $('#cOk').onclick = function () {
+      const d = formData(sh, ['date', 'nextDate', 'topic', 'advice', 'counselor']); d.memberId = memberId; if (cid) d.id = cid;
+      saveBtn(this, mutate('saveRecord', 'Counsel', d), () => toast('บันทึกแล้ว', 'ok'));
+    };
+    if (cid) $('#cDel').onclick = () => confirmBox('ลบบันทึกนี้?').then(ok => ok && mutate('deleteRecord', 'Counsel', cid).then(() => { toast('ลบแล้ว', 'ok'); render(); }));
+  }
+
+  /* ================= แชตบอต ================= */
+  const SUGGEST = ['เริ่มออมเงินยังไงดี', 'มีหนี้หลายก้อน ควรจ่ายอันไหนก่อน', 'หนี้นอกระบบ ทำอย่างไรดี', 'ควรมีเงินฉุกเฉินเท่าไร', 'ออมเพื่อไปฮัจย์', 'ลดรายจ่ายอย่างไรได้บ้าง'];
+  VIEWS.chat = function () {
+    const bot = CFG.botName || 'น้องออม';
+    return '<div class="card" style="display:flex;gap:12px;align-items:center"><div style="font-size:34px">🤖</div><div><b style="font-family:var(--font-head)">' + esc(bot) + ' · ผู้ช่วยการเงิน</b><div class="small muted">ถามเรื่องการออม การจัดการหนี้ และบัญชีครัวเรือนได้ตลอด 24 ชม. · ห้ามพิมพ์รหัสผ่าน PIN หรือเลขบัญชี</div></div></div>' +
+      '<div class="chat" id="chatBox">' + (HIST.length ? '' : '<div class="bubble b">อัสสลามุอะลัยกุม สวัสดีค่ะ 😊 ' + esc(bot) + ' ยินดีช่วยเรื่องการออมและการแก้หนี้ค่ะ เลือกคำถามด้านล่าง หรือพิมพ์ถามได้เลย</div>') +
+      HIST.map(bubble).join('') + '</div>' +
+      '<div class="chips" id="chips" style="margin:12px 0">' + SUGGEST.map(s => '<button class="chip">' + esc(s) + '</button>').join('') + '</div>' +
+      '<form class="composer" id="chatF"><textarea id="chatIn" rows="1" maxlength="1000" placeholder="พิมพ์คำถาม..." aria-label="คำถาม"></textarea><button class="btn" id="chatGo" aria-label="ส่ง">ส่ง</button></form>' +
+      (HIST.length ? '<p style="text-align:center"><button class="btn sm ghost" id="chatClr">เริ่มบทสนทนาใหม่</button></p>' : '') +
+      '<p class="hint" style="text-align:center">คำตอบเป็นคำแนะนำทั่วไป ไม่ใช่คำปรึกษาทางกฎหมาย ตรวจสอบกับเจ้าหน้าที่ก่อนตัดสินใจเรื่องสำคัญ</p>';
+  };
+  function bubble(h) {
+    const src = h.source === 'ai' ? '🤖 ตอบโดย AI' : h.source === 'faq' ? '📚 จากคลังคำตอบ' : h.source === 'help' ? 'ℹ️ ระบบ' : '';
+    return '<div class="bubble ' + (h.role === 'user' ? 'u' : 'b') + '">' + esc(h.content) + (h.role !== 'user' && src ? '<span class="src">' + src + '</span>' : '') + '</div>';
+  }
+  BIND.chat = function () {
+    const box = $('#chatBox'), inp = $('#chatIn');
+    const scroll = () => { const last = box.lastElementChild; if (last) last.scrollIntoView({ block: 'end', behavior: 'smooth' }); };
+    const send = q => {
+      q = String(q || '').trim(); if (!q) return;
+      HIST.push({ role: 'user', content: q }); chatlogFresh = false;
+      box.insertAdjacentHTML('beforeend', bubble(HIST[HIST.length - 1]) + '<div class="bubble b" id="typing"><span class="spin"></span> กำลังพิมพ์...</div>');
+      inp.value = ''; $('#chatGo').disabled = true; scroll();
+      api('chatAsk', HIST.slice(-12).map(h => ({ role: h.role, content: h.content }))).then(r => {
+        HIST.push({ role: 'assistant', content: r.answer, source: r.source });
+      }).catch(e => { HIST.push({ role: 'assistant', content: 'ขออภัยค่ะ ระบบขัดข้อง: ' + e.message, source: 'help' }); }).then(() => {
+        try { sessionStorage.setItem('ss_chat', JSON.stringify(HIST.slice(-40))); } catch (e) { }
+        const t = $('#typing'); if (t) t.remove();
+        if (VIEW !== 'chat') return;
+        box.insertAdjacentHTML('beforeend', bubble(HIST[HIST.length - 1])); $('#chatGo').disabled = false; scroll();
+      });
+    };
+    $('#chatF').addEventListener('submit', e => { e.preventDefault(); send(inp.value); });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 700) { e.preventDefault(); send(inp.value); } });
+    $('#chips').onclick = e => { const c = e.target.closest('.chip'); if (c) send(c.textContent); };
+    const clr = $('#chatClr'); if (clr) clr.onclick = () => { HIST = []; try { sessionStorage.removeItem('ss_chat'); } catch (e) { } render(); };
+    if (HIST.length) scroll();
+  };
+
+  /* ================= สมาชิก: หน้าแรก / เงินออม / ฉัน ================= */
+  VIEWS.home = function () {
+    const m = memberOf(D.user.id), bal = balanceOf(m.id), di = debtInfo(m.id), g = groupOf(m.groupId), gs = (D.dashboard.groups || [])[0];
+    const txs = sortDate(D.savings.slice()).slice(0, 5), ym = today().substr(0, 7);
+    const thisMonth = D.savings.filter(t => String(t.date).substr(0, 7) === ym && t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0);
+    const hr = new Date().getHours();
+    return '<h2 style="margin-bottom:2px">' + (hr < 12 ? 'อรุณสวัสดิ์' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น') + ' ' + esc(m.name) + '</h2><p class="muted small" style="margin:0 0 12px">' + esc(m.memberNo) + ' · ' + esc((g.icon ? g.icon + ' ' : '') + (g.name || '')) + '</p>' +
+      '<div class="hero"><div class="k">เงินออมของฉัน</div><div class="v">' + money(bal) + '<small>บาท</small></div><div class="n">เดือนนี้ฝากแล้ว ' + money(thisMonth) + ' บาท' + (num(g.monthlyShare) ? ' · กลุ่มกำหนด ' + money(g.monthlyShare) + '/เดือน' : '') + '</div>' + goalHtml(bal, m.savingsGoal, 'เป้าหมายของฉัน') + '</div>' +
+      '<div class="tiles"><div class="tile" data-go="clinic" style="cursor:pointer"><div class="l">🩺 หนี้คงเหลือ</div><div class="n">' + money(di.total) + '</div><div class="s">' + (di.active.length ? di.active.length + ' รายการ · ' : '') + 'แตะเพื่อวางแผน</div></div>' +
+      '<div class="tile"><div class="l">หนี้ต่อรายได้</div><div style="margin-top:4px">' + dtiPill(di.dti) + '</div></div>' +
+      (gs ? '<div class="tile"><div class="l">🧺 เงินออมทั้งกลุ่ม</div><div class="n">' + short(gs.savings) + '</div><div class="s">' + gs.members + ' สมาชิก</div></div><div class="tile"><div class="l">กองทุนกลุ่ม</div><div class="n">' + short(gs.fund) + '</div><div class="s">รายรับ − รายจ่ายของกลุ่ม</div></div>' : '') + '</div>' +
+      '<div class="card" style="display:flex;gap:12px;align-items:center;cursor:pointer" data-go="chat"><div style="font-size:30px">💬</div><div class="grow"><b style="font-family:var(--font-head)">มีคำถามเรื่องเงิน ถาม' + esc(CFG.botName || 'น้องออม') + 'ได้เลย</b><div class="small muted">ออมยังไง · หนี้ก้อนไหนจ่ายก่อน · หนี้นอกระบบ</div></div><span>→</span></div>' +
+      '<div class="row between"><h3 style="margin:0 0 8px">รายการล่าสุด</h3>' + (D.savings.length ? '<a href="#" data-go="mysav">ดูทั้งหมด →</a>' : '') + '</div>' +
+      (txs.length ? '<div class="list">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class="card empty">ยังไม่มีรายการ — นำเงินไปฝากกับเจ้าหน้าที่กลุ่ม</div>');
+  };
+  let myYear = '';
+  VIEWS.mysav = function () {
+    const years = [...new Set(D.savings.map(t => String(t.date).substr(0, 4)).filter(Boolean))].sort().reverse();
+    const txs = sortDate(D.savings.filter(t => !myYear || String(t.date).substr(0, 4) === myYear));
+    const dep = txs.filter(t => t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0), wd = txs.filter(t => t.type === 'withdraw').reduce((s, t) => s + num(t.amount), 0);
+    return '<div class="filters"><select id="my">' + opt(years.map(y => [y, 'ปี ' + (Number(y) + 543)]), myYear, 'ทุกปี') + '</select></div>' +
+      '<div class="tiles" style="grid-template-columns:repeat(3,1fr)"><div class="tile"><div class="l">ฝาก</div><div class="n" style="color:var(--ok)">' + short(dep) + '</div></div><div class="tile"><div class="l">ถอน</div><div class="n" style="color:var(--danger)">' + short(wd) + '</div></div><div class="tile"><div class="l">คงเหลือ</div><div class="n">' + short(balanceOf(D.user.id)) + '</div></div></div>' +
+      (txs.length ? '<div class="list">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class="card empty">ไม่มีรายการ</div>');
+  };
+  BIND.mysav = function () { $('#my').onchange = function () { myYear = this.value; render(); }; };
+  VIEWS.me = function () {
+    const m = memberOf(D.user.id);
+    return '<div class="card"><h3>👤 ข้อมูลของฉัน</h3><p style="margin:0">' + esc(m.name) + '<br><span class="muted small">' + esc(m.memberNo) + ' · ' + esc(groupName(m.groupId)) + (m.phone ? ' · ' + esc(m.phone) : '') + (m.joinDate ? ' · สมาชิกตั้งแต่ ' + thDate(m.joinDate) : '') + '</span></p></div>' +
+      '<form class="card" id="bf"><h3>📒 รายได้-รายจ่ายของครัวเรือน</h3><p class="small muted" style="margin-top:-4px">ใช้คำนวณสัดส่วนหนี้ต่อรายได้ในคลินิกแก้หนี้ และช่วยให้ผู้ช่วยแนะนำได้ตรงขึ้น</p>' +
+      '<div class="grid2"><label class="fld"><span>รายได้ต่อเดือน</span><input name="income" type="number" inputmode="decimal" value="' + esc(m.income || '') + '"></label><label class="fld"><span>รายจ่ายต่อเดือน</span><input name="expense" type="number" inputmode="decimal" value="' + esc(m.expense || '') + '"></label></div>' +
+      '<div class="grid2"><label class="fld"><span>อาชีพ</span><input name="occupation" value="' + esc(m.occupation || '') + '"></label><label class="fld"><span>เป้าหมายเงินออม</span><input name="savingsGoal" type="number" inputmode="decimal" value="' + esc(m.savingsGoal || '') + '"></label></div>' +
+      '<button class="btn" type="submit">💾 บันทึก</button></form>' +
+      '<form class="card" id="pf"><h3>🔒 เปลี่ยน PIN</h3><label class="fld"><span>PIN เดิม</span><input name="o" type="password" inputmode="numeric" autocomplete="current-password"></label><label class="fld"><span>PIN ใหม่ (อย่างน้อย 4 ตัว)</span><input name="n" type="password" inputmode="numeric" autocomplete="new-password"></label>' +
+      '<button class="btn" type="submit">เปลี่ยน PIN</button></form><button class="btn ghost block" id="lo">ออกจากระบบ</button>';
+  };
+  BIND.me = function () {
+    $('#bf').addEventListener('submit', e => { e.preventDefault(); const f = e.target; const b = f.querySelector('button'); b.disabled = true;
+      mutate('saveMyProfile', { income: f.income.value, expense: f.expense.value, occupation: f.occupation.value, savingsGoal: f.savingsGoal.value }).then(() => { toast('บันทึกแล้ว', 'ok'); render(); }).catch(() => { b.disabled = false; }); });
+    $('#pf').addEventListener('submit', e => { e.preventDefault(); const f = e.target;
+      if ((f.n.value || '').length < 4) return toast('PIN ใหม่ต้องมีอย่างน้อย 4 ตัว', 'err');
+      busy(true); api('changeSecret', f.o.value, f.n.value).then(() => { busy(false); f.reset(); toast('เปลี่ยน PIN แล้ว', 'ok'); }).catch(er => { busy(false); toast(er.message, 'err'); }); });
+    $('#lo').onclick = () => logout();
+  };
+
+  /* ================= เจ้าหน้าที่: เพิ่มเติม ================= */
+  VIEWS.more = function () {
+    const item = (go, e, t, s) => '<div class="li tap" data-go="' + go + '"><div class="ic">' + e + '</div><div><div class="t">' + t + '</div><div class="s">' + s + '</div></div><div class="a">›</div></div>';
+    return '<div class="list">' + item('chat', '💬', 'ผู้ช่วยการเงิน (แชตบอต)', 'ตอบคำถามการออมและการแก้หนี้อัตโนมัติ') + item('groups', '🧺', 'กลุ่มอาชีพ', isAdmin() ? 'เพิ่ม/แก้ไขกลุ่ม เงินสัจจะ เป้าหมาย' : 'ข้อมูลกลุ่มอาชีพ') +
+      (isAdmin() ? item('users', '🧑‍💼', 'ผู้ใช้งาน (เจ้าหน้าที่)', 'เพิ่มเจ้าหน้าที่ประจำกลุ่ม / ผู้ดูแล') + item('faq', '📚', 'คลังคำตอบแชตบอต', 'คำถาม-คำตอบที่ใช้เมื่อไม่มี AI') + item('chatlog', '🗂️', 'คำถามที่ถามแชตบอต', 'ดูว่าสมาชิกสงสัยเรื่องอะไร') + item('settings', '⚙️', 'ตั้งค่าแอป & AI', 'ชื่อแอป ชื่อแชตบอต คีย์ OpenAI') : '') + '</div>' +
+      (isAdmin() && D.dbUrl ? '<p><a href="' + esc(D.dbUrl) + '" target="_blank" rel="noopener">📗 เปิดฐานข้อมูล (Google Sheets) ↗</a></p>' : '') +
+      '<form class="card" id="pw"><h3>🔒 เปลี่ยนรหัสผ่าน</h3><label class="fld"><span>รหัสผ่านเดิม</span><input name="o" type="password" autocomplete="current-password"></label><label class="fld"><span>รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)</span><input name="n" type="password" autocomplete="new-password"></label><button class="btn" type="submit">เปลี่ยนรหัสผ่าน</button></form>' +
+      '<button class="btn ghost block" id="lo">ออกจากระบบ</button>';
+  };
+  BIND.more = function () {
+    $('#pw').addEventListener('submit', e => { e.preventDefault(); const f = e.target; if ((f.n.value || '').length < 8) return toast('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัว', 'err');
+      busy(true); api('changeSecret', f.o.value, f.n.value).then(() => { busy(false); f.reset(); toast('เปลี่ยนรหัสผ่านแล้ว', 'ok'); }).catch(er => { busy(false); toast(er.message, 'err'); }); });
+    $('#lo').onclick = () => logout();
+  };
+
+  VIEWS.groups = function () {
+    const st = {}; D.dashboard.groups.forEach(g => st[g.id] = g);
+    return (isAdmin() ? '<p><button class="btn" id="gAdd">＋ เพิ่มกลุ่มอาชีพ</button></p>' : '') + (D.groups.length ? '<div class="list">' + D.groups.map(g => {
+      const s = st[g.id] || {};
+      return '<div class="li' + (isAdmin() ? ' tap' : '') + '" data-g="' + esc(g.id) + '"><div class="ic">' + esc(g.icon || '🧺') + '</div><div style="min-width:0"><div class="t">' + esc(g.name) + (truthy(g.active) || g.active === '' ? '' : ' <span class="pill bad">ปิด</span>') + '</div><div class="s">' + esc(g.location || '') + ' · ' + (s.members || 0) + ' สมาชิก' + (num(g.monthlyShare) ? ' · ออม ' + money(g.monthlyShare) + '/เดือน' : '') + '</div>' + (num(g.savingsGoal) ? goalHtml(s.savings, g.savingsGoal, 'เป้าเงินออมกลุ่ม') : '') + '</div><div class="a">' + short(s.savings || 0) + '<small>เงินออม</small></div></div>';
+    }).join('') + '</div>' : '<div class="card empty">ยังไม่มีกลุ่มอาชีพ</div>');
+  };
+  BIND.groups = function (v) {
+    if (!isAdmin()) return;
+    $('#gAdd').onclick = () => groupForm(null);
+    v.addEventListener('click', e => { const a = e.target.closest('[data-g]'); if (a) groupForm(a.getAttribute('data-g')); });
+  };
+  function groupForm(id) {
+    const r = id ? Object.assign({}, groupOf(id)) : { active: 'TRUE', icon: '🧺' };
+    const sh = openSheet(id ? 'แก้ไขกลุ่มอาชีพ' : 'เพิ่มกลุ่มอาชีพ',
+      '<div class="grid2" style="grid-template-columns:90px 1fr"><label class="fld"><span>ไอคอน</span><input name="icon" value="' + esc(r.icon || '') + '" maxlength="4"></label><label class="fld"><span>ชื่อกลุ่ม *</span><input name="name" value="' + esc(r.name || '') + '" placeholder="เช่น กลุ่มอาชีพเชือกกล้วย"></label></div>' +
+      '<label class="fld"><span>ที่ตั้ง</span><input name="location" value="' + esc(r.location || '') + '"></label>' +
+      '<div class="grid2"><label class="fld"><span>เงินออม/สัจจะต่อเดือน (บาท/คน)</span><input name="monthlyShare" type="number" inputmode="decimal" value="' + esc(r.monthlyShare || '') + '"></label><label class="fld"><span>เป้าหมายเงินออมของกลุ่ม</span><input name="savingsGoal" type="number" inputmode="decimal" value="' + esc(r.savingsGoal || '') + '"></label></div>' +
+      '<label class="fld"><span>รายละเอียด</span><textarea name="description" rows="3">' + esc(r.description || '') + '</textarea></label>' +
+      '<label class="switch"><input type="checkbox" name="active"' + (truthy(r.active) || r.active === '' ? ' checked' : '') + '> เปิดใช้งาน</label>',
+      (id ? '<button class="btn ghost" id="gDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="gOk">💾 บันทึก</button>');
+    $('#gOk').onclick = function () {
+      const d = formData(sh, ['icon', 'name', 'location', 'monthlyShare', 'savingsGoal', 'description', 'active']); if (!d.name) return toast('กรุณากรอกชื่อกลุ่ม', 'err'); if (id) d.id = id;
+      saveBtn(this, mutate('saveRecord', 'Groups', d), () => toast('บันทึกกลุ่มแล้ว', 'ok'));
+    };
+    if (id) $('#gDel').onclick = () => confirmBox('ลบกลุ่ม “' + esc(r.name) + '”? (ลบได้เฉพาะกลุ่มที่ไม่มีสมาชิกและรายการ)').then(ok => ok && mutate('deleteRecord', 'Groups', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));
+  }
+
+  VIEWS.users = function () {
+    return '<p><button class="btn" id="uAdd">＋ เพิ่มผู้ใช้</button></p><div class="list">' + (D.users || []).map(u => '<div class="li tap" data-u="' + esc(u.id) + '"><div class="ic">' + (u.role === 'admin' ? '🛡️' : '🧑‍💼') + '</div><div style="min-width:0"><div class="t">' + esc(u.name) + (truthy(u.active) ? '' : ' <span class="pill bad">ระงับ</span>') + '</div><div class="s">' + esc(u.username) + ' · ' + (u.role === 'admin' ? 'ผู้ดูแลทุกกลุ่ม' : 'เจ้าหน้าที่ ' + esc(groupName(u.groupId))) + (u.lastLogin ? ' · เข้าล่าสุด ' + thDate(u.lastLogin) : '') + '</div></div><div class="a">›</div></div>').join('') + '</div>' +
+      '<p class="small muted">เจ้าหน้าที่ประจำกลุ่ม (เช่น ประธาน/เหรัญญิก) บันทึกฝาก-ถอน รายรับ-รายจ่าย สมาชิก และคลินิกหนี้ได้เฉพาะกลุ่มของตน แต่ดูแดชบอร์ดภาพรวมได้ทุกกลุ่ม</p>';
+  };
+  BIND.users = function (v) {
+    const form = id => {
+      const r = id ? Object.assign({}, D.users.find(u => u.id === id)) : { role: 'officer', active: 'TRUE', groupId: (D.groups[0] || {}).id };
+      const sh = openSheet(id ? 'แก้ไขผู้ใช้' : 'เพิ่มผู้ใช้',
+        '<div class="grid2"><label class="fld"><span>ชื่อผู้ใช้ *</span><input name="username" value="' + esc(r.username || '') + '" autocapitalize="off"></label><label class="fld"><span>ชื่อ-นามสกุล *</span><input name="name" value="' + esc(r.name || '') + '"></label></div>' +
+        '<label class="fld"><span>สิทธิ์</span><select name="role">' + opt([['officer', 'เจ้าหน้าที่ประจำกลุ่ม'], ['admin', 'ผู้ดูแลระบบ (ทุกกลุ่ม)']], r.role) + '</select></label>' +
+        '<label class="fld" id="ugf"><span>กลุ่มอาชีพ</span><select name="groupId">' + opt(D.groups.map(g => [g.id, g.name]), r.groupId) + '</select></label>' +
+        '<label class="fld"><span>' + (id ? 'รหัสผ่านใหม่ (เว้นว่าง = ไม่เปลี่ยน)' : 'รหัสผ่านเริ่มต้น * (อย่างน้อย 8 ตัว)') + '</span><input name="password" autocomplete="new-password"></label>' +
+        '<label class="switch"><input type="checkbox" name="active"' + (truthy(r.active) ? ' checked' : '') + '> เปิดใช้งาน</label>',
+        (id ? '<button class="btn ghost" id="uDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="uOk">💾 บันทึก</button>');
+      const syncRole = () => { $('#ugf').hidden = formVal(sh, 'role') === 'admin'; };
+      sh.querySelector('[name=role]').onchange = syncRole; syncRole();
+      $('#uOk').onclick = function () { const d = formData(sh, ['username', 'name', 'role', 'groupId', 'password', 'active']); if (id) d.id = id; saveBtn(this, mutate('saveRecord', 'Users', d), () => toast('บันทึกผู้ใช้แล้ว', 'ok')); };
+      if (id) $('#uDel').onclick = () => confirmBox('ลบผู้ใช้ “' + esc(r.username) + '”?').then(ok => ok && mutate('deleteRecord', 'Users', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));
+    };
+    $('#uAdd').onclick = () => form(null);
+    v.addEventListener('click', e => { const a = e.target.closest('[data-u]'); if (a) form(a.getAttribute('data-u')); });
+  };
+
+  VIEWS.faq = function () {
+    return '<p class="small muted">แชตบอตใช้คำตอบเหล่านี้เมื่อไม่ได้ตั้งค่า AI หรือ AI ใช้ไม่ได้ ระบบจับคู่จาก “คำสำคัญ” ที่อยู่ในคำถาม</p><p><button class="btn" id="fAdd">＋ เพิ่มคำถาม-คำตอบ</button></p><div class="list">' +
+      D.faq.map(f => '<div class="li tap" data-f="' + esc(f.id) + '" style="grid-template-columns:1fr auto"><div style="min-width:0"><div class="t">' + esc(f.question) + (truthy(f.active) || f.active === '' ? '' : ' <span class="pill">ปิด</span>') + '</div><div class="s">คำสำคัญ: ' + esc(f.keywords || '-') + '</div></div><div class="a">›</div></div>').join('') + '</div>';
+  };
+  BIND.faq = function (v) {
+    const form = id => {
+      const r = id ? Object.assign({}, D.faq.find(f => f.id === id)) : { active: 'TRUE' };
+      const sh = openSheet(id ? 'แก้ไขคำถาม-คำตอบ' : 'เพิ่มคำถาม-คำตอบ', '<label class="fld"><span>คำถาม *</span><input name="question" value="' + esc(r.question || '') + '"></label>' +
+        '<label class="fld"><span>คำสำคัญ (คั่นด้วยจุลภาค)</span><input name="keywords" value="' + esc(r.keywords || '') + '" placeholder="เช่น ออมเงิน,เก็บเงิน,ออมยังไง"></label>' +
+        '<label class="fld"><span>คำตอบ *</span><textarea name="answer" rows="7">' + esc(r.answer || '') + '</textarea></label><label class="switch"><input type="checkbox" name="active"' + (truthy(r.active) || r.active === '' ? ' checked' : '') + '> ใช้งาน</label>',
+        (id ? '<button class="btn ghost" id="fDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="fOk">💾 บันทึก</button>');
+      $('#fOk').onclick = function () { const d = formData(sh, ['question', 'keywords', 'answer', 'active']); if (id) d.id = id; saveBtn(this, mutate('saveRecord', 'FAQ', d), () => toast('บันทึกแล้ว', 'ok')); };
+      if (id) $('#fDel').onclick = () => confirmBox('ลบคำถามนี้?').then(ok => ok && mutate('deleteRecord', 'FAQ', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));
+    };
+    $('#fAdd').onclick = () => form(null);
+    v.addEventListener('click', e => { const a = e.target.closest('[data-f]'); if (a) form(a.getAttribute('data-f')); });
+  };
+
+  let chatlogFresh = true;
+  BIND.chatlog = function () {
+    if (chatlogFresh) return;
+    chatlogFresh = true;
+    api('getAll').then(d => { D = d; if (VIEW === 'chatlog') render(); }).catch(() => { });
+  };
+  VIEWS.chatlog = function () {
+    const L = D.chatLog || [];
+    return '<p class="small muted">คำถามล่าสุด 200 รายการ (เก็บไม่เกิน 300 ตัวอักษร) ใช้ดูว่าสมาชิกต้องการความรู้เรื่องใด แล้วเพิ่มในคลังคำตอบหรือจัดอบรม</p>' +
+      (L.length ? '<div class="list">' + L.map(c => '<div class="li" style="grid-template-columns:1fr auto"><div style="min-width:0"><div class="t" style="font-weight:400">' + esc(c.question) + '</div><div class="s">' + thDate(c.time) + ' · ' + esc(c.role === 'member' ? 'สมาชิก' : 'เจ้าหน้าที่') + '</div></div><span class="pill">' + (c.source === 'ai' ? 'AI' : c.source === 'faq' ? 'คลังคำตอบ' : 'ไม่พบคำตอบ') + '</span></div>').join('') + '</div>' : '<div class="card empty">ยังไม่มีคำถาม</div>');
+  };
+
+  VIEWS.settings = function () {
+    const s = D.settings || {};
+    return '<form class="card" id="sf"><h3>⚙️ ข้อมูลแอป</h3>' +
+      '<label class="fld"><span>ชื่อแอป</span><input name="appName" value="' + esc(s.appName || '') + '"></label><label class="fld"><span>หน่วยงาน / โครงการ</span><input name="org" value="' + esc(s.org || '') + '"></label>' +
+      '<label class="fld"><span>เบอร์ติดต่อเจ้าหน้าที่</span><input name="phone" value="' + esc(s.phone || '') + '"></label>' +
+      '<h3 style="margin-top:18px">🤖 แชตบอต</h3><label class="fld"><span>ชื่อแชตบอต</span><input name="botName" value="' + esc(s.botName || '') + '"></label>' +
+      '<label class="switch"><input type="checkbox" name="aiEnabled"' + (s.aiEnabled !== 'FALSE' ? ' checked' : '') + '> ใช้ AI ตอบ (ถ้าไม่มีคีย์ หรือปิด จะตอบจากคลังคำตอบ)</label>' +
+      '<div class="msg ' + (D.aiKeySet ? 'ok' : 'info') + '">' + (D.aiKeySet ? '✓ ตั้งคีย์ OpenAI แล้ว (เก็บใน Script Properties ไม่แสดงที่หน้าเว็บ)' : 'ยังไม่ได้ตั้งคีย์ OpenAI — แชตบอตจะตอบจากคลังคำตอบ') + '</div>' +
+      '<label class="fld"><span>' + (D.aiKeySet ? 'เปลี่ยนคีย์ OpenAI (เว้นว่าง = ไม่เปลี่ยน, พิมพ์ - เพื่อลบ)' : 'คีย์ OpenAI API') + '</span><input name="openaiKey" type="password" autocomplete="off" placeholder="sk-..."><span class="hint">สร้างที่ platform.openai.com › API keys · มีค่าใช้จ่ายตามการใช้งาน ตั้งวงเงินที่บัญชี OpenAI ด้วย</span></label>' +
+      '<div class="grid2"><label class="fld"><span>รุ่น AI</span><input name="aiModel" value="' + esc(s.aiModel || 'gpt-4o-mini') + '"></label><label class="fld"><span>จำนวนคำถาม AI ต่อคนต่อวัน</span><input name="chatDailyLimit" type="number" value="' + esc(s.chatDailyLimit || '30') + '"></label></div>' +
+      '<label class="fld"><span>ข้อมูลเพิ่มเติมให้แชตบอตรู้ (เช่น วันฝากเงินของกลุ่ม ระเบียบกลุ่ม)</span><textarea name="botExtra" rows="4">' + esc(s.botExtra || '') + '</textarea></label>' +
+      '<div class="row"><button class="btn" type="submit">💾 บันทึก</button>' + (D.aiKeySet ? '<button class="btn ghost" type="button" id="aiTest">ทดสอบ AI</button>' : '') + '</div></form>';
+  };
+  BIND.settings = function () {
+    $('#sf').addEventListener('submit', e => { e.preventDefault(); const f = e.target, b = f.querySelector('button[type=submit]');
+      const d = formData(f, ['appName', 'org', 'phone', 'botName', 'aiEnabled', 'openaiKey', 'aiModel', 'chatDailyLimit', 'botExtra']);
+      saveBtn(b, mutate('saveSettings', d), () => toast('บันทึกการตั้งค่าแล้ว', 'ok')); });
+    const t = $('#aiTest'); if (t) t.onclick = function () { const b = this; b.disabled = true; b.innerHTML = '<span class="spin"></span>'; api('chatTestAI').then(r => toast(r, 'ok')).catch(e => toast(e.message, 'err')).then(() => { b.disabled = false; b.textContent = 'ทดสอบ AI'; }); };
+  };
+
+  /* ================= start ================= */
+  if (TOKEN) boot(); else showLogin('');
+})();
+</script>
+</body>
+</html>

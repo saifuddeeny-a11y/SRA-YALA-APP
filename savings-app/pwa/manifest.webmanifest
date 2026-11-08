@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "SRA Savings — ออมทรัพย์กลุ่มอาชีพ และคลินิกแก้หนี้",
+  "short_name": "SRA Savings",
+  "description": "บันทึกเงินออม ฝาก-ถอน รายรับ-รายจ่ายกลุ่มอาชีพ แดชบอร์ดภาพรวม คลินิกแก้หนี้ และผู้ช่วยการเงินตอบคำถามอัตโนมัติ",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0f5e4b",
+  "background_color": "#0a3f33",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

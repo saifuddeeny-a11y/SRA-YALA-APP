@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SRA Savings — ทดลองใช้</title>
+<script>
+/* Minimal in-memory mock of Google Apps Script services — for local tests & preview only */
+(function (G) {
+  'use strict';
+  var STORE_KEY = 'sra_savings_demo_v1';
+  var hasLS = false;
+  try { hasLS = typeof localStorage !== 'undefined' && !!localStorage; } catch (e) { hasLS = false; }
+
+  var state = { sheets: {}, props: {}, cache: {}, files: {}, folders: {}, seq: 1 };
+  if (hasLS && G.__PERSIST !== false) {
+    try { var raw = localStorage.getItem(STORE_KEY); if (raw) state = JSON.parse(raw); } catch (e) { }
+  }
+  var BLOBS = {}; // fileId -> object URL (not persisted)
+  function persist() {
+    if (!hasLS || G.__PERSIST === false) return;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { }
+  }
+  G.__MOCK_RESET = function () { if (hasLS) localStorage.removeItem(STORE_KEY); };
+  G.__MOCK_STATE = state;
+  G.__MOCK_BLOBS = BLOBS;
+
+  function uid() { return 'id' + (state.seq++) + Math.random().toString(36).slice(2, 8); }
+
+  /* ---------------- SpreadsheetApp ---------------- */
+  function Range(sheet, r, c, nr, nc) { this.s = sheet; this.r = r; this.c = c; this.nr = nr; this.nc = nc; }
+  Range.prototype.getValues = function () {
+    var d = this.s.d(), out = [];
+    for (var i = 0; i < this.nr; i++) {
+      var row = d[this.r - 1 + i] || [], o = [];
+      for (var j = 0; j < this.nc; j++) { var v = row[this.c - 1 + j]; o.push(v === undefined || v === null ? '' : v); }
+      out.push(o);
+    }
+    return out;
+  };
+  Range.prototype.setValues = function (vals) {
+    var d = this.s.d();
+    if (vals.length !== this.nr || vals[0].length !== this.nc) throw new Error('Range size mismatch: ' + vals.length + 'x' + vals[0].length + ' vs ' + this.nr + 'x' + this.nc);
+    for (var i = 0; i < this.nr; i++) {
+      var ri = this.r - 1 + i; while (d.length <= ri) d.push([]);
+      for (var j = 0; j < this.nc; j++) { var cj = this.c - 1 + j; while (d[ri].length < cj) d[ri].push(''); d[ri][cj] = vals[i][j]; }
+    }
+    persist(); return this;
+  };
+  ['setNumberFormat', 'setFontWeight', 'setBackground'].forEach(function (m) { Range.prototype[m] = function () { return this; }; });
+
+  function Sheet(ssId, name) { this.ssId = ssId; this.name = name; }
+  Sheet.prototype.d = function () { return state.sheets[this.ssId].tabs[this.name]; };
+  Sheet.prototype.getName = function () { return this.name; };
+  Sheet.prototype.getLastRow = function () { var d = this.d(); var n = d.length; while (n > 0 && d[n - 1].join('') === '') n--; return n; };
+  Sheet.prototype.getLastColumn = function () { var m = 0; this.d().forEach(function (r) { var n = r.length; while (n > 0 && (r[n - 1] === '' || r[n - 1] == null)) n--; if (n > m) m = n; }); return m; };
+  Sheet.prototype.getMaxRows = function () { return Math.max(1000, this.d().length); };
+  Sheet.prototype.getDataRange = function () { var lr = this.getLastRow(), lc = this.getLastColumn(); return new Range(this, 1, 1, Math.max(lr, 1), Math.max(lc, 1)); };
+  Sheet.prototype.getRange = function (r, c, nr, nc) { return new Range(this, r, c, nr || 1, nc || 1); };
+  Sheet.prototype.setFrozenRows = function () { return this; };
+  Sheet.prototype.deleteRow = function (i) { this.d().splice(i - 1, 1); persist(); };
+  Sheet.prototype.deleteRows = function (i, n) { this.d().splice(i - 1, n); persist(); };
+  Sheet.prototype.insertRowsAfter = function () { return this; };
+  Sheet.prototype.appendRow = function (row) { this.d().splice(this.getLastRow(), 0, row.slice()); persist(); };
+
+  function SS(id) { this.id = id; }
+  SS.prototype.getId = function () { return this.id; };
+  SS.prototype.getUrl = function () { return 'https://docs.google.com/spreadsheets/d/' + this.id + '/edit'; };
+  SS.prototype.getSheetByName = function (n) { return state.sheets[this.id].tabs[n] ? new Sheet(this.id, n) : null; };
+  SS.prototype.insertSheet = function (n) { state.sheets[this.id].tabs[n] = []; state.sheets[this.id].order.push(n); persist(); return new Sheet(this.id, n); };
+  SS.prototype.getSheets = function () { var id = this.id; return state.sheets[id].order.map(function (n) { return new Sheet(id, n); }); };
+  SS.prototype.deleteSheet = function (sh) { delete state.sheets[this.id].tabs[sh.name]; state.sheets[this.id].order = state.sheets[this.id].order.filter(function (x) { return x !== sh.name; }); persist(); };
+
+  G.SpreadsheetApp = {
+    create: function (name) { var id = 'ss_' + uid(); state.sheets[id] = { name: name, tabs: { Sheet1: [] }, order: ['Sheet1'] }; persist(); return new SS(id); },
+    openById: function (id) { if (!state.sheets[id]) { state.sheets[id] = { name: 'เว็บไซต์แก้จนใหม่', tabs: { 'ชีต1': [] }, order: ['ชีต1'] }; persist(); } return new SS(id); },
+    getActiveSpreadsheet: function () { return null; }
+  };
+
+  /* ---------------- Utilities ---------------- */
+  function sha256Bytes(bytes) {
+    var K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+    var H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    var l = bytes.length, m = bytes.slice(); m.push(0x80); while ((m.length % 64) !== 56) m.push(0);
+    var bl = l * 8; for (var i = 7; i >= 0; i--) m.push(i > 3 ? 0 : (bl >>> (i * 8)) & 0xff);
+    var w = new Array(64);
+    for (var o = 0; o < m.length; o += 64) {
+      for (var t = 0; t < 16; t++) w[t] = (m[o + t * 4] << 24) | (m[o + t * 4 + 1] << 16) | (m[o + t * 4 + 2] << 8) | m[o + t * 4 + 3];
+      for (t = 16; t < 64; t++) {
+        var s0 = ((w[t - 15] >>> 7) | (w[t - 15] << 25)) ^ ((w[t - 15] >>> 18) | (w[t - 15] << 14)) ^ (w[t - 15] >>> 3);
+        var s1 = ((w[t - 2] >>> 17) | (w[t - 2] << 15)) ^ ((w[t - 2] >>> 19) | (w[t - 2] << 13)) ^ (w[t - 2] >>> 10);
+        w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
+      }
+      var a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+      for (t = 0; t < 64; t++) {
+        var S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+        var ch = (e & f) ^ (~e & g);
+        var t1 = (h + S1 + ch + K[t] + w[t]) | 0;
+        var S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+        var mj = (a & b) ^ (a & c) ^ (b & c);
+        var t2 = (S0 + mj) | 0;
+        h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0; H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+    }
+    var out = []; H.forEach(function (x) { for (var i = 3; i >= 0; i--) { var b = (x >>> (i * 8)) & 0xff; out.push(b > 127 ? b - 256 : b); } });
+    return out;
+  }
+  function utf8(str) { var out = [], s = unescape(encodeURIComponent(str)); for (var i = 0; i < s.length; i++) out.push(s.charCodeAt(i)); return out; }
+  function b64ToBytes(b64) {
+    var bin = typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary');
+    var out = new Array(bin.length); for (var i = 0; i < bin.length; i++) { var c = bin.charCodeAt(i); out[i] = c > 127 ? c - 256 : c; } return out;
+  }
+  function bytesToB64(bytes) {
+    var s = ''; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i] < 0 ? bytes[i] + 256 : bytes[i]);
+    return typeof btoa === 'function' ? btoa(s) : Buffer.from(s, 'binary').toString('base64');
+  }
+  function Blob_(bytes, type, name) { this.bytes = bytes || []; this.type = type || 'application/octet-stream'; this.name = name || 'file'; }
+  Blob_.prototype.getBytes = function () { return this.bytes; };
+  Blob_.prototype.getContentType = function () { return this.type; };
+  Blob_.prototype.getName = function () { return this.name; };
+  Blob_.prototype.setName = function (n) { this.name = n; return this; };
+
+  G.Utilities = {
+    getUuid: function () { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }); },
+    DigestAlgorithm: { SHA_256: 'SHA_256' }, Charset: { UTF_8: 'UTF_8' },
+    computeDigest: function (alg, str) { return sha256Bytes(utf8(String(str))); },
+    base64Decode: b64ToBytes, base64Encode: bytesToB64,
+    newBlob: function (bytes, type, name) { return new Blob_(bytes, type, name); },
+    formatDate: function (d, tz, fmt) {
+      var t = new Date(d.getTime() + 7 * 3600000);
+      var p = function (n) { return ('0' + n).slice(-2); };
+      return fmt.replace('yyyy', t.getUTCFullYear()).replace('MM', p(t.getUTCMonth() + 1)).replace('dd', p(t.getUTCDate())).replace('HH', p(t.getUTCHours())).replace('mm', p(t.getUTCMinutes()));
+    }
+  };
+
+  /* ---------------- DriveApp ---------------- */
+  function File_(id) { this.id = id; }
+  File_.prototype.getId = function () { return this.id; };
+  File_.prototype.getName = function () { return state.files[this.id].name; };
+  File_.prototype.getUrl = function () { return 'https://drive.google.com/file/d/' + this.id + '/view'; };
+  File_.prototype.setSharing = function () { if (G.__MOCK_SHARING_FAIL) throw new Error('Sharing blocked by domain'); state.files[this.id].shared = true; persist(); return this; };
+  File_.prototype.setTrashed = function (v) { state.files[this.id].trashed = !!v; persist(); return this; };
+  function Folder_(id) { this.id = id; }
+  Folder_.prototype.getId = function () { return this.id; };
+  Folder_.prototype.getUrl = function () { return 'https://drive.google.com/drive/folders/' + this.id; };
+  Folder_.prototype.createFolder = function (n) { var id = 'fd_' + uid(); state.folders[id] = { name: n, parent: this.id }; persist(); return new Folder_(id); };
+  Folder_.prototype.createFile = function (blob) {
+    var id = 'f_' + uid();
+    state.files[id] = { name: blob.name, type: blob.type, size: blob.bytes.length, folder: this.id };
+    if (typeof Blob !== 'undefined' && typeof URL !== 'undefined' && URL.createObjectURL) {
+      try {
+        var arr = new Uint8Array(blob.bytes.length); for (var i = 0; i < blob.bytes.length; i++) arr[i] = blob.bytes[i] & 0xff;
+        BLOBS[id] = URL.createObjectURL(new Blob([arr], { type: blob.type }));
+      } catch (e) { }
+    }
+    persist(); return new File_(id);
+  };
+  G.DriveApp = {
+    createFolder: function (n) { var id = 'fd_' + uid(); state.folders[id] = { name: n }; persist(); return new Folder_(id); },
+    getFolderById: function (id) { if (!state.folders[id]) throw new Error('Folder not found'); return new Folder_(id); },
+    getFileById: function (id) { if (!state.files[id]) throw new Error('File not found'); return new File_(id); },
+    Access: { ANYONE_WITH_LINK: 'ANYONE_WITH_LINK', DOMAIN_WITH_LINK: 'DOMAIN_WITH_LINK' },
+    Permission: { VIEW: 'VIEW' }
+  };
+
+  /* ---------------- Cache / Properties / Lock ---------------- */
+  var cacheObj = {
+    get: function (k) { var e = state.cache[k]; if (!e) return null; if (e.x < Date.now()) { delete state.cache[k]; return null; } return e.v; },
+    put: function (k, v, ttl) { state.cache[k] = { v: String(v), x: Date.now() + (ttl || 600) * 1000 }; persist(); },
+    remove: function (k) { delete state.cache[k]; persist(); },
+    getAll: function (keys) { var o = {}; keys.forEach(function (k) { var v = cacheObj.get(k); if (v !== null) o[k] = v; }); return o; },
+    putAll: function (m, ttl) { Object.keys(m).forEach(function (k) { state.cache[k] = { v: String(m[k]), x: Date.now() + (ttl || 600) * 1000 }; }); persist(); },
+    removeAll: function (keys) { keys.forEach(function (k) { delete state.cache[k]; }); persist(); }
+  };
+  // drop stale cache chunks on load to keep storage small
+  Object.keys(state.cache).forEach(function (k) { if (/^pub_/.test(k)) delete state.cache[k]; });
+  G.CacheService = { getScriptCache: function () { return cacheObj; } };
+  var propsObj = {
+    getProperty: function (k) { return state.props[k] === undefined ? null : state.props[k]; },
+    setProperty: function (k, v) { state.props[k] = String(v); persist(); return propsObj; },
+    setProperties: function (o) { Object.keys(o).forEach(function (k) { state.props[k] = String(o[k]); }); persist(); return propsObj; },
+    getProperties: function () { return Object.assign({}, state.props); },
+    deleteProperty: function (k) { delete state.props[k]; persist(); return propsObj; }
+  };
+  G.PropertiesService = { getScriptProperties: function () { return propsObj; } };
+  G.LockService = { getScriptLock: function () { return { waitLock: function () { }, tryLock: function () { return true; }, releaseLock: function () { } }; } };
+
+  /* ---------------- Misc ---------------- */
+  G.ScriptApp = { getService: function () { return { getUrl: function () { return G.__BASE_URL || 'https://script.google.com/macros/s/PREVIEW/exec'; } }; } };
+  G.MailApp = { sendEmail: function (o) { G.__MAILS = (G.__MAILS || []).concat([o]); } };
+  G.UrlFetchApp = {
+    fetch: function (url) {
+      var png = b64ToBytes('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+      return { getResponseCode: function () { return 200; }, getBlob: function () { return new Blob_(png, 'image/png', 'x'); } };
+    }
+  };
+  G.Logger = { log: function () { if (G.__QUIET) return; try { console.log.apply(console, arguments); } catch (e) { } } };
+  G.Session = { getScriptTimeZone: function () { return 'Asia/Bangkok'; } };
+  G.HtmlService = {
+    XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' },
+    createHtmlOutput: function (h) { var o = { c: h, setTitle: function () { return o; }, addMetaTag: function () { return o; }, getContent: function () { return o.c; } }; return o; },
+    createTemplateFromFile: function () { throw new Error('not in mock'); },
+    createHtmlOutputFromFile: function () { throw new Error('not in mock'); }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+
+;
+/**
+ * ============================================================
+ *  SRA Savings — แอประบบออมทรัพย์กลุ่มอาชีพ + คลินิกแก้หนี้
+ *  Google Apps Script Web App (ฐานข้อมูล = Google Sheet)
+ * ------------------------------------------------------------
+ *  ไฟล์นี้: การตั้งค่า, โครงสร้างตาราง, doGet, setup,
+ *           ตัวช่วยฐานข้อมูล, การเข้าสู่ระบบ, เครื่องมือทั่วไป
+ *  ไฟล์อื่น: Api.gs (ข้อมูล/บันทึก/แดชบอร์ด), Chat.gs (แชตบอตการเงิน)
+ * ============================================================
+ */
+
+/** ผู้ดูแลเริ่มต้น (สร้างตอนรัน setup ครั้งแรกเท่านั้น) — เปลี่ยนรหัสก่อนรัน setup และเปลี่ยนอีกครั้งหลังเข้าสู่ระบบ */
+var INITIAL_ADMIN_USERNAME = 'admin';
+var INITIAL_ADMIN_PASSWORD = 'ChangeMe@2569';
+
+/** ชื่อแอป (แก้ได้ภายหลังในหน้า ตั้งค่า) */
+var APP_NAME = 'SRA Savings';
+
+/** อายุการเข้าสู่ระบบ (วินาที) สูงสุด 21600 = 6 ชั่วโมง */
+var SESSION_TTL = 21600;
+
+/**
+ * โครงสร้างตาราง (ชีต) — คอลัมน์แรกคือคีย์หลักเสมอ
+ * ทุกค่าเก็บเป็นข้อความ เพื่อกัน Google Sheets แปลงเบอร์โทร/วันที่เอง
+ */
+var SCHEMA = {
+  Settings:     ['key', 'value'],
+  Users:        ['id', 'username', 'name', 'role', 'groupId', 'passwordHash', 'salt', 'active', 'lastLogin', 'createdAt'],
+  Groups:       ['id', 'name', 'icon', 'location', 'description', 'monthlyShare', 'savingsGoal', 'active', 'order', 'createdAt', 'updatedAt'],
+  Members:      ['id', 'memberNo', 'name', 'phone', 'groupId', 'joinDate', 'occupation', 'income', 'expense', 'savingsGoal', 'note', 'pinHash', 'salt', 'active', 'lastLogin', 'createdAt', 'updatedAt'],
+  Savings:      ['id', 'memberId', 'groupId', 'date', 'type', 'amount', 'note', 'recordedBy', 'createdAt', 'updatedAt'],
+  Ledger:       ['id', 'groupId', 'date', 'type', 'category', 'amount', 'note', 'recordedBy', 'createdAt', 'updatedAt'],
+  Debts:        ['id', 'memberId', 'groupId', 'creditor', 'kind', 'principal', 'rate', 'monthlyPayment', 'startDate', 'status', 'note', 'createdBy', 'createdAt', 'updatedAt'],
+  DebtPayments: ['id', 'debtId', 'memberId', 'groupId', 'date', 'amount', 'note', 'recordedBy', 'createdAt'],
+  Counsel:      ['id', 'memberId', 'groupId', 'date', 'topic', 'advice', 'nextDate', 'counselor', 'createdAt'],
+  FAQ:          ['id', 'keywords', 'question', 'answer', 'order', 'active'],
+  ChatLog:      ['id', 'time', 'who', 'role', 'question', 'source']
+};
+
+/** หมวดรายรับ-รายจ่ายของกลุ่ม */
+var LEDGER_CATS = {
+  income: { sales: 'รายได้จากการขายผลผลิต', share: 'ค่าหุ้น / เงินสัจจะ', support: 'เงินสนับสนุน / บริจาค', fee: 'ค่าธรรมเนียม / ค่าสมัคร', other: 'รายรับอื่น ๆ' },
+  expense: { material: 'ค่าวัตถุดิบ / ต้นทุนการผลิต', wage: 'ค่าแรง', transport: 'ค่าขนส่ง / เดินทาง', welfare: 'สวัสดิการสมาชิก', dividend: 'ปันผลคืนสมาชิก', other: 'รายจ่ายอื่น ๆ' }
+};
+
+/** ประเภทหนี้ในคลินิกแก้หนี้ */
+var DEBT_KINDS = {
+  bank: 'ธนาคาร / ธ.ก.ส.', coop: 'สหกรณ์ / กองทุนหมู่บ้าน', card: 'บัตรเครดิต / สินเชื่อบุคคล', leasing: 'เช่าซื้อ / ไฟแนนซ์',
+  student: 'กยศ.', informal: 'หนี้นอกระบบ', family: 'ญาติ / เพื่อน', other: 'อื่น ๆ'
+};
+
+/* ============================================================
+ *  WEB APP ENTRY
+ * ============================================================ */
+
+function doGet(e) {
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('SETUP_DONE')) {
+    try {
+      var lock = LockService.getScriptLock();
+      lock.waitLock(60000);
+      try { if (!props.getProperty('SETUP_DONE')) setup(); } finally { lock.releaseLock(); }
+    } catch (err) {
+      return HtmlService.createHtmlOutput('<div style="font-family:sans-serif;padding:30px;max-width:640px;margin:auto;line-height:1.7"><h2>ยังติดตั้งระบบไม่สำเร็จ</h2>' +
+        '<p>เปิดโปรแกรมแก้ไข Apps Script เลือกฟังก์ชัน <b>setup</b> แล้วกด <b>▶ เรียกใช้</b> และอนุญาตสิทธิ์ให้ครบ จากนั้นรีเฟรชหน้านี้</p><p style="color:#8a2c20">' +
+        String((err && err.message) || err).replace(/[<>&]/g, '') + '</p></div>').setTitle(APP_NAME).addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    }
+  }
+  var tpl = HtmlService.createTemplateFromFile('App');
+  tpl.cfg = safeJson_(publicConfig_());
+  return tpl.evaluate()
+    .setTitle(publicConfig_().appName)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** ค่าตั้งต้นที่หน้าแอปใช้ก่อนเข้าสู่ระบบ (ไม่มีข้อมูลลับ) */
+function publicConfig_() {
+  var s = getSettings_();
+  var base = '';
+  try { base = ScriptApp.getService().getUrl(); } catch (err) { }
+  return {
+    appName: s.appName || APP_NAME,
+    org: s.org || 'โครงการส่งเสริมการออมกลุ่มอาชีพ',
+    botName: s.botName || 'น้องออม',
+    phone: s.phone || '',
+    themeColor: s.themeColor || '',
+    baseUrl: base
+  };
+}
+
+function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
+
+function safeJson_(obj) {
+  return JSON.stringify(obj).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+    .replace(new RegExp('\\u2028', 'g'), '\\u2028').replace(new RegExp('\\u2029', 'g'), '\\u2029');
+}
+
+/* ============================================================
+ *  SETUP — รันครั้งเดียวจากโปรแกรมแก้ไข (รันซ้ำได้ ไม่ลบข้อมูล)
+ * ============================================================ */
+
+function setup() {
+  var props = PropertiesService.getScriptProperties();
+  var ss = null, id = props.getProperty('DB_ID');
+  if (id) ss = SpreadsheetApp.openById(id);
+  if (!ss) { try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch (err) { ss = null; } }
+  if (!ss) ss = SpreadsheetApp.create(APP_NAME + ' — ฐานข้อมูล');
+  props.setProperty('DB_ID', ss.getId());
+
+  Object.keys(SCHEMA).forEach(function (name) { ensureSheet_(ss, name); });
+  ['Sheet1', 'ชีต1', 'แผ่นงาน1'].forEach(function (n) {
+    var def = ss.getSheetByName(n);
+    if (def && def.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(def);
+  });
+
+  if (readTable_('Users').length === 0) {
+    var salt = Utilities.getUuid();
+    insertRow_('Users', { id: newId_(), username: INITIAL_ADMIN_USERNAME, name: 'ผู้ดูแลระบบ', role: 'admin', groupId: '',
+      passwordHash: hashPassword_(INITIAL_ADMIN_PASSWORD, salt), salt: salt, active: 'TRUE', lastLogin: '', createdAt: nowIso_() });
+  }
+  if (readTable_('Settings').length === 0) {
+    [['appName', APP_NAME], ['org', 'โครงการส่งเสริมการออมกลุ่มอาชีพ'], ['botName', 'น้องออม'], ['aiEnabled', 'TRUE'], ['aiModel', 'gpt-4o-mini'], ['chatDailyLimit', '30']]
+      .forEach(function (kv) { setSetting_(kv[0], kv[1]); });
+  }
+  seedFaq_();
+  props.setProperty('SETUP_DONE', nowIso_());
+  Logger.log('ติดตั้งเสร็จ ฐานข้อมูล: ' + ss.getUrl());
+  Logger.log('ผู้ดูแลเริ่มต้น: ' + INITIAL_ADMIN_USERNAME + ' (รหัสผ่านตามที่ตั้งใน Code.gs — เปลี่ยนทันทีหลังเข้าสู่ระบบ)');
+  return ss.getUrl();
+}
+
+/** ลืมรหัสผ่านผู้ดูแล: รันฟังก์ชันนี้จากโปรแกรมแก้ไข → รหัสกลับเป็น INITIAL_ADMIN_PASSWORD */
+function resetAdminPassword() {
+  var u = readTable_('Users').filter(function (x) { return x.username === INITIAL_ADMIN_USERNAME; })[0];
+  var salt = Utilities.getUuid();
+  if (u) updateRow_('Users', { id: u.id, salt: salt, passwordHash: hashPassword_(INITIAL_ADMIN_PASSWORD, salt), active: 'TRUE', role: 'admin' });
+  else insertRow_('Users', { id: newId_(), username: INITIAL_ADMIN_USERNAME, name: 'ผู้ดูแลระบบ', role: 'admin', groupId: '',
+    passwordHash: hashPassword_(INITIAL_ADMIN_PASSWORD, salt), salt: salt, active: 'TRUE', lastLogin: '', createdAt: nowIso_() });
+  Logger.log('รีเซ็ตรหัสผ่านผู้ใช้ ' + INITIAL_ADMIN_USERNAME + ' แล้ว');
+}
+
+function ensureSheet_(ss, name) {
+  var headers = SCHEMA[name];
+  var sh = ss.getSheetByName(name) || ss.insertSheet(name);
+  var lastCol = sh.getLastColumn();
+  if (sh.getLastRow() === 0 || lastCol === 0) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  } else {
+    var existing = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+    var missing = headers.filter(function (h) { return existing.indexOf(h) === -1; });
+    if (missing.length) sh.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+  }
+  var width = Math.max(headers.length, sh.getLastColumn());
+  sh.setFrozenRows(1);
+  sh.getRange(1, 1, 1, width).setFontWeight('bold').setBackground('#e3efe9');
+  sh.getRange(1, 1, sh.getMaxRows(), width).setNumberFormat('@');
+  return sh;
+}
+
+/* ============================================================
+ *  DATABASE HELPERS
+ * ============================================================ */
+
+var _ss = null;
+function db_() {
+  if (_ss) return _ss;
+  var id = PropertiesService.getScriptProperties().getProperty('DB_ID');
+  if (!id) throw new Error('ยังไม่ได้ติดตั้งระบบ (รัน setup ก่อน)');
+  _ss = SpreadsheetApp.openById(id);
+  return _ss;
+}
+
+function sheet_(name) {
+  if (!SCHEMA[name]) throw new Error('ไม่รู้จักตาราง: ' + name);
+  return db_().getSheetByName(name) || ensureSheet_(db_(), name);
+}
+
+function headers_(sh) {
+  var c = sh.getLastColumn();
+  return c ? sh.getRange(1, 1, 1, c).getValues()[0].map(String) : [];
+}
+
+var _tableCache = {};
+function readTable_(name) {
+  if (_tableCache[name]) return _tableCache[name].map(function (r) { var o = {}; for (var k in r) o[k] = r[k]; return o; });
+  var values = sheet_(name).getDataRange().getValues();
+  var out = [];
+  if (values.length >= 2) {
+    var head = values[0].map(String);
+    for (var r = 1; r < values.length; r++) {
+      if (values[r].join('') === '') continue;
+      var o = {};
+      for (var c = 0; c < head.length; c++) {
+        if (!head[c]) continue;
+        var v = values[r][c];
+        if (v instanceof Date) v = v.toISOString();
+        o[head[c]] = v === null || v === undefined ? '' : String(v);
+      }
+      out.push(o);
+    }
+  }
+  _tableCache[name] = out;
+  return readTable_(name);
+}
+
+function rowIndex_(sh, id) {
+  var last = sh.getLastRow();
+  if (last < 2) return -1;
+  var ids = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(id)) return i + 2;
+  return -1;
+}
+
+function toRow_(head, obj) {
+  return head.map(function (h) {
+    var v = obj[h];
+    if (v === undefined || v === null) return '';
+    if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  });
+}
+
+function insertRow_(name, obj) {
+  var sh = sheet_(name), head = headers_(sh), target = sh.getLastRow() + 1;
+  if (target > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), 500);
+  sh.getRange(target, 1, 1, head.length).setNumberFormat('@').setValues([toRow_(head, obj)]);
+  delete _tableCache[name];
+  return fill_(name, obj);
+}
+
+function updateRow_(name, obj) {
+  var sh = sheet_(name), head = headers_(sh), idx = rowIndex_(sh, obj[head[0]]);
+  if (idx === -1) return insertRow_(name, obj);
+  var cur = sh.getRange(idx, 1, 1, head.length).getValues()[0], merged = {};
+  head.forEach(function (h, i) { merged[h] = cur[i]; });
+  Object.keys(obj).forEach(function (k) { if (head.indexOf(k) !== -1) merged[k] = obj[k]; });
+  sh.getRange(idx, 1, 1, head.length).setNumberFormat('@').setValues([toRow_(head, merged)]);
+  delete _tableCache[name];
+  var out = {};
+  head.forEach(function (h) { out[h] = merged[h] === undefined || merged[h] === null ? '' : String(merged[h]); });
+  return fill_(name, out);
+}
+
+function deleteRow_(name, id) {
+  var sh = sheet_(name), idx = rowIndex_(sh, id);
+  if (idx === -1) return false;
+  sh.deleteRow(idx);
+  delete _tableCache[name];
+  return true;
+}
+
+function getRow_(name, id) {
+  var rows = readTable_(name), k = SCHEMA[name][0];
+  for (var i = 0; i < rows.length; i++) if (String(rows[i][k]) === String(id)) return rows[i];
+  return null;
+}
+
+function fill_(name, obj) {
+  var o = {};
+  SCHEMA[name].forEach(function (f) { o[f] = obj[f] === undefined || obj[f] === null ? '' : String(obj[f]); });
+  return o;
+}
+
+function getSettings_() {
+  var out = {};
+  readTable_('Settings').forEach(function (r) { out[r.key] = r.value; });
+  return out;
+}
+
+function setSetting_(key, value) { updateRow_('Settings', { key: key, value: value == null ? '' : String(value) }); }
+
+function withLock_(fn) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try { return fn(); } finally { lock.releaseLock(); }
+}
+
+/* ============================================================
+ *  AUTH — เจ้าหน้าที่ (ชื่อผู้ใช้/รหัสผ่าน) และสมาชิก (รหัสสมาชิก/PIN)
+ *  role: admin = ผู้ดูแลทุกกลุ่ม, officer = เจ้าหน้าที่/เหรัญญิกประจำกลุ่ม, member = สมาชิก
+ * ============================================================ */
+
+function hashPassword_(password, salt) {
+  var raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '::' + password, Utilities.Charset.UTF_8);
+  return raw.map(function (b) { var v = (b < 0 ? b + 256 : b).toString(16); return v.length === 1 ? '0' + v : v; }).join('');
+}
+
+function checkLockout_(key) {
+  var cache = CacheService.getScriptCache();
+  if (Number(cache.get('fail_' + key) || 0) >= 5) throw new Error('กรอกรหัสผิดหลายครั้ง กรุณารอ 15 นาทีแล้วลองใหม่');
+  if (Number(cache.get('fail_all') || 0) >= 80) throw new Error('มีการเข้าสู่ระบบผิดจำนวนมาก กรุณาลองใหม่ภายหลัง');
+}
+
+function recordFail_(key) {
+  var cache = CacheService.getScriptCache();
+  cache.put('fail_' + key, String(Number(cache.get('fail_' + key) || 0) + 1), 900);
+  cache.put('fail_all', String(Number(cache.get('fail_all') || 0) + 1), 600);
+}
+
+function newSession_(sess) {
+  var token = Utilities.getUuid() + Utilities.getUuid().replace(/-/g, '');
+  CacheService.getScriptCache().put('s_' + token, JSON.stringify(sess), SESSION_TTL);
+  return token;
+}
+
+/** เข้าสู่ระบบเจ้าหน้าที่ */
+function staffLogin(username, password) {
+  username = String(username || '').trim().toLowerCase();
+  password = String(password || '');
+  if (!username || !password) throw new Error('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+  var key = 'u_' + username.replace(/[^a-z0-9._-]/g, '');
+  checkLockout_(key);
+  var u = readTable_('Users').filter(function (x) { return String(x.username).toLowerCase() === username; })[0];
+  if (!u || hashPassword_(password, u.salt) !== u.passwordHash) { recordFail_(key); throw new Error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'); }
+  if (!isTrue_(u.active)) throw new Error('บัญชีนี้ถูกระงับการใช้งาน');
+  CacheService.getScriptCache().remove('fail_' + key);
+  updateRow_('Users', { id: u.id, lastLogin: nowIso_() });
+  var sess = { kind: 'staff', id: u.id, role: u.role === 'admin' ? 'admin' : 'officer', groupId: u.role === 'admin' ? '' : u.groupId, name: u.name, username: u.username };
+  return { token: newSession_(sess), user: sess };
+}
+
+/** เข้าสู่ระบบสมาชิก (รหัสสมาชิก + PIN) */
+function memberLogin(memberNo, pin) {
+  memberNo = String(memberNo || '').trim();
+  pin = String(pin || '');
+  if (!memberNo || !pin) throw new Error('กรุณากรอกรหัสสมาชิกและ PIN');
+  var key = 'm_' + memberNo.toLowerCase().replace(/[^a-z0-9ก-๙_-]/g, '');
+  checkLockout_(key);
+  var m = readTable_('Members').filter(function (x) { return String(x.memberNo).trim().toLowerCase() === memberNo.toLowerCase(); })[0];
+  if (!m || !m.pinHash || hashPassword_(pin, m.salt) !== m.pinHash) { recordFail_(key); throw new Error('รหัสสมาชิกหรือ PIN ไม่ถูกต้อง'); }
+  if (!isTrue_(m.active)) throw new Error('บัญชีนี้ถูกระงับ กรุณาติดต่อเจ้าหน้าที่กลุ่ม');
+  CacheService.getScriptCache().remove('fail_' + key);
+  updateRow_('Members', { id: m.id, lastLogin: nowIso_() });
+  var sess = { kind: 'member', id: m.id, role: 'member', groupId: m.groupId, name: m.name, memberNo: m.memberNo };
+  return { token: newSession_(sess), user: sess };
+}
+
+function logout(token) {
+  try { CacheService.getScriptCache().remove('s_' + token); } catch (err) { }
+  return true;
+}
+
+/** ตรวจ token → ข้อมูลผู้ใช้ (โยน error ถ้าไม่ผ่าน) */
+function requireSession_(token, roles) {
+  if (!token || !/^[a-zA-Z0-9-]{20,100}$/.test(String(token))) throw new Error('AUTH: กรุณาเข้าสู่ระบบ');
+  var cache = CacheService.getScriptCache();
+  var raw = cache.get('s_' + token);
+  if (!raw) throw new Error('AUTH: หมดเวลาการใช้งาน กรุณาเข้าสู่ระบบใหม่');
+  var s = JSON.parse(raw);
+  var rec = s.kind === 'member' ? getRow_('Members', s.id) : getRow_('Users', s.id);
+  if (!rec || !isTrue_(rec.active)) { cache.remove('s_' + token); throw new Error('AUTH: บัญชีนี้ถูกระงับการใช้งาน'); }
+  if (s.kind === 'member') s.groupId = rec.groupId;
+  else if (s.role === 'officer') s.groupId = rec.groupId;
+  cache.put('s_' + token, JSON.stringify(s), SESSION_TTL);
+  if (roles && roles.indexOf(s.role) === -1) throw new Error('ไม่มีสิทธิ์ทำรายการนี้');
+  return s;
+}
+
+/* ============================================================
+ *  UTILITIES
+ * ============================================================ */
+
+function newId_() { return Utilities.getUuid().replace(/-/g, '').substr(0, 12); }
+function nowIso_() { return new Date().toISOString(); }
+function todayIso_() { return Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd'); }
+function isTrue_(v) { return v === true || String(v).toUpperCase() === 'TRUE' || v === '1' || v === 1; }
+
+function num_(v) {
+  var n = Number(String(v == null ? '' : v).replace(/[, ]/g, ''));
+  return isNaN(n) ? NaN : Math.round(n * 100) / 100;
+}
+
+function money_(v) { return (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('en-US'); }
+
+function normDate_(v) {
+  var s = String(v || '').substr(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+
+function text_(v, max) { return String(v == null ? '' : v).trim().substr(0, max || 300); }
+;
+/**
+ * ============================================================
+ *  API — ฟังก์ชันที่หน้าแอปเรียกผ่าน google.script.run
+ *  (ฟังก์ชันที่ลงท้ายด้วย _ เรียกจากหน้าเว็บไม่ได้)
+ *  ทุกคำสั่งตรวจสิทธิ์ฝั่งเซิร์ฟเวอร์:
+ *    admin   = ทุกกลุ่ม
+ *    officer = เฉพาะกลุ่มของตน
+ *    member  = เฉพาะข้อมูลของตนเอง (ดูยอด, คลินิกแก้หนี้, แชตบอต)
+ * ============================================================
+ */
+
+/* ------------------------------------------------------------
+ *  สิทธิ์
+ * ------------------------------------------------------------ */
+function canGroup_(s, groupId) { return s.role === 'admin' || (s.role === 'officer' && !!s.groupId && s.groupId === groupId); }
+
+function memberFor_(s, memberId) {
+  var m = getRow_('Members', memberId);
+  if (!m) throw new Error('ไม่พบสมาชิก');
+  if (s.role === 'member' ? m.id !== s.id : !canGroup_(s, m.groupId)) throw new Error('ไม่มีสิทธิ์จัดการข้อมูลสมาชิกนี้');
+  return m;
+}
+
+function stripMember_(m) {
+  var c = {};
+  Object.keys(m).forEach(function (k) { if (k !== 'pinHash' && k !== 'salt') c[k] = m[k]; });
+  c.hasPin = !!m.pinHash;
+  return c;
+}
+
+function stripUser_(u) {
+  var c = {};
+  Object.keys(u).forEach(function (k) { if (k !== 'passwordHash' && k !== 'salt') c[k] = u[k]; });
+  return c;
+}
+
+function byOrder_(a, b) {
+  var d = (Number(a.order) || 0) - (Number(b.order) || 0);
+  return d || String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+}
+
+/* ------------------------------------------------------------
+ *  การคำนวณ
+ * ------------------------------------------------------------ */
+function savingsBalance_(rows, memberId, excludeId) {
+  return rows.reduce(function (s, t) {
+    if (t.memberId !== memberId || t.id === excludeId) return s;
+    var a = num_(t.amount) || 0;
+    return s + (t.type === 'withdraw' ? -a : a);
+  }, 0);
+}
+
+/** ยอดหนี้คงเหลือของแต่ละรายการ { debtId: { paid, outstanding } } */
+function debtStatus_(debts, payments) {
+  var paid = {};
+  payments.forEach(function (p) { paid[p.debtId] = (paid[p.debtId] || 0) + (num_(p.amount) || 0); });
+  var out = {};
+  debts.forEach(function (d) {
+    var pr = num_(d.principal) || 0, pd = Math.round((paid[d.id] || 0) * 100) / 100;
+    out[d.id] = { paid: pd, outstanding: Math.max(0, Math.round((pr - pd) * 100) / 100) };
+  });
+  return out;
+}
+
+function lastMonths_(n) {
+  var out = [], d = new Date();
+  d.setDate(1);
+  for (var i = n - 1; i >= 0; i--) {
+    var x = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    out.push(x.getFullYear() + '-' + ('0' + (x.getMonth() + 1)).slice(-2));
+  }
+  return out;
+}
+
+/**
+ * แดชบอร์ดภาพรวมกลุ่มอาชีพ (ตัวเลขรวม ไม่มีข้อมูลรายบุคคล)
+ * groupIds = null → ทุกกลุ่ม
+ */
+function dashboard_(groupIds) {
+  var groups = readTable_('Groups').sort(byOrder_).filter(function (g) { return !groupIds || groupIds.indexOf(g.id) !== -1; });
+  var members = readTable_('Members'), savings = readTable_('Savings'), ledger = readTable_('Ledger');
+  var debts = readTable_('Debts'), payments = readTable_('DebtPayments');
+  var months = lastMonths_(12), ym = months[months.length - 1];
+  var memberGroup = {};
+  members.forEach(function (m) { memberGroup[m.id] = m.groupId; });
+  var ds = debtStatus_(debts, payments);
+  var blank = function () { var o = {}; ['dep', 'wd', 'inc', 'exp'].forEach(function (k) { o[k] = months.map(function () { return 0; }); }); return o; };
+  var byGroup = {}, all = blank(), stat = {};
+  groups.forEach(function (g) {
+    byGroup[g.id] = blank();
+    stat[g.id] = { id: g.id, name: g.name, icon: g.icon, active: isTrue_(g.active) || g.active === '', monthlyShare: num_(g.monthlyShare) || 0, goal: num_(g.savingsGoal) || 0,
+      members: 0, savings: 0, depMonth: 0, wdMonth: 0, income: 0, expense: 0, fund: 0, debt: 0, debtors: 0, counsel: 0 };
+  });
+  members.forEach(function (m) { if (stat[m.groupId] && isTrue_(m.active)) stat[m.groupId].members++; });
+  var put = function (gid, key, date, amt) {
+    var i = months.indexOf(String(date).substr(0, 7));
+    if (i === -1) return;
+    all[key][i] += amt;
+    if (byGroup[gid]) byGroup[gid][key][i] += amt;
+  };
+  savings.forEach(function (t) {
+    var gid = memberGroup[t.memberId], st = stat[gid], a = num_(t.amount) || 0, w = t.type === 'withdraw';
+    if (!st) return;
+    st.savings += w ? -a : a;
+    if (String(t.date).substr(0, 7) === ym) { if (w) st.wdMonth += a; else st.depMonth += a; }
+    put(gid, w ? 'wd' : 'dep', t.date, a);
+  });
+  ledger.forEach(function (t) {
+    var st = stat[t.groupId], a = num_(t.amount) || 0, e = t.type === 'expense';
+    if (!st) return;
+    if (e) st.expense += a; else st.income += a;
+    put(t.groupId, e ? 'exp' : 'inc', t.date, a);
+  });
+  var debtors = {};
+  debts.forEach(function (d) {
+    var gid = memberGroup[d.memberId], st = stat[gid];
+    if (!st || d.status === 'closed') return;
+    var o = (ds[d.id] || {}).outstanding || 0;
+    if (!o) return;
+    st.debt += o;
+    if (!debtors[d.memberId]) { debtors[d.memberId] = 1; st.debtors++; }
+  });
+  readTable_('Counsel').forEach(function (c) { var st = stat[memberGroup[c.memberId]]; if (st) st.counsel++; });
+  var r2 = function (n) { return Math.round(n * 100) / 100; };
+  var list = groups.map(function (g) {
+    var s = stat[g.id];
+    s.fund = r2(s.income - s.expense);
+    ['savings', 'depMonth', 'wdMonth', 'income', 'expense', 'debt'].forEach(function (k) { s[k] = r2(s[k]); });
+    return s;
+  });
+  var tot = { groups: list.length, members: 0, savings: 0, depMonth: 0, wdMonth: 0, fund: 0, income: 0, expense: 0, debt: 0, debtors: 0 };
+  list.forEach(function (s) { Object.keys(tot).forEach(function (k) { if (k !== 'groups') tot[k] = r2(tot[k] + s[k]); }); });
+  return { months: months, groups: list, totals: tot, trend: all, trendByGroup: byGroup };
+}
+
+/* ------------------------------------------------------------
+ *  โหลดข้อมูลทั้งหมดตามสิทธิ์
+ * ------------------------------------------------------------ */
+function getAll(token) {
+  var s = requireSession_(token);
+  var out = { user: s, config: publicConfig_(), cats: LEDGER_CATS, debtKinds: DEBT_KINDS, today: todayIso_() };
+  var groups = readTable_('Groups').sort(byOrder_);
+  var members = readTable_('Members');
+  var inGroup = function (gid) { return s.role === 'admin' || gid === s.groupId; };
+  var memberIds = {};
+  members.forEach(function (m) { if (s.role === 'member' ? m.id === s.id : inGroup(m.groupId)) memberIds[m.id] = true; });
+  var mine = function (r) { return !!memberIds[r.memberId]; };
+
+  out.groups = s.role === 'member' ? groups.filter(function (g) { return g.id === s.groupId; }) : groups;
+  out.members = members.filter(function (m) { return memberIds[m.id]; }).map(stripMember_);
+  out.savings = readTable_('Savings').filter(mine);
+  out.debts = readTable_('Debts').filter(mine);
+  out.payments = readTable_('DebtPayments').filter(mine);
+  out.counsel = readTable_('Counsel').filter(mine);
+  out.ledger = s.role === 'member' ? [] : readTable_('Ledger').filter(function (t) { return inGroup(t.groupId); });
+  out.faq = readTable_('FAQ').sort(byOrder_);
+  out.dashboard = dashboard_(s.role === 'admin' ? null : (s.role === 'officer' && !s.groupId ? [] : (s.role === 'member' ? [s.groupId] : null)));
+  if (s.role === 'admin') {
+    out.users = readTable_('Users').map(stripUser_);
+    var st = getSettings_();
+    out.settings = st;
+    out.aiKeySet = !!PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+    out.chatLog = readTable_('ChatLog').slice(-200).reverse();
+    try { out.dbUrl = db_().getUrl(); } catch (err) { out.dbUrl = ''; }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------
+ *  บันทึก / ลบ (ตัวกลาง)
+ * ------------------------------------------------------------ */
+function saveRecord(token, table, rec) {
+  var s = requireSession_(token);
+  rec = rec || {};
+  var fn = SAVE_[table];
+  if (!fn) throw new Error('ไม่อนุญาตให้บันทึกตาราง ' + table);
+  withLock_(function () { fn(s, rec); });
+  return getAll(token);
+}
+
+function deleteRecord(token, table, id) {
+  var s = requireSession_(token);
+  var fn = DELETE_[table];
+  if (!fn) throw new Error('ไม่อนุญาตให้ลบจากตาราง ' + table);
+  withLock_(function () {
+    var row = getRow_(table, id);
+    if (!row) return;
+    fn(s, row);
+    deleteRow_(table, id);
+  });
+  return getAll(token);
+}
+
+function stamp_(s) { return s.role === 'member' ? 'member:' + s.memberNo : s.username; }
+
+var SAVE_ = {
+  Groups: function (s, r) {
+    if (s.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบเท่านั้น');
+    var name = text_(r.name, 120);
+    if (!name) throw new Error('กรุณากรอกชื่อกลุ่ม');
+    var now = nowIso_(), old = r.id ? getRow_('Groups', r.id) : null;
+    var rec = { name: name, icon: text_(r.icon, 8), location: text_(r.location, 200), description: text_(r.description, 1000),
+      monthlyShare: amountOrBlank_(r.monthlyShare), savingsGoal: amountOrBlank_(r.savingsGoal), active: isTrue_(r.active) || r.active === undefined ? 'TRUE' : 'FALSE', updatedAt: now };
+    if (old) { rec.id = old.id; updateRow_('Groups', rec); }
+    else { rec.id = newId_(); rec.order = String(readTable_('Groups').length + 1); rec.createdAt = now; insertRow_('Groups', rec); }
+  },
+
+  Members: function (s, r) {
+    if (s.role === 'member') throw new Error('ไม่มีสิทธิ์');
+    var memberNo = text_(r.memberNo, 30), name = text_(r.name, 150);
+    if (!memberNo || !/^[A-Za-z0-9ก-๙._\/-]{1,30}$/.test(memberNo)) throw new Error('รหัสสมาชิกใช้ได้เฉพาะตัวอักษร ตัวเลข และ . _ - / (ไม่เกิน 30 ตัว)');
+    if (!name) throw new Error('กรุณากรอกชื่อ-นามสกุล');
+    var groupId = s.role === 'officer' ? s.groupId : String(r.groupId || '');
+    if (!groupId || !getRow_('Groups', groupId)) throw new Error('กรุณาเลือกกลุ่มอาชีพ');
+    var old = r.id ? getRow_('Members', r.id) : null;
+    if (old && !canGroup_(s, old.groupId)) throw new Error('ไม่มีสิทธิ์แก้ไขสมาชิกนี้');
+    var dup = readTable_('Members').filter(function (m) { return String(m.memberNo).toLowerCase() === memberNo.toLowerCase() && (!old || m.id !== old.id); })[0];
+    if (dup) throw new Error('รหัสสมาชิก ' + memberNo + ' มีอยู่แล้ว');
+    var now = nowIso_();
+    var rec = { memberNo: memberNo, name: name, phone: text_(r.phone, 40), groupId: groupId, joinDate: normDate_(r.joinDate), occupation: text_(r.occupation, 120),
+      income: amountOrBlank_(r.income), expense: amountOrBlank_(r.expense), savingsGoal: amountOrBlank_(r.savingsGoal), note: text_(r.note, 500),
+      active: r.active === undefined || isTrue_(r.active) ? 'TRUE' : 'FALSE', updatedAt: now };
+    if (r.pin) {
+      if (!/^\S{4,32}$/.test(String(r.pin))) throw new Error('PIN ต้องมีอย่างน้อย 4 ตัว (ไม่มีช่องว่าง)');
+      rec.salt = Utilities.getUuid(); rec.pinHash = hashPassword_(String(r.pin), rec.salt);
+    }
+    if (old) { rec.id = old.id; updateRow_('Members', rec); }
+    else {
+      if (!r.pin) throw new Error('กรุณาตั้ง PIN เริ่มต้นให้สมาชิก');
+      rec.id = newId_(); rec.createdAt = now; rec.lastLogin = ''; insertRow_('Members', rec);
+    }
+  },
+
+  Savings: function (s, r) {
+    if (s.role === 'member') throw new Error('สมาชิกแจ้งฝาก/ถอนกับเจ้าหน้าที่กลุ่ม');
+    var m = memberFor_(s, r.memberId);
+    var type = r.type === 'withdraw' ? 'withdraw' : r.type === 'deposit' ? 'deposit' : '';
+    if (!type) throw new Error('กรุณาเลือก ฝาก หรือ ถอน');
+    var amount = num_(r.amount);
+    if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+    var date = normDate_(r.date);
+    if (!date) throw new Error('กรุณาระบุวันที่');
+    var old = r.id ? getRow_('Savings', r.id) : null;
+    if (old) memberFor_(s, old.memberId);
+    if (type === 'withdraw') {
+      var bal = savingsBalance_(readTable_('Savings'), m.id, old ? old.id : '');
+      if (amount > bal + 0.001) throw new Error('ยอดถอนเกินเงินออมคงเหลือ (คงเหลือ ' + money_(bal) + ' บาท)');
+    }
+    var now = nowIso_();
+    var rec = { memberId: m.id, groupId: m.groupId, date: date, type: type, amount: String(amount), note: text_(r.note), updatedAt: now };
+    if (old) { rec.id = old.id; updateRow_('Savings', rec); }
+    else { rec.id = newId_(); rec.recordedBy = stamp_(s); rec.createdAt = now; insertRow_('Savings', rec); }
+  },
+
+  Ledger: function (s, r) {
+    if (s.role === 'member') throw new Error('ไม่มีสิทธิ์');
+    var groupId = s.role === 'officer' ? s.groupId : String(r.groupId || '');
+    if (!groupId || !getRow_('Groups', groupId)) throw new Error('กรุณาเลือกกลุ่มอาชีพ');
+    var type = r.type === 'expense' ? 'expense' : r.type === 'income' ? 'income' : '';
+    if (!type) throw new Error('กรุณาเลือก รายรับ หรือ รายจ่าย');
+    if (!LEDGER_CATS[type][r.category]) throw new Error('กรุณาเลือกหมวด');
+    var amount = num_(r.amount);
+    if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+    var date = normDate_(r.date);
+    if (!date) throw new Error('กรุณาระบุวันที่');
+    var old = r.id ? getRow_('Ledger', r.id) : null;
+    if (old && !canGroup_(s, old.groupId)) throw new Error('ไม่มีสิทธิ์แก้ไขรายการนี้');
+    var now = nowIso_();
+    var rec = { groupId: groupId, date: date, type: type, category: r.category, amount: String(amount), note: text_(r.note), updatedAt: now };
+    if (old) { rec.id = old.id; updateRow_('Ledger', rec); }
+    else { rec.id = newId_(); rec.recordedBy = stamp_(s); rec.createdAt = now; insertRow_('Ledger', rec); }
+  },
+
+  Debts: function (s, r) {
+    var old = r.id ? getRow_('Debts', r.id) : null;
+    var m = memberFor_(s, old ? old.memberId : (s.role === 'member' ? s.id : r.memberId));
+    var creditor = text_(r.creditor, 120);
+    if (!creditor) throw new Error('กรุณาระบุเจ้าหนี้ / แหล่งเงินกู้');
+    var principal = num_(r.principal);
+    if (!(principal > 0)) throw new Error('กรุณาระบุยอดหนี้');
+    var rate = r.rate === '' || r.rate == null ? '' : num_(r.rate);
+    if (rate !== '' && (isNaN(rate) || rate < 0 || rate > 1000)) throw new Error('อัตราดอกเบี้ยไม่ถูกต้อง');
+    var now = nowIso_();
+    var rec = { memberId: m.id, groupId: m.groupId, creditor: creditor, kind: DEBT_KINDS[r.kind] ? r.kind : 'other', principal: String(principal),
+      rate: rate === '' ? '' : String(rate), monthlyPayment: amountOrBlank_(r.monthlyPayment), startDate: normDate_(r.startDate),
+      status: r.status === 'closed' ? 'closed' : 'active', note: text_(r.note, 500), updatedAt: now };
+    if (old) { rec.id = old.id; updateRow_('Debts', rec); }
+    else { rec.id = newId_(); rec.createdBy = stamp_(s); rec.createdAt = now; insertRow_('Debts', rec); }
+  },
+
+  DebtPayments: function (s, r) {
+    var d = getRow_('Debts', r.debtId);
+    if (!d) throw new Error('ไม่พบรายการหนี้');
+    var m = memberFor_(s, d.memberId);
+    var amount = num_(r.amount);
+    if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+    var date = normDate_(r.date);
+    if (!date) throw new Error('กรุณาระบุวันที่');
+    var pays = readTable_('DebtPayments').filter(function (p) { return p.debtId === d.id; });
+    var outstanding = debtStatus_([d], pays)[d.id].outstanding;
+    if (amount > outstanding + 0.001) throw new Error('ยอดชำระเกินหนี้คงเหลือ (คงเหลือ ' + money_(outstanding) + ' บาท)');
+    insertRow_('DebtPayments', { id: newId_(), debtId: d.id, memberId: m.id, groupId: m.groupId, date: date, amount: String(amount), note: text_(r.note), recordedBy: stamp_(s), createdAt: nowIso_() });
+    if (amount >= outstanding - 0.001) updateRow_('Debts', { id: d.id, status: 'closed', updatedAt: nowIso_() });
+  },
+
+  Counsel: function (s, r) {
+    if (s.role === 'member') throw new Error('ไม่มีสิทธิ์');
+    var m = memberFor_(s, r.memberId);
+    var topic = text_(r.topic, 200), advice = text_(r.advice, 3000);
+    if (!topic && !advice) throw new Error('กรุณากรอกหัวข้อหรือคำแนะนำ');
+    var rec = { memberId: m.id, groupId: m.groupId, date: normDate_(r.date) || todayIso_(), topic: topic, advice: advice, nextDate: normDate_(r.nextDate), counselor: text_(r.counselor || s.name, 120) };
+    var old = r.id ? getRow_('Counsel', r.id) : null;
+    if (old) { memberFor_(s, old.memberId); rec.id = old.id; updateRow_('Counsel', rec); }
+    else { rec.id = newId_(); rec.createdAt = nowIso_(); insertRow_('Counsel', rec); }
+  },
+
+  FAQ: function (s, r) {
+    if (s.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบเท่านั้น');
+    var q = text_(r.question, 300), a = text_(r.answer, 3000);
+    if (!q || !a) throw new Error('กรุณากรอกคำถามและคำตอบ');
+    var rec = { question: q, answer: a, keywords: text_(r.keywords, 500), active: r.active === undefined || isTrue_(r.active) ? 'TRUE' : 'FALSE' };
+    if (r.id && getRow_('FAQ', r.id)) { rec.id = r.id; updateRow_('FAQ', rec); }
+    else { rec.id = newId_(); rec.order = String(readTable_('FAQ').length + 1); insertRow_('FAQ', rec); }
+  },
+
+  Users: function (s, r) {
+    if (s.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบเท่านั้น');
+    var username = text_(r.username, 40).toLowerCase(), name = text_(r.name, 120);
+    if (!/^[a-z0-9._-]{3,40}$/.test(username)) throw new Error('ชื่อผู้ใช้ใช้ a-z 0-9 . _ - อย่างน้อย 3 ตัว');
+    if (!name) throw new Error('กรุณากรอกชื่อ');
+    var role = r.role === 'admin' ? 'admin' : 'officer';
+    var groupId = role === 'officer' ? String(r.groupId || '') : '';
+    if (role === 'officer' && !getRow_('Groups', groupId)) throw new Error('เจ้าหน้าที่กลุ่มต้องเลือกกลุ่มอาชีพ');
+    var old = r.id ? getRow_('Users', r.id) : null;
+    var dup = readTable_('Users').filter(function (u) { return u.username === username && (!old || u.id !== old.id); })[0];
+    if (dup) throw new Error('ชื่อผู้ใช้นี้มีอยู่แล้ว');
+    if (old && old.id === s.id && (role !== 'admin' || r.active === 'FALSE')) throw new Error('ไม่สามารถลดสิทธิ์หรือระงับบัญชีของตนเองได้');
+    var rec = { username: username, name: name, role: role, groupId: groupId, active: r.active === undefined || isTrue_(r.active) ? 'TRUE' : 'FALSE' };
+    if (r.password) {
+      validatePassword_(r.password);
+      rec.salt = Utilities.getUuid(); rec.passwordHash = hashPassword_(String(r.password), rec.salt);
+    }
+    if (old) { rec.id = old.id; updateRow_('Users', rec); }
+    else {
+      if (!r.password) throw new Error('กรุณาตั้งรหัสผ่านเริ่มต้น');
+      rec.id = newId_(); rec.lastLogin = ''; rec.createdAt = nowIso_(); insertRow_('Users', rec);
+    }
+  }
+};
+
+var DELETE_ = {
+  Groups: function (s, row) {
+    if (s.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบเท่านั้น');
+    if (readTable_('Members').some(function (m) { return m.groupId === row.id; })) throw new Error('กลุ่มนี้ยังมีสมาชิก — ย้ายหรือลบสมาชิกก่อน หรือปิดใช้งานกลุ่มแทน');
+    if (readTable_('Ledger').some(function (t) { return t.groupId === row.id; })) throw new Error('กลุ่มนี้มีรายการรายรับ-รายจ่าย — ปิดใช้งานกลุ่มแทนการลบ');
+  },
+  Members: function (s, row) {
+    if (s.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบลบสมาชิกได้ (เจ้าหน้าที่กลุ่มใช้ “ระงับ” แทน)');
+    var n = readTable_('Savings').filter(function (t) { return t.memberId === row.id; }).length + readTable_('Debts').filter(function (t) { return t.memberId === row.id; }).length;
+    if (n) throw new Error('สมาชิกนี้มีรายการเงินหรือหนี้ ' + n + ' รายการ — แนะนำให้ “ระงับ” แทนการลบ');
+  },
+  Savings: function (s, row) { if (s.role === 'member') throw new Error('ไม่มีสิทธิ์'); memberFor_(s, row.memberId); },
+  Ledger: function (s, row) { if (!canGroup_(s, row.groupId)) throw new Error('ไม่มีสิทธิ์'); },
+  Debts: function (s, row) {
+    memberFor_(s, row.memberId);
+    readTable_('DebtPayments').filter(function (p) { return p.debtId === row.id; }).forEach(function (p) { deleteRow_('DebtPayments', p.id); });
+  },
+  DebtPayments: function (s, row) {
+    memberFor_(s, row.memberId);
+    var d = getRow_('Debts', row.debtId);
+    if (d && d.status === 'closed') updateRow_('Debts', { id: d.id, status: 'active', updatedAt: nowIso_() });
+  },
+  Counsel: function (s, row) { if (s.role === 'member') throw new Error('ไม่มีสิทธิ์'); memberFor_(s, row.memberId); },
+  FAQ: function (s) { if (s.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบเท่านั้น'); },
+  Users: function (s, row) {
+    if (s.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบเท่านั้น');
+    if (row.id === s.id) throw new Error('ไม่สามารถลบบัญชีของตนเองได้');
+  }
+};
+
+function amountOrBlank_(v) {
+  if (v === '' || v == null) return '';
+  var n = num_(v);
+  return isNaN(n) || n < 0 ? '' : String(n);
+}
+
+function validatePassword_(pw) {
+  pw = String(pw || '');
+  if (pw.length < 8) throw new Error('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+  if (pw.length > 64) throw new Error('รหัสผ่านยาวเกินไป');
+}
+
+/* ------------------------------------------------------------
+ *  บัญชีของฉัน / ตั้งค่า
+ * ------------------------------------------------------------ */
+
+/** เปลี่ยนรหัสผ่าน (เจ้าหน้าที่) หรือ PIN (สมาชิก) */
+function changeSecret(token, oldValue, newValue) {
+  var s = requireSession_(token);
+  if (s.kind === 'member') {
+    var m = getRow_('Members', s.id);
+    if (hashPassword_(String(oldValue || ''), m.salt) !== m.pinHash) throw new Error('PIN เดิมไม่ถูกต้อง');
+    if (!/^\S{4,32}$/.test(String(newValue || ''))) throw new Error('PIN ใหม่ต้องมีอย่างน้อย 4 ตัว (ไม่มีช่องว่าง)');
+    var salt = Utilities.getUuid();
+    updateRow_('Members', { id: m.id, salt: salt, pinHash: hashPassword_(String(newValue), salt), updatedAt: nowIso_() });
+  } else {
+    var u = getRow_('Users', s.id);
+    if (hashPassword_(String(oldValue || ''), u.salt) !== u.passwordHash) throw new Error('รหัสผ่านเดิมไม่ถูกต้อง');
+    validatePassword_(newValue);
+    var salt2 = Utilities.getUuid();
+    updateRow_('Users', { id: u.id, salt: salt2, passwordHash: hashPassword_(String(newValue), salt2) });
+  }
+  return true;
+}
+
+/**
+ * บันทึกการตั้งค่า (admin)
+ * openaiKey: เก็บใน Script Properties (ไม่อยู่ในชีต และไม่ส่งกลับมาที่หน้าเว็บ) — ส่ง '-' เพื่อลบคีย์
+ */
+function saveSettings(token, obj) {
+  requireSession_(token, ['admin']);
+  obj = obj || {};
+  var allowed = ['appName', 'org', 'phone', 'botName', 'aiEnabled', 'aiModel', 'chatDailyLimit', 'botExtra', 'themeColor'];
+  withLock_(function () {
+    allowed.forEach(function (k) { if (obj[k] !== undefined) setSetting_(k, text_(obj[k], k === 'botExtra' ? 3000 : 200)); });
+    if (obj.openaiKey) {
+      var props = PropertiesService.getScriptProperties();
+      if (obj.openaiKey === '-') props.deleteProperty('OPENAI_API_KEY');
+      else props.setProperty('OPENAI_API_KEY', String(obj.openaiKey).trim());
+    }
+  });
+  return getAll(token);
+}
+
+/** สมาชิกแก้ข้อมูลครัวเรือนของตนเอง (รายได้ รายจ่าย อาชีพ เป้าหมายเงินออม) */
+function saveMyProfile(token, p) {
+  var s = requireSession_(token, ['member']);
+  p = p || {};
+  withLock_(function () {
+    updateRow_('Members', { id: s.id, income: amountOrBlank_(p.income), expense: amountOrBlank_(p.expense), occupation: text_(p.occupation, 120), savingsGoal: amountOrBlank_(p.savingsGoal), updatedAt: nowIso_() });
+  });
+  return getAll(token);
+}
+;
+/**
+ * ============================================================
+ *  แชตบอตการเงิน (คลินิกแก้หนี้) — ตอบอัตโนมัติ
+ * ------------------------------------------------------------
+ *  1) ถ้าตั้งคีย์ OpenAI ไว้ (ตั้งค่า › แชตบอต) และเปิดใช้ AI → ตอบด้วย AI
+ *     คีย์เก็บใน Script Properties ชื่อ OPENAI_API_KEY (ไม่อยู่ในโค้ด/ชีต และหน้าเว็บมองไม่เห็น)
+ *  2) ถ้าไม่มีคีย์ / ใช้เกินโควตาต่อวัน / AI ขัดข้อง → ตอบจากคลังคำถามที่พบบ่อย (แท็บ FAQ)
+ *     ซึ่งผู้ดูแลเพิ่ม/แก้ไขได้ที่หน้า ตั้งค่า › คลังคำตอบแชตบอต
+ * ============================================================
+ */
+
+var OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+
+/**
+ * ถามแชตบอต
+ * history = [{ role: 'user'|'assistant', content: '...' }, ...] (ข้อความล่าสุดต้องเป็นของผู้ใช้)
+ * คืน { answer, source: 'ai'|'faq'|'help', remaining }
+ */
+function chatAsk(token, history) {
+  var s = requireSession_(token);
+  history = (Array.isArray(history) ? history : []).slice(-12).map(function (h) {
+    return { role: h && h.role === 'assistant' ? 'assistant' : 'user', content: text_(h && h.content, 1500) };
+  }).filter(function (h) { return h.content; });
+  var last = history[history.length - 1];
+  if (!last || last.role !== 'user') throw new Error('กรุณาพิมพ์คำถาม');
+  var q = last.content;
+
+  var settings = getSettings_();
+  var limit = Number(settings.chatDailyLimit || 30) || 30;
+  var who = s.kind === 'member' ? 'member:' + s.memberNo : s.username;
+  var today = todayIso_();
+  var used = readTable_('ChatLog').filter(function (r) { return r.who === who && r.source === 'ai' && String(r.time).substr(0, 10) === today; }).length;
+  var key = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+  var aiOn = !!key && settings.aiEnabled !== 'FALSE' && used < limit;
+
+  var answer = '', source = '';
+  if (aiOn) {
+    try {
+      answer = askOpenAI_(key, settings, s, history);
+      source = 'ai';
+    } catch (err) {
+      Logger.log('OpenAI error: ' + err);
+      answer = '';
+    }
+  }
+  if (!answer) {
+    var hit = faqAnswer_(q);
+    if (hit) { answer = hit.answer; source = 'faq'; }
+    else { answer = helpAnswer_(settings, key && used >= limit); source = 'help'; }
+  }
+  logChat_(who, s.role, q, source);
+  return { answer: answer, source: source, remaining: key && settings.aiEnabled !== 'FALSE' ? Math.max(0, limit - used - (source === 'ai' ? 1 : 0)) : null };
+}
+
+function logChat_(who, role, q, source) {
+  try {
+    withLock_(function () {
+      insertRow_('ChatLog', { id: newId_(), time: nowIso_(), who: who, role: role, question: text_(q, 300), source: source });
+      var sh = sheet_('ChatLog');
+      if (sh.getLastRow() > 3000) { sh.deleteRows(2, 1000); delete _tableCache.ChatLog; }
+    });
+  } catch (err) { }
+}
+
+/* ------------------------------------------------------------
+ *  AI (OpenAI Chat Completions)
+ * ------------------------------------------------------------ */
+function systemPrompt_(settings, s) {
+  var bot = settings.botName || 'น้องออม';
+  var lines = [
+    'คุณชื่อ "' + bot + '" ผู้ช่วยด้านการเงินของ' + (settings.org || 'โครงการส่งเสริมการออมกลุ่มอาชีพ') + ' และ "คลินิกแก้หนี้" ของกลุ่ม',
+    'ผู้ใช้ส่วนใหญ่เป็นสมาชิกกลุ่มอาชีพในชุมชนภาคใต้ของไทย (หลายคนเป็นมุสลิม) รายได้ไม่แน่นอน บางคนมีหนี้นอกระบบ',
+    'หน้าที่: ให้ความรู้และคำแนะนำเรื่อง การออม การทำบัญชีรายรับ-รายจ่ายครัวเรือน การวางแผนปลดหนี้ การเจรจา/ปรับโครงสร้างหนี้ การหลีกเลี่ยงหนี้นอกระบบ เงินฉุกเฉิน และการออมเพื่อเป้าหมาย เช่น ฮัจย์ อุมเราะห์ การศึกษาบุตร',
+    'วิธีตอบ: ภาษาไทยง่าย ๆ สุภาพ อบอุ่น ไม่ตัดสิน กระชับ (ไม่เกินประมาณ 180 คำ) ใช้ข้อ 1 2 3 เมื่อเป็นขั้นตอน ยกตัวอย่างตัวเลขเมื่อช่วยให้เข้าใจ และชวนลงมือทำได้จริงในสัปดาห์นี้',
+    'ถ้าผู้ใช้ถามคำนวณ (เช่น ผ่อนกี่เดือนหมด ดอกเบี้ยเท่าไร) ให้แสดงวิธีคิดสั้น ๆ และบอกว่าเป็นค่าประมาณ',
+    'เคารพหลักศาสนาอิสลาม: เมื่อเกี่ยวข้อง ให้ข้อมูลทางเลือกที่ไม่มีดอกเบี้ย (ริบา) เช่น ธนาคารอิสลามแห่งประเทศไทย สหกรณ์อิสลาม กองทุนของกลุ่ม แต่ไม่ฟัตวาหรือชี้ขาดเรื่องศาสนา (เช่น ซะกาต) ให้แนะนำปรึกษาอิหม่ามหรือคณะกรรมการอิสลามประจำจังหวัด',
+    'แหล่งช่วยเหลือในไทยที่แนะนำได้: คลินิกแก้หนี้ (บสส.) โทร 1443, ศูนย์คุ้มครองผู้ใช้บริการทางการเงิน ธปท. (ศคง.) โทร 1213, ถูกทวงหนี้ข่มขู่/หนี้นอกระบบ แจ้งตำรวจ 191 หรือสายด่วน 1599 และศูนย์ดำรงธรรม 1567 และเจ้าหน้าที่กลุ่มอาชีพของผู้ใช้',
+    'ข้อห้าม: ห้ามขอหรือรับรหัสผ่าน PIN เลขบัตรประชาชน หรือเลขบัญชี; ห้ามแนะนำการลงทุนเสี่ยง คริปโต การพนัน หรือกู้หนี้นอกระบบ; ห้ามสัญญาผลตอบแทน; ถ้าไม่แน่ใจข้อมูลกฎหมายหรือตัวเลขทางการ ให้บอกตรง ๆ และแนะนำให้ตรวจสอบกับหน่วยงาน',
+    'ถ้าผู้ใช้เครียดหนักหรือพูดถึงการทำร้ายตนเอง ให้ตอบอย่างเห็นใจ และแนะนำสายด่วนสุขภาพจิต 1323 ทันที',
+    'ถ้าคำถามไม่เกี่ยวกับการเงิน ให้ตอบสั้น ๆ อย่างสุภาพแล้วชวนกลับมาเรื่องการออมและการจัดการหนี้'
+  ];
+  if (settings.botExtra) lines.push('ข้อมูลเพิ่มเติมจากผู้ดูแลกลุ่ม: ' + settings.botExtra);
+  var ctx = userContext_(s);
+  if (ctx) lines.push('ข้อมูลของผู้ใช้ที่กำลังคุย (ใช้ประกอบคำแนะนำเท่านั้น ไม่ต้องทวนทั้งหมด): ' + ctx);
+  return lines.join('\n');
+}
+
+/** สรุปข้อมูลการเงินของสมาชิกที่เข้าสู่ระบบ (ไม่มีข้อมูลระบุตัวตน) */
+function userContext_(s) {
+  if (s.kind !== 'member') return 'ผู้ใช้เป็นเจ้าหน้าที่' + (s.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ประจำกลุ่ม') + ' อาจถามเพื่อนำไปให้คำปรึกษาสมาชิก';
+  var m = getRow_('Members', s.id);
+  if (!m) return '';
+  var bal = savingsBalance_(readTable_('Savings'), m.id, '');
+  var debts = readTable_('Debts').filter(function (d) { return d.memberId === m.id && d.status !== 'closed'; });
+  var st = debtStatus_(debts, readTable_('DebtPayments').filter(function (p) { return p.memberId === m.id; }));
+  var g = getRow_('Groups', m.groupId);
+  var parts = ['กลุ่มอาชีพ: ' + (g ? g.name : '-'), 'อาชีพ: ' + (m.occupation || '-'), 'เงินออมในกลุ่ม ' + money_(bal) + ' บาท'];
+  if (m.income) parts.push('รายได้ครัวเรือนต่อเดือนประมาณ ' + money_(m.income) + ' บาท');
+  if (m.expense) parts.push('รายจ่ายต่อเดือนประมาณ ' + money_(m.expense) + ' บาท');
+  if (debts.length) {
+    parts.push('หนี้ที่ยังค้าง ' + debts.length + ' รายการ: ' + debts.map(function (d) {
+      return (DEBT_KINDS[d.kind] || d.kind) + ' คงเหลือ ' + money_(st[d.id].outstanding) + ' บาท' + (d.rate !== '' ? ' ดอกเบี้ย ' + d.rate + '%/ปี' : '') + (d.monthlyPayment ? ' ผ่อน ' + money_(d.monthlyPayment) + '/เดือน' : '');
+    }).join('; '));
+  } else parts.push('ยังไม่ได้บันทึกหนี้ในคลินิกแก้หนี้');
+  return parts.join(' · ');
+}
+
+function askOpenAI_(key, settings, s, history) {
+  var model = settings.aiModel || 'gpt-4o-mini';
+  var body = { model: model, messages: [{ role: 'system', content: systemPrompt_(settings, s) }].concat(history), max_completion_tokens: 900 };
+  if (!/^(o\d|gpt-5)/.test(model)) body.temperature = 0.4; // รุ่นที่ใช้การให้เหตุผลไม่รองรับ temperature
+  var res = UrlFetchApp.fetch(OPENAI_URL, {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + key }, payload: JSON.stringify(body)
+  });
+  var code = res.getResponseCode();
+  if (code !== 200) throw new Error('OpenAI HTTP ' + code + ': ' + String(res.getContentText()).substr(0, 300));
+  var j = JSON.parse(res.getContentText());
+  var out = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  if (!out) throw new Error('OpenAI: ไม่มีคำตอบ');
+  return String(out).trim();
+}
+
+/** ทดสอบคีย์ AI จากหน้าตั้งค่า (admin) */
+function chatTestAI(token) {
+  var s = requireSession_(token, ['admin']);
+  var key = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+  if (!key) throw new Error('ยังไม่ได้ใส่คีย์ OpenAI');
+  var a = askOpenAI_(key, getSettings_(), s, [{ role: 'user', content: 'ทักทายสั้น ๆ หนึ่งประโยค' }]);
+  return 'เชื่อมต่อ AI สำเร็จ: ' + a.substr(0, 160);
+}
+
+/* ------------------------------------------------------------
+ *  ตอบจากคลังคำถาม (FAQ) — ใช้เมื่อไม่มี AI
+ * ------------------------------------------------------------ */
+function normTh_(t) { return String(t || '').toLowerCase().replace(/[\s​?？!.,:;"'()\[\]]/g, ''); }
+
+function faqAnswer_(q) {
+  var nq = normTh_(q);
+  if (!nq) return null;
+  var best = null, bestScore = 0;
+  readTable_('FAQ').filter(function (f) { return f.active === '' || isTrue_(f.active); }).forEach(function (f) {
+    var score = 0;
+    String(f.keywords || '').split(/[,|\n]/).forEach(function (k) {
+      k = normTh_(k);
+      if (k && nq.indexOf(k) !== -1) score += Math.min(3, 1 + k.length / 6);
+    });
+    var nf = normTh_(f.question);
+    if (nf && (nq.indexOf(nf) !== -1 || nf.indexOf(nq) !== -1) && nq.length >= 4) score += 4;
+    if (score > bestScore) { bestScore = score; best = f; }
+  });
+  return bestScore >= 1 ? best : null;
+}
+
+function helpAnswer_(settings, overLimit) {
+  var topics = readTable_('FAQ').filter(function (f) { return f.active === '' || isTrue_(f.active); }).sort(byOrder_).slice(0, 8).map(function (f) { return '• ' + f.question; });
+  return (overLimit ? 'วันนี้ใช้ผู้ช่วย AI ครบโควตาแล้ว ตอนนี้ตอบจากคลังคำถามได้ค่ะ\n\n' : '') +
+    'ขออภัยค่ะ ' + (settings.botName || 'น้องออม') + ' ยังไม่มีคำตอบสำหรับคำถามนี้ ลองถามด้วยคำสั้น ๆ เช่น “ออมเงินยังไง” “หนี้นอกระบบ” “ผ่อนหนี้อันไหนก่อน”' +
+    (topics.length ? '\n\nหัวข้อที่ถามได้:\n' + topics.join('\n') : '') +
+    '\n\nหรือปรึกษาเจ้าหน้าที่กลุ่มอาชีพของคุณ' + (settings.phone ? ' โทร ' + settings.phone : '') + ' และคลินิกแก้หนี้ (บสส.) โทร 1443';
+}
+
+/** คลังคำถามเริ่มต้น (ใส่เมื่อแท็บ FAQ ยังว่าง) — แก้ไขได้ที่หน้าตั้งค่า */
+function seedFaq_() {
+  if (readTable_('FAQ').length) return;
+  var items = [
+    ['เริ่มออมเงินยังไงดี', 'เริ่มออม,ออมเงิน,ออมยังไง,เก็บเงิน,ออมไม่ได้,วิธีออม',
+      'เริ่มง่าย ๆ ด้วย “ออมก่อนใช้” ค่ะ\n1) ได้เงินมาเมื่อไร กันเงินออมไว้ก่อนทันที 10% (ถ้ายังยาก เริ่มวันละ 20–50 บาทก็ได้)\n2) ฝากกับกลุ่มอาชีพให้สม่ำเสมอทุกเดือน แม้จำนวนน้อย\n3) แยกเงินออมออกจากเงินใช้ ไม่พกติดตัว\n4) ตั้งเป้าหมายชัด ๆ เช่น เงินฉุกเฉิน ฮัจย์ อุมเราะห์ ค่าเทอมลูก แล้วดูความก้าวหน้าในแอป\nความสม่ำเสมอสำคัญกว่าจำนวนเงินค่ะ'],
+    ['ทำบัญชีรายรับ-รายจ่ายครัวเรือนอย่างไร', 'บัญชี,รายรับ,รายจ่าย,จดบันทึก,ครัวเรือน,ใช้เงินหมด,เงินไม่พอ',
+      '1) จดทุกรายรับและรายจ่ายทุกวันอย่างน้อย 1 เดือน (สมุดหรือมือถือก็ได้)\n2) แยกหมวด: อาหาร ค่าน้ำไฟ ค่าเดินทาง ค่าเทอม ผ่อนหนี้ งานบุญ/ศาสนกิจ ของฟุ่มเฟือย\n3) สิ้นเดือนรวมยอดแต่ละหมวด ดูว่าหมวดไหนลดได้\n4) ตั้งงบแต่ละหมวดสำหรับเดือนหน้า\nเมื่อรู้ว่าเงินรั่วตรงไหน จะเหลือเงินออมและเงินจ่ายหนี้มากขึ้นค่ะ'],
+    ['ควรมีเงินฉุกเฉินเท่าไร', 'เงินฉุกเฉิน,ฉุกเฉิน,สำรอง,เจ็บป่วย,ตกงาน',
+      'ควรมีเงินฉุกเฉินประมาณ 3–6 เดือนของรายจ่ายจำเป็น เช่น จ่ายเดือนละ 6,000 บาท ควรมี 18,000–36,000 บาท\nถ้ายังมีหนี้ ให้เริ่มจากเป้าเล็กก่อน เช่น 3,000–5,000 บาท เพื่อไม่ต้องกู้หนี้นอกระบบเวลามีเหตุจำเป็น แล้วค่อยเพิ่มทีละน้อยค่ะ'],
+    ['มีหนี้หลายก้อน ควรจ่ายอันไหนก่อน', 'หนี้หลายก้อน,จ่ายอันไหนก่อน,ปลดหนี้,ผ่อนหนี้,วางแผนหนี้,หนี้เยอะ,ลำดับ',
+      '1) จ่ายขั้นต่ำทุกก้อนให้ตรงเวลาก่อนเสมอ (กันเสียประวัติและค่าปรับ)\n2) เงินที่เหลือ โปะก้อนที่ “ดอกเบี้ยสูงสุด” ก่อน (ประหยัดดอกเบี้ยที่สุด) — หนี้นอกระบบและบัตรเครดิตมักต้องรีบปิดก่อน\n3) หรือปิดก้อน “เล็กสุด” ก่อนเพื่อสร้างกำลังใจ แล้วนำเงินผ่อนก้อนนั้นไปโปะก้อนถัดไป\nลองใช้เมนู “คลินิกแก้หนี้ › แผนปลดหนี้” ในแอป ใส่เงินโปะเพิ่มต่อเดือน ระบบจะคำนวณว่าหมดหนี้เมื่อไรค่ะ'],
+    ['หนี้ต่อรายได้ควรเป็นเท่าไร', 'หนี้ต่อรายได้,ภาระหนี้,dsr,สัดส่วนหนี้,ผ่อนเกิน',
+      'ยอดผ่อนหนี้ทุกก้อนรวมกันไม่ควรเกิน 30–40% ของรายได้ต่อเดือน เช่น รายได้ 10,000 บาท ไม่ควรผ่อนเกิน 3,000–4,000 บาท\nถ้าเกิน 50% ถือว่าหนักมาก ควรหยุดก่อหนี้ใหม่ ทำบัญชีรายจ่าย และขอคำปรึกษาเรื่องปรับโครงสร้างหนี้ค่ะ ในแอปดูสัดส่วนนี้ได้ที่หน้า คลินิกแก้หนี้'],
+    ['หนี้นอกระบบ ทำอย่างไรดี', 'หนี้นอกระบบ,เงินกู้นอกระบบ,ดอกร้อย,ทวงหนี้,ข่มขู่,ปล่อยกู้,รายวัน',
+      '1) หยุดกู้เพิ่ม และจดยอดที่จ่ายไปแล้วทุกครั้ง (เก็บหลักฐาน)\n2) กฎหมายห้ามคิดดอกเบี้ยเกิน 15% ต่อปี และห้ามทวงหนี้ด้วยการข่มขู่ ประจาน หรือทำร้าย\n3) ถูกข่มขู่ แจ้งตำรวจ 191 หรือสายด่วน 1599 / ศูนย์ดำรงธรรม 1567 ช่วยไกล่เกลี่ยได้\n4) ปรึกษาเจ้าหน้าที่กลุ่ม เพื่อหาทางเปลี่ยนไปใช้แหล่งเงินในระบบ เช่น กองทุนกลุ่ม สหกรณ์ ธนาคารอิสลาม หรือโครงการสินเชื่อของรัฐ'],
+    ['คลินิกแก้หนี้คืออะไร', 'คลินิกแก้หนี้,1443,บสส,แก้หนี้,ช่วยเหลือหนี้',
+      '“คลินิกแก้หนี้” ของกลุ่มในแอปนี้ช่วยให้คุณบันทึกหนี้ทุกก้อน ดูยอดคงเหลือ สัดส่วนหนี้ต่อรายได้ วางแผนปลดหนี้ และรับคำแนะนำจากเจ้าหน้าที่\nนอกจากนี้ยังมีโครงการ “คลินิกแก้หนี้” ของ บสส. ร่วมกับธนาคารแห่งประเทศไทย สำหรับหนี้บัตรเครดิต/สินเชื่อบุคคลที่เป็นหนี้เสีย สอบถามเงื่อนไขได้ที่โทร 1443 ค่ะ'],
+    ['ขอปรับโครงสร้างหนี้ได้ไหม', 'ปรับโครงสร้างหนี้,ประนอมหนี้,ขอลดดอก,ยืดเวลา,ผ่อนไม่ไหว,เจรจา,ค้างชำระ',
+      'ได้ค่ะ ถ้าผ่อนไม่ไหว อย่าหนีหรือเงียบ ให้ติดต่อเจ้าหนี้ก่อนค้างชำระนาน\n1) เตรียมข้อมูลรายได้-รายจ่ายจริง และยอดที่จ่ายไหวต่อเดือน\n2) ขอยืดระยะเวลาผ่อน ลดค่างวด พักชำระเงินต้น หรือลดดอกเบี้ย\n3) ขอเอกสารข้อตกลงใหม่เป็นลายลักษณ์อักษร\nหนี้ธนาคาร/สถาบันการเงิน ถ้าเจรจาไม่ได้ ปรึกษา ศคง. ธปท. โทร 1213'],
+    ['ออมเพื่อไปฮัจย์หรืออุมเราะห์', 'ฮัจย์,อุมเราะห์,ไปฮัจย์,ไปอุมเราะห์,เมกกะ,ศรัทธา',
+      '1) ตั้งเป้ายอดเงินและปีที่ตั้งใจไป แล้วหารเป็นเงินออมต่อเดือน เช่น เป้า 250,000 บาท ใน 8 ปี ≈ ออมเดือนละ 2,600 บาท\n2) ฝากสม่ำเสมอทุกเดือนแยกจากเงินใช้\n3) ปลดหนี้ที่มีดอกเบี้ยไปพร้อมกัน\n4) เลือกที่ฝากที่สอดคล้องหลักศาสนา เช่น ธนาคารอิสลาม หรือสหกรณ์อิสลาม\nขอให้อัลลอฮ์ทรงประทานความสะดวกนะคะ'],
+    ['ดอกเบี้ยกับหลักศาสนาอิสลาม', 'ดอกเบี้ย,ริบา,ฮาลาล,อิสลาม,ธนาคารอิสลาม,ชะรีอะฮ์',
+      'ศาสนาอิสลามห้ามดอกเบี้ย (ริบา) ทางเลือกที่มีอยู่ เช่น ธนาคารอิสลามแห่งประเทศไทย สหกรณ์อิสลาม และกองทุนของกลุ่มอาชีพ ซึ่งใช้สัญญาแบบแบ่งกำไรหรือซื้อขาย\nสำหรับข้อวินิจฉัยทางศาสนาที่ละเอียด (รวมถึงซะกาต) แนะนำให้สอบถามอิหม่ามหรือคณะกรรมการอิสลามประจำจังหวัดค่ะ'],
+    ['ลดรายจ่ายอย่างไรได้บ้าง', 'ลดรายจ่าย,ประหยัด,ใช้เงินเยอะ,ฟุ่มเฟือย,ค่าใช้จ่าย',
+      '1) ดูบัญชีรายจ่าย หาหมวดที่จ่ายบ่อยแต่ไม่จำเป็น เช่น ขนม เครื่องดื่ม ค่าโทรศัพท์แพ็กเกจแพง หวย บุหรี่\n2) ทำอาหารเอง ปลูกผักสวนครัว\n3) ก่อนซื้อของชิ้นใหญ่ รอ 3 วันแล้วค่อยตัดสินใจ\n4) นำเงินที่ประหยัดได้ไปฝากหรือโปะหนี้ทันที ไม่งั้นจะหายไปกับรายจ่ายอื่นค่ะ'],
+    ['หารายได้เสริมอย่างไร', 'รายได้เสริม,เพิ่มรายได้,อาชีพเสริม,ขายของ,รายได้ไม่พอ',
+      'ต่อยอดจากกลุ่มอาชีพได้เลยค่ะ เช่น แปรรูปผลผลิตเพิ่มมูลค่า ขายออนไลน์ผ่านเพจ/ไลน์กลุ่ม รับทำตามสั่ง หรือใช้เวลาว่างทำงานฝีมือ\nเริ่มจากต้นทุนต่ำ ทดลองขายเล็ก ๆ จดต้นทุน-กำไรทุกครั้ง และปรึกษาเจ้าหน้าที่กลุ่มเรื่องการรวมกลุ่มซื้อวัตถุดิบเพื่อลดต้นทุน'],
+    ['ฝากหรือถอนเงินกับกลุ่มทำอย่างไร', 'ฝากเงิน,ถอนเงิน,ฝาก,ถอน,ส่งเงินออม,เงินสัจจะ',
+      'นำเงินไปฝากหรือแจ้งถอนกับเจ้าหน้าที่/เหรัญญิกกลุ่มอาชีพของคุณ เจ้าหน้าที่จะบันทึกในระบบ แล้วคุณจะเห็นยอดในแอปที่หน้า “หน้าแรก” และ “รายการเงินออม” ทันที\nถ้ายอดไม่ตรง แจ้งเจ้าหน้าที่กลุ่มพร้อมหลักฐานได้เลยค่ะ'],
+    ['ดูยอดเงินออมของฉันได้ที่ไหน', 'ยอดเงิน,ดูยอด,เงินออมของฉัน,คงเหลือ,บัญชีของฉัน',
+      'เข้าสู่ระบบด้วยรหัสสมาชิกและ PIN แล้วดูที่หน้า “หน้าแรก” จะเห็นยอดเงินออมคงเหลือ ความก้าวหน้าสู่เป้าหมาย และรายการฝาก-ถอนล่าสุดค่ะ ลืม PIN ให้ติดต่อเจ้าหน้าที่กลุ่มเพื่อตั้งใหม่'],
+    ['ถูกชวนลงทุนผลตอบแทนสูง ควรทำไหม', 'ลงทุน,ผลตอบแทนสูง,แชร์ลูกโซ่,คริปโต,ออนไลน์,มิจฉาชีพ,หลอก',
+      'ระวังค่ะ ถ้าการันตีผลตอบแทนสูงมาก ได้เร็ว หรือต้องชวนคนอื่นต่อ มักเป็นแชร์ลูกโซ่หรือมิจฉาชีพ\nอย่าโอนเงิน อย่าให้รหัส OTP/รหัสผ่านใคร และตรวจสอบรายชื่อผู้ได้รับอนุญาตกับ ธปท. หรือ ก.ล.ต. ก่อนเสมอ สงสัยโทร ศคง. 1213 หรือแจ้งความออนไลน์ได้ค่ะ'],
+    ['เครียดเรื่องหนี้มาก', 'เครียด,ไม่ไหว,ท้อ,กดดัน,นอนไม่หลับ,หมดหวัง',
+      'เข้าใจเลยค่ะว่าเรื่องหนี้ทำให้เหนื่อยใจมาก คุณไม่ได้อยู่คนเดียวนะคะ\n1) ลองเขียนหนี้ทุกก้อนในคลินิกแก้หนี้ ภาพที่ชัดเจนช่วยลดความกังวล\n2) คุยกับเจ้าหน้าที่กลุ่มหรือคนที่ไว้ใจ\n3) ถ้ารู้สึกเครียดมากหรือคิดทำร้ายตัวเอง โทรสายด่วนสุขภาพจิต 1323 ได้ตลอด 24 ชั่วโมงค่ะ']
+  ];
+  items.forEach(function (it, i) {
+    insertRow_('FAQ', { id: newId_(), question: it[0], keywords: it[1], answer: it[2], order: String(i + 1), active: 'TRUE' });
+  });
+}
+;
+
+
+(function(){
+  function clone(x){ return x === undefined ? null : JSON.parse(JSON.stringify(x)); }
+  function runner(h){
+    return new Proxy({}, { get: function(_, name){
+      if (name === 'withSuccessHandler') return function(fn){ return runner(Object.assign({}, h, {ok: fn})); };
+      if (name === 'withFailureHandler') return function(fn){ return runner(Object.assign({}, h, {err: fn})); };
+      if (name === 'withUserObject') return function(){ return runner(h); };
+      return function(){
+        var args = clone(Array.prototype.slice.call(arguments));
+        setTimeout(function(){
+          try {
+            var f = window[name];
+            if (typeof f !== 'function' || /_$/.test(name)) throw new Error('Script function not found: ' + name);
+            var r = clone(f.apply(null, args));
+            if (h.ok) h.ok(r);
+          } catch (e) { if (h.err) h.err(e); else console.error(e); }
+        }, 150);
+      };
+    }});
+  }
+  window.google = { script: { run: runner({}), history: { push: function(){}, replace: function(){}, setChangeHandler: function(){} }, url: { getLocation: function(cb){ cb({ parameter: {}, hash: '' }); } } } };
+})();
+;
+
+(function(){
+  var isApp = /[?&]app=1/.test(location.search);
+  window.__QUIET = true;
+  if (!PropertiesService.getScriptProperties().getProperty('SETUP_DONE')) setup();
+  // ---------- ข้อมูลตัวอย่าง (เฉพาะโหมดทดลอง) ----------
+  if (!readTable_('Groups').length) {
+    var now = nowIso_(), seed = 7;
+    var rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    var ym = function (back, day) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - back); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + day).slice(-2); };
+    var G = [['🪢', 'กลุ่มอาชีพเชือกกล้วย', 'ต.กายูบอเกาะ อ.รามัน จ.ยะลา', 100, 60000], ['🌽', 'กลุ่มข้าวโพดหวาน', 'ต.บาลอ อ.รามัน จ.ยะลา', 200, 80000], ['🥬', 'กลุ่มอาชีพผักยกแคร่', 'ต.ท่าสาป อ.เมือง จ.ยะลา', 100, 40000]];
+    var groups = G.map(function (g, i) { return insertRow_('Groups', { id: newId_(), icon: g[0], name: g[1], location: g[2], monthlyShare: String(g[3]), savingsGoal: String(g[4]), active: 'TRUE', order: String(i + 1), createdAt: now, updatedAt: now }); });
+    var names = ['อามีนะห์ ใจดี', 'อับดุลเลาะ สะมะแอ', 'ซูไฮลา ดอเลาะ', 'มะยูโซะ เจ๊ะเลาะ', 'ฟาตีมะห์ มะลี', 'อิสมาแอ ยูโซะ', 'นูรีซัน บือราเฮง', 'สุไลมาน หะยีดาโอะ', 'รอฮานี แวนิ', 'มูฮัมหมัด สาและ', 'ไซนับ อาแว', 'ฮาซัน เปาะจิ'];
+    var members = names.map(function (n, i) {
+      var g = groups[i % 3], salt = Utilities.getUuid(), inc = 6000 + Math.round(rnd() * 8) * 1000;
+      return insertRow_('Members', { id: newId_(), memberNo: 'M' + ('00' + (i + 1)).slice(-3), name: n, phone: '08' + String(10000000 + i * 1234567).substr(0, 8), groupId: g.id, joinDate: ym(14, 1),
+        occupation: ['ทำเชือกกล้วย', 'ปลูกข้าวโพด', 'ปลูกผัก'][i % 3], income: String(inc), expense: String(Math.round(inc * 0.7)), savingsGoal: String([20000, 30000, 15000][i % 3]), note: 'ข้อมูลตัวอย่าง',
+        pinHash: hashPassword_('1234', salt), salt: salt, active: 'TRUE', lastLogin: '', createdAt: now, updatedAt: now });
+    });
+    members.forEach(function (m, i) {
+      var share = Number(G[i % 3][3]);
+      for (var b = 11; b >= 0; b--) {
+        if (rnd() < 0.88) insertRow_('Savings', { id: newId_(), memberId: m.id, groupId: m.groupId, date: ym(b, 3 + (i % 5)), type: 'deposit', amount: String(share + Math.round(rnd() * 3) * 100), note: 'เงินออมประจำเดือน', recordedBy: 'demo', createdAt: now, updatedAt: now });
+      }
+      if (i % 4 === 1) insertRow_('Savings', { id: newId_(), memberId: m.id, groupId: m.groupId, date: ym(3, 18), type: 'withdraw', amount: '300', note: 'ค่าเทอมบุตร', recordedBy: 'demo', createdAt: now, updatedAt: now });
+    });
+    groups.forEach(function (g, gi) {
+      for (var b = 11; b >= 0; b--) {
+        insertRow_('Ledger', { id: newId_(), groupId: g.id, date: ym(b, 12), type: 'income', category: 'sales', amount: String(1500 + Math.round(rnd() * 25) * 100), note: 'ขายผลผลิต', recordedBy: 'demo', createdAt: now, updatedAt: now });
+        if (b % 2 === gi % 2) insertRow_('Ledger', { id: newId_(), groupId: g.id, date: ym(b, 20), type: 'expense', category: 'material', amount: String(800 + Math.round(rnd() * 12) * 100), note: 'ซื้อวัตถุดิบ', recordedBy: 'demo', createdAt: now, updatedAt: now });
+      }
+      insertRow_('Ledger', { id: newId_(), groupId: g.id, date: ym(6, 25), type: 'income', category: 'support', amount: '5000', note: 'เงินสนับสนุนจากโครงการ', recordedBy: 'demo', createdAt: now, updatedAt: now });
+    });
+    var debt = function (m, creditor, kind, principal, rate, monthly, payMonths) {
+      var d = insertRow_('Debts', { id: newId_(), memberId: m.id, groupId: m.groupId, creditor: creditor, kind: kind, principal: String(principal), rate: String(rate), monthlyPayment: String(monthly), startDate: ym(8, 1), status: 'active', note: '', createdBy: 'demo', createdAt: now, updatedAt: now });
+      for (var k = payMonths; k >= 1; k--) insertRow_('DebtPayments', { id: newId_(), debtId: d.id, memberId: m.id, groupId: m.groupId, date: ym(k, 28), amount: String(monthly), note: '', recordedBy: 'demo', createdAt: now });
+    };
+    debt(members[0], 'ธ.ก.ส.', 'bank', 50000, 7, 1500, 6);
+    debt(members[0], 'นายทุนในหมู่บ้าน', 'informal', 8000, 240, 1600, 2);
+    debt(members[0], 'กองทุนหมู่บ้าน', 'coop', 10000, 6, 500, 5);
+    debt(members[1], 'บัตรกดเงินสด', 'card', 25000, 25, 1500, 4);
+    debt(members[4], 'ไฟแนนซ์รถจักรยานยนต์', 'leasing', 30000, 15, 1800, 7);
+    debt(members[7], 'ญาติ', 'family', 5000, 0, 500, 3);
+    insertRow_('Counsel', { id: newId_(), memberId: members[0].id, groupId: members[0].groupId, date: ym(1, 10), topic: 'วางแผนปิดหนี้นอกระบบ', advice: '1) ปิดหนี้นอกระบบก่อน เพราะดอกเบี้ยสูงมาก\n2) ขอกู้กองทุนกลุ่มมาปิดหนี้นอกระบบ แล้วผ่อนคืนกลุ่มเดือนละ 1,000 บาท\n3) จดรายจ่ายทุกวัน ลดค่าโทรศัพท์และขนม', nextDate: ym(-1, 10), counselor: 'เจ้าหน้าที่กลุ่ม', createdAt: now });
+    var salt2 = Utilities.getUuid();
+    insertRow_('Users', { id: newId_(), username: 'officer1', name: 'เหรัญญิกกลุ่มเชือกกล้วย', role: 'officer', groupId: groups[0].id, passwordHash: hashPassword_('demo12345', salt2), salt: salt2, active: 'TRUE', lastLogin: '', createdAt: now });
+    setSetting_('phone', '073-000-000');
+  }
+  var TPL = {"App": "<!DOCTYPE html>\n<html lang=\"th\">\n<head>\n<base target=\"_top\">\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n<meta name=\"theme-color\" content=\"#0f5e4b\">\n<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link href=\"https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap\" rel=\"stylesheet\">\n<style>\n  :root {\n    --brand: #0f5e4b; --brand-ink: #0a3f33; --brand-soft: #e3efe9; --accent: #c79a2b; --accent-soft: #fbf1d8;\n    --bg: #f6f5f0; --surface: #ffffff; --surface-2: #faf9f5; --ink: #1d2a25; --ink-2: #3c4a44; --muted: #66756e; --line: #e3e6e0;\n    --ok: #1d7a4f; --warn: #a86b00; --danger: #b3382c; --ok-soft: #e1f3e9; --warn-soft: #fdf0d5; --danger-soft: #fbe7e4;\n    --s1: #2a78d6; --s2: #eb6834;\n    --radius: 16px; --shadow: 0 6px 22px rgba(20, 40, 32, .07);\n    --font: 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif; --font-head: 'Prompt', 'Sarabun', sans-serif;\n    --nav-h: 66px; --safe-b: env(safe-area-inset-bottom, 0px);\n  }\n  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }\n  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.55; }\n  body { min-height: 100vh; }\n  [hidden] { display: none !important; }\n  h1, h2, h3, h4 { font-family: var(--font-head); font-weight: 600; margin: 0 0 8px; line-height: 1.3; color: var(--ink); }\n  h2 { font-size: 21px; } h3 { font-size: 17px; }\n  a { color: var(--brand); }\n  button, input, select, textarea { font: inherit; color: inherit; }\n  .muted { color: var(--muted); } .small { font-size: 14px; }\n  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }\n  .between { justify-content: space-between; }\n  .grow { flex: 1; min-width: 0; }\n\n  /* ---------- ปุ่ม / ฟอร์ม ---------- */\n  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 999px; padding: 10px 18px; background: var(--brand); color: #fff;\n    font-family: var(--font-head); font-size: 15px; cursor: pointer; text-decoration: none; white-space: nowrap; min-height: 42px; }\n  .btn:disabled { opacity: .55; cursor: default; }\n  .btn.sm { padding: 6px 13px; font-size: 14px; min-height: 34px; }\n  .btn.ghost { background: transparent; color: var(--brand); border: 1.5px solid var(--line); }\n  .btn.gold { background: var(--accent); color: #231803; }\n  .btn.red { background: var(--danger); }\n  .btn.block { width: 100%; }\n  .icon-btn { border: 0; background: var(--surface-2); border: 1px solid var(--line); width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }\n  .fld { display: grid; gap: 5px; margin-bottom: 13px; }\n  .fld > span { font-family: var(--font-head); font-size: 14px; color: var(--ink-2); }\n  .fld input, .fld select, .fld textarea, .inp { width: 100%; padding: 11px 13px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; font-size: 16px; }\n  .fld textarea { resize: vertical; min-height: 76px; }\n  .fld input:focus, .fld select:focus, .fld textarea:focus, .inp:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }\n  .hint { font-size: 13px; color: var(--muted); }\n  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }\n  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 4px; gap: 4px; margin-bottom: 14px; }\n  .seg button { border: 0; background: none; padding: 9px 6px; border-radius: 10px; font-family: var(--font-head); font-size: 15px; cursor: pointer; color: var(--ink-2); }\n  .seg button.on { background: var(--surface); color: var(--brand-ink); box-shadow: 0 1px 4px rgba(0,0,0,.08); font-weight: 600; }\n  .seg button.on.dep { color: var(--ok); } .seg button.on.wd { color: var(--danger); }\n  .switch { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; margin-bottom: 12px; }\n  .switch input { width: 20px; height: 20px; accent-color: var(--brand); }\n\n  /* ---------- เข้าสู่ระบบ ---------- */\n  .login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;\n    background: radial-gradient(circle at 90% 0, rgba(243, 207, 116, .3), transparent 42%), linear-gradient(160deg, var(--brand), var(--brand-ink)); }\n  .login .card { width: min(420px, 100%); background: #fff; border-radius: 22px; padding: 26px 22px; box-shadow: 0 20px 50px rgba(0,0,0,.25); }\n  .login .logo { width: 62px; height: 62px; border-radius: 18px; background: var(--brand-soft); display: grid; place-items: center; font-size: 32px; margin-bottom: 12px; }\n  .msg { padding: 10px 13px; border-radius: 12px; font-size: 14.5px; margin-bottom: 12px; }\n  .msg.err { background: var(--danger-soft); color: var(--danger); } .msg.ok { background: var(--ok-soft); color: var(--ok); } .msg.info { background: var(--brand-soft); color: var(--brand-ink); }\n\n  /* ---------- โครงแอป ---------- */\n  .top { position: sticky; top: 0; z-index: 30; background: rgba(246, 245, 240, .94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }\n  .top .in { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; min-height: 58px; }\n  .top .ttl { flex: 1; min-width: 0; }\n  .top .ttl b { font-family: var(--font-head); font-size: 17.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .top .ttl small { color: var(--muted); font-size: 13px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }\n  .back { border: 0; background: var(--surface); border: 1px solid var(--line); width: 38px; height: 38px; border-radius: 12px; cursor: pointer; font-size: 18px; flex: none; }\n  main { max-width: 1100px; margin: 0 auto; padding: 16px 16px calc(var(--nav-h) + var(--safe-b) + 90px); }\n  .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #fff; border-top: 1px solid var(--line); display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;\n    height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b); box-shadow: 0 -4px 16px rgba(0,0,0,.05); }\n  .nav button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font-family: var(--font-head); font-size: 12px; cursor: pointer; position: relative; }\n  .nav button .e { font-size: 21px; line-height: 1; filter: grayscale(.6); opacity: .85; }\n  .nav button.on { color: var(--brand); } .nav button.on .e { filter: none; opacity: 1; }\n  .nav button.on::before { content: ''; position: absolute; top: 0; left: 26%; right: 26%; height: 3px; border-radius: 0 0 4px 4px; background: var(--brand); }\n  .nav .bd { position: absolute; top: 7px; left: 56%; background: var(--danger); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px; }\n  .fab { position: fixed; right: 16px; bottom: calc(var(--nav-h) + var(--safe-b) + 14px); z-index: 41; width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;\n    background: linear-gradient(135deg, var(--accent), #e2b64a); color: #231803; font-size: 26px; box-shadow: 0 8px 22px rgba(120, 80, 0, .35); }\n  @media (min-width: 900px) {\n    .nav { top: 58px; bottom: 0; right: auto; width: 210px; height: auto; grid-auto-flow: row; grid-auto-rows: 58px; align-content: start; border-top: 0; border-right: 1px solid var(--line); padding: 10px 0; box-shadow: none; }\n    .nav button { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 0 22px; font-size: 15px; }\n    .nav button.on { background: var(--brand-soft); }\n    .nav button.on::before { top: 10px; bottom: 10px; left: 0; right: auto; width: 4px; height: auto; border-radius: 0 4px 4px 0; }\n    .nav .bd { position: static; }\n    main, .top .in { padding-left: 236px; max-width: 1340px; }\n    main { padding-bottom: 90px; }\n    .fab { bottom: 22px; right: 22px; }\n  }\n\n  /* ---------- การ์ด / ตัวเลข ---------- */\n  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }\n  .card > h3 { display: flex; align-items: center; gap: 8px; }\n  .hero { border-radius: 20px; padding: 20px; color: #fff; margin-bottom: 14px; box-shadow: var(--shadow);\n    background: radial-gradient(circle at 92% 0, rgba(243, 207, 116, .35), transparent 40%), linear-gradient(130deg, var(--brand-ink), var(--brand)); }\n  .hero .k { font-family: var(--font-head); opacity: .88; font-size: 15px; }\n  .hero .v { font-family: var(--font-head); font-weight: 700; font-size: clamp(30px, 8vw, 42px); line-height: 1.15; }\n  .hero .v small { font-size: 16px; font-weight: 500; opacity: .85; margin-left: 4px; }\n  .hero .n { font-size: 14px; opacity: .88; margin-top: 4px; }\n  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }\n  @media (min-width: 700px) { .tiles { grid-template-columns: repeat(4, 1fr); } }\n  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; min-width: 0; }\n  .tile .l { font-size: 13.5px; color: var(--muted); font-family: var(--font-head); }\n  .tile .n { font-family: var(--font-head); font-weight: 700; font-size: 22px; color: var(--brand-ink); line-height: 1.25; word-break: break-word; }\n  .tile .n small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 3px; }\n  .tile .s { font-size: 12.5px; color: var(--muted); }\n  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 999px; font-size: 12.5px; font-family: var(--font-head); background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }\n  .pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }\n  .pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }\n  .pill.bad { background: var(--danger-soft); color: var(--danger); border-color: transparent; }\n  .goal .bar, .pbar { height: 9px; border-radius: 999px; background: var(--brand-soft); overflow: hidden; }\n  .goal .bar i, .pbar i { display: block; height: 100%; border-radius: 999px; background: var(--brand); }\n  .hero .goal .bar { background: rgba(255,255,255,.2); } .hero .goal .bar i { background: #f3cf74; }\n  .goal .gt { display: flex; justify-content: space-between; font-size: 13px; font-family: var(--font-head); margin: 4px 0; }\n\n  /* ---------- รายการ ---------- */\n  .list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }\n  .li { display: grid; grid-template-columns: 42px 1fr auto; gap: 11px; align-items: center; padding: 11px 14px; border-bottom: 1px solid var(--line); }\n  .li:last-child { border-bottom: 0; }\n  .li.tap { cursor: pointer; } .li.tap:hover { background: var(--surface-2); }\n  .li .ic { width: 42px; height: 42px; border-radius: 12px; background: var(--brand-soft); display: grid; place-items: center; font-size: 19px; }\n  .li .ic.w { background: var(--danger-soft); }\n  .li .t { font-family: var(--font-head); font-weight: 500; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; }\n  .li .s { font-size: 13.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }\n  .li .a { font-family: var(--font-head); font-weight: 700; text-align: right; white-space: nowrap; }\n  .li .a.p { color: var(--ok); } .li .a.m { color: var(--danger); }\n  .li .a small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }\n  .empty { text-align: center; color: var(--muted); padding: 28px 12px; }\n  .search { width: 100%; padding: 11px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; font-size: 16px; }\n  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }\n  .filters select, .filters input { padding: 9px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; font-size: 15px; max-width: 100%; }\n\n  /* ---------- กราฟ ---------- */\n  .chart { position: relative; height: 190px; margin: 6px 0 4px 36px; }\n  .chart .gl { position: absolute; left: 0; right: 0; border-top: 1px solid #eceee9; }\n  .chart .gl span { position: absolute; right: 100%; top: -9px; padding-right: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }\n  .chart .cols { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 6px; }\n  .chart .col { flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; position: relative; cursor: default; min-width: 0; }\n  .chart .col:hover { background: rgba(15, 94, 75, .05); border-radius: 6px 6px 0 0; }\n  .chart .bar { flex: 1; max-width: 16px; border-radius: 4px 4px 0 0; min-height: 0; }\n  .chart .col .x { position: absolute; top: 100%; margin-top: 4px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }\n  .chart-x { height: 22px; }\n  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-2); margin-bottom: 4px; }\n  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }\n  .hbars { display: grid; gap: 10px; }\n  .hb { display: grid; grid-template-columns: minmax(90px, 32%) 1fr auto; gap: 10px; align-items: center; font-size: 14px; }\n  .hb .lb { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n  .hb .tr { height: 14px; background: var(--surface-2); border-radius: 0 4px 4px 0; }\n  .hb .tr i { display: block; height: 100%; background: var(--brand); border-radius: 0 4px 4px 0; min-width: 2px; }\n  .hb .v { font-family: var(--font-head); font-weight: 600; white-space: nowrap; }\n  #tip { position: fixed; z-index: 90; pointer-events: none; background: #1d2a25; color: #fff; padding: 7px 10px; border-radius: 9px; font-size: 13px; line-height: 1.45; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: pre; transform: translate(-50%, calc(-100% - 12px)); }\n  table.tb { width: 100%; border-collapse: collapse; font-size: 14px; }\n  .tb th, .tb td { padding: 8px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }\n  .tb th:first-child, .tb td:first-child { text-align: left; }\n  .tb th { font-family: var(--font-head); font-weight: 500; color: var(--muted); font-size: 13px; }\n  .tbl-wrap { overflow-x: auto; }\n  details.raw summary { cursor: pointer; font-size: 14px; color: var(--brand); margin-top: 6px; }\n\n  /* ---------- แผ่นฟอร์มล่าง (bottom sheet) ---------- */\n  .scrim { position: fixed; inset: 0; background: rgba(10, 30, 24, .45); z-index: 60; opacity: 0; pointer-events: none; transition: opacity .2s; }\n  .scrim.on { opacity: 1; pointer-events: auto; }\n  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 61; background: #fff; border-radius: 22px 22px 0 0; max-height: 92vh; overflow-y: auto;\n    padding: 8px 18px calc(18px + var(--safe-b)); transform: translateY(105%); transition: transform .25s cubic-bezier(.2,.8,.2,1); box-shadow: 0 -10px 40px rgba(0,0,0,.18); }\n  .sheet.on { transform: none; }\n  @media (min-width: 700px) { .sheet { left: 50%; right: auto; width: 560px; margin-left: -280px; bottom: auto; top: 50%; border-radius: 20px; transform: translateY(-40%) scale(.97); opacity: 0; pointer-events: none; transition: all .2s; }\n    .sheet.on { transform: translateY(-50%); opacity: 1; pointer-events: auto; } }\n  .sheet .grab { width: 42px; height: 5px; border-radius: 9px; background: #d6dbd7; margin: 2px auto 12px; }\n  .sheet .foot { display: flex; gap: 10px; margin-top: 6px; }\n  .sheet .foot .btn { flex: 1; }\n  .toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + var(--safe-b) + 16px); z-index: 80; display: grid; gap: 8px; width: min(420px, calc(100% - 32px)); }\n  .toast { background: #1d2a25; color: #fff; padding: 11px 15px; border-radius: 12px; font-size: 14.5px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }\n  .toast.ok { background: var(--ok); } .toast.err { background: var(--danger); }\n  .spin { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(15, 94, 75, .2); border-top-color: var(--brand); border-radius: 50%; animation: sp .8s linear infinite; vertical-align: -3px; }\n  .btn .spin { border-color: rgba(255,255,255,.35); border-top-color: #fff; }\n  @keyframes sp { to { transform: rotate(360deg); } }\n  .loading { min-height: 70vh; display: grid; place-items: center; color: var(--muted); text-align: center; }\n  .busy { position: fixed; top: 0; left: 0; height: 3px; width: 100%; z-index: 99; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: bz 1s linear infinite; }\n  @keyframes bz { from { background-position: -50% 0; } to { background-position: 150% 0; } }\n\n  /* ---------- แชต ---------- */\n  .chat { display: flex; flex-direction: column; gap: 10px; }\n  .bubble { max-width: 86%; padding: 10px 14px; border-radius: 18px; white-space: pre-wrap; word-break: break-word; font-size: 15.5px; line-height: 1.6; }\n  .bubble.u { align-self: flex-end; background: var(--brand); color: #fff; border-bottom-right-radius: 6px; }\n  .bubble.b { align-self: flex-start; background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 6px; }\n  .bubble .src { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }\n  .chips { display: flex; gap: 8px; flex-wrap: wrap; }\n  .chip { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; font-family: var(--font-head); color: var(--brand-ink); }\n  .chip:hover { border-color: var(--brand); }\n  .composer { position: sticky; bottom: calc(var(--nav-h) + var(--safe-b) + 8px); display: flex; gap: 8px; background: var(--bg); padding: 8px 0; }\n  .composer textarea { flex: 1; resize: none; min-height: 48px; max-height: 140px; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); font-size: 16px; background: #fff; }\n  @media (min-width: 900px) { .composer { bottom: 8px; } }\n</style>\n</head>\n<body>\n<div id=\"root\"><div class=\"loading\"><div><span class=\"spin\" style=\"width:34px;height:34px;border-width:4px\"></span><p>กำลังโหลด...</p></div></div></div>\n<div class=\"scrim\" id=\"scrim\"></div>\n<div class=\"sheet\" id=\"sheet\" role=\"dialog\" aria-modal=\"true\"></div>\n<div class=\"toasts\" id=\"toasts\"></div>\n<div id=\"tip\" hidden></div>\n\n<script>\nvar CFG = <?!= cfg ?>;\n(function () {\n  'use strict';\n  const root = document.getElementById('root');\n  const hasGas = typeof google !== 'undefined' && google.script && google.script.run;\n  let TOKEN = null, D = null, VIEW = '', ARG = null, HIST = [];\n  try { TOKEN = sessionStorage.getItem('ss_token'); } catch (e) { }\n  if (CFG.themeColor) document.documentElement.style.setProperty('--brand', CFG.themeColor);\n\n  /* ================= helpers ================= */\n  const $ = (s, c) => (c || document).querySelector(s);\n  const $$ = (s, c) => Array.prototype.slice.call((c || document).querySelectorAll(s));\n  const esc = v => String(v == null ? '' : v).replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\n  const num = v => { const n = Number(String(v == null ? '' : v).replace(/[^0-9.\\-]/g, '')); return isNaN(n) ? 0 : n; };\n  const money = v => num(v).toLocaleString('th-TH', { maximumFractionDigits: 2 });\n  const short = v => { v = num(v); const a = Math.abs(v); return a >= 1e6 ? (v / 1e6).toLocaleString('th-TH', { maximumFractionDigits: 1 }) + ' ล.' : a >= 1e4 ? (v / 1e3).toLocaleString('th-TH', { maximumFractionDigits: 0 }) + 'K' : money(v); };\n  const TM = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];\n  const thDate = s => { if (!s) return '-'; const d = /^\\d{4}-\\d{2}-\\d{2}$/.test(s) ? new Date(s + 'T00:00:00') : new Date(s); return isNaN(d) ? esc(s) : d.getDate() + ' ' + TM[d.getMonth()] + ' ' + (d.getFullYear() + 543); };\n  const ymLabel = ym => TM[Number(ym.substr(5, 2)) - 1] + ' ' + String(Number(ym.substr(0, 4)) + 543).substr(2);\n  const today = () => { const d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };\n  const truthy = v => v === true || String(v).toUpperCase() === 'TRUE';\n  function toast(msg, type) { const el = document.createElement('div'); el.className = 'toast ' + (type || ''); el.textContent = msg; $('#toasts').appendChild(el); setTimeout(() => el.remove(), 3800); }\n  function busy(on) { let b = $('#busyBar'); if (on && !b) { b = document.createElement('div'); b.id = 'busyBar'; b.className = 'busy'; document.body.appendChild(b); } else if (!on && b) b.remove(); }\n\n  function call(fn, ...args) {\n    return new Promise((resolve, reject) => {\n      if (!hasGas) { reject(new Error('ต้องเปิดผ่านเว็บแอป Google Apps Script')); return; }\n      const r = google.script.run.withSuccessHandler(resolve).withFailureHandler(err => {\n        let msg = (err && err.message) || String(err);\n        if (/AUTH:/.test(msg)) { msg = msg.replace(/.*AUTH:\\s*/, ''); logout(msg); }\n        reject(new Error(msg));\n      });\n      r[fn].apply(r, args);\n    });\n  }\n  const api = (fn, ...args) => call(fn, TOKEN, ...args);\n  /** บันทึก/ลบ แล้วรับข้อมูลชุดใหม่ทั้งหมด */\n  function mutate(fn, ...args) {\n    busy(true);\n    return api(fn, ...args).then(d => { busy(false); D = d; return d; }).catch(e => { busy(false); toast(e.message, 'err'); throw e; });\n  }\n\n  /* lookup */\n  const isStaff = () => D && D.user.role !== 'member';\n  const isAdmin = () => D && D.user.role === 'admin';\n  const groupOf = id => (D.groups || []).find(g => g.id === id) || {};\n  const memberOf = id => (D.members || []).find(m => m.id === id) || {};\n  const groupName = id => groupOf(id).name || '-';\n  const activeMembers = () => D.members.filter(m => truthy(m.active)).sort((a, b) => String(a.memberNo).localeCompare(String(b.memberNo), 'th', { numeric: true }));\n  function balanceOf(memberId) { return D.savings.reduce((s, t) => t.memberId === memberId ? s + (t.type === 'withdraw' ? -num(t.amount) : num(t.amount)) : s, 0); }\n  function debtInfo(memberId) {\n    const paid = {};\n    D.payments.forEach(p => { paid[p.debtId] = (paid[p.debtId] || 0) + num(p.amount); });\n    const list = D.debts.filter(d => d.memberId === memberId).map(d => Object.assign({}, d, { paid: paid[d.id] || 0, outstanding: Math.max(0, num(d.principal) - (paid[d.id] || 0)) }));\n    const act = list.filter(d => d.status !== 'closed' && d.outstanding > 0);\n    const m = memberOf(memberId);\n    const monthly = act.reduce((s, d) => s + num(d.monthlyPayment), 0);\n    const income = num(m.income);\n    return { list, active: act, total: act.reduce((s, d) => s + d.outstanding, 0), monthly, income, dti: income ? monthly / income * 100 : null };\n  }\n  function dtiPill(dti) {\n    if (dti == null) return '<span class=\"pill\">ยังไม่ระบุรายได้</span>';\n    const p = Math.round(dti);\n    if (dti <= 30) return '<span class=\"pill ok\">✓ ' + p + '% ปลอดภัย</span>';\n    if (dti <= 40) return '<span class=\"pill warn\">! ' + p + '% ควรระวัง</span>';\n    if (dti <= 50) return '<span class=\"pill bad\">!! ' + p + '% หนัก</span>';\n    return '<span class=\"pill bad\">⚠ ' + p + '% วิกฤต</span>';\n  }\n  function goalHtml(val, goal, label) {\n    goal = num(goal); if (!goal) return '';\n    const pct = Math.max(0, Math.min(100, Math.round(num(val) / goal * 100)));\n    return '<div class=\"goal\"><div class=\"gt\"><span>' + esc(label || 'เป้าหมาย') + ' ' + money(goal) + ' บาท</span><span>' + pct + '%</span></div><div class=\"bar\"><i style=\"width:' + pct + '%\"></i></div></div>';\n  }\n  function dlCsv(name, cols, rows) {\n    const csv = '﻿' + cols.map(c => c[1]).join(',') + '\\n' + rows.map(r => cols.map(c => { const v = typeof c[0] === 'function' ? c[0](r) : r[c[0]]; return '\"' + String(v == null ? '' : v).replace(/\"/g, '\"\"').replace(/\\n/g, ' ') + '\"'; }).join(',')).join('\\n');\n    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = name + '.csv'; document.body.appendChild(a); a.click(); a.remove();\n  }\n  const sortDate = list => list.sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.createdAt).localeCompare(String(a.createdAt)));\n  const catName = (type, c) => ((D.cats || {})[type] || {})[c] || c || '-';\n  const CAT_E = { sales: '🛒', share: '🤝', support: '🎁', fee: '🧾', material: '🧵', wage: '👷', transport: '🚚', welfare: '❤️', dividend: '💸', other: '📌' };\n  const KIND_E = { bank: '🏦', coop: '🤝', card: '💳', leasing: '🛵', student: '🎓', informal: '⚠️', family: '👪', other: '📌' };\n\n  /* ================= tooltip สำหรับกราฟ ================= */\n  const tip = $('#tip');\n  function showTip(el, x, y) { tip.textContent = el.getAttribute('data-tip'); tip.hidden = false; tip.style.left = Math.max(70, Math.min(window.innerWidth - 70, x)) + 'px'; tip.style.top = y + 'px'; }\n  document.addEventListener('pointermove', e => { const t = e.target.closest && e.target.closest('[data-tip]'); if (t) showTip(t, e.clientX, e.clientY); else tip.hidden = true; });\n  document.addEventListener('pointerdown', e => { const t = e.target.closest && e.target.closest('[data-tip]'); if (t && e.pointerType !== 'mouse') { const r = t.getBoundingClientRect(); showTip(t, r.left + r.width / 2, r.top + 30); } });\n  window.addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });\n\n  /* ================= bottom sheet ================= */\n  function openSheet(title, body, foot) {\n    const sh = $('#sheet');\n    sh.onclick = null;\n    sh.innerHTML = '<div class=\"grab\"></div><div class=\"row between\" style=\"margin-bottom:10px\"><h3 style=\"margin:0\">' + title + '</h3><button class=\"icon-btn\" data-close aria-label=\"ปิด\">✕</button></div>' + body + (foot ? '<div class=\"foot\">' + foot + '</div>' : '');\n    sh.classList.add('on'); $('#scrim').classList.add('on');\n    const first = sh.querySelector('input:not([type=hidden]):not([type=checkbox]),select,textarea');\n    if (first && window.innerWidth > 700) setTimeout(() => first.focus(), 150);\n    return sh;\n  }\n  function closeSheet() { $('#sheet').classList.remove('on'); $('#scrim').classList.remove('on'); }\n  $('#scrim').onclick = closeSheet;\n  $('#sheet').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeSheet(); });\n  function confirmBox(msg, ok) {\n    return new Promise(res => {\n      openSheet('ยืนยัน', '<p>' + msg + '</p>', '<button class=\"btn ghost\" data-close>ยกเลิก</button><button class=\"btn red\" id=\"cfOk\">' + esc(ok || 'ลบ') + '</button>');\n      const sh = $('#sheet');\n      function h(e) { if (e.target.closest('[data-close]')) { sh.removeEventListener('click', h); res(false); } }\n      sh.addEventListener('click', h);\n      $('#cfOk').onclick = () => { sh.removeEventListener('click', h); closeSheet(); res(true); };\n    });\n  }\n  function formVal(sh, name) { const el = sh.querySelector('[name=\"' + name + '\"]'); if (!el) return undefined; return el.type === 'checkbox' ? (el.checked ? 'TRUE' : 'FALSE') : el.value.trim(); }\n  function formData(sh, names) { const o = {}; names.forEach(n => { o[n] = formVal(sh, n); }); return o; }\n  function opt(list, cur, blank) { return (blank ? '<option value=\"\">' + esc(blank) + '</option>' : '') + list.map(o => '<option value=\"' + esc(o[0]) + '\"' + (String(o[0]) === String(cur) ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join(''); }\n  function segHtml(name, cur, opts) { return '<div class=\"seg\" data-seg=\"' + name + '\">' + opts.map(o => '<button type=\"button\" data-v=\"' + o[0] + '\" class=\"' + (o[2] || '') + (o[0] === cur ? ' on' : '') + '\">' + o[1] + '</button>').join('') + '</div><input type=\"hidden\" name=\"' + name + '\" value=\"' + esc(cur) + '\">'; }\n  function bindSeg(ctx, onChange) {\n    $$('[data-seg]', ctx).forEach(seg => seg.addEventListener('click', e => {\n      const b = e.target.closest('button[data-v]'); if (!b) return;\n      $$('button', seg).forEach(x => x.classList.toggle('on', x === b));\n      ctx.querySelector('input[name=\"' + seg.getAttribute('data-seg') + '\"]').value = b.getAttribute('data-v');\n      if (onChange) onChange(seg.getAttribute('data-seg'), b.getAttribute('data-v'));\n    }));\n  }\n  function saveBtn(btn, p, done) {\n    const label = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class=\"spin\"></span> กำลังบันทึก';\n    return p.then(d => { closeSheet(); if (done) done(d); render(); }).catch(() => { btn.disabled = false; btn.innerHTML = label; });\n  }\n\n  /* ================= LOGIN ================= */\n  function showLogin(msg, type) {\n    let mode = 'member';\n    try { mode = localStorage.getItem('ss_mode') || 'member'; } catch (e) { }\n    root.innerHTML = '<div class=\"login\"><form class=\"card\" id=\"lf\" novalidate autocomplete=\"on\"><div class=\"logo\">🌱</div>' +\n      '<h2 style=\"margin-bottom:2px\">' + esc(CFG.appName) + '</h2><p class=\"muted small\" style=\"margin:0 0 16px\">' + esc(CFG.org) + ' · ระบบออมทรัพย์กลุ่มอาชีพ และคลินิกแก้หนี้</p>' +\n      '<div id=\"lmsg\"' + (msg ? ' class=\"msg ' + (type || 'err') + '\"' : ' hidden') + ' role=\"alert\">' + esc(msg || '') + '</div>' +\n      segHtml('mode', mode, [['member', '👤 สมาชิก'], ['staff', '🧑‍💼 เจ้าหน้าที่']]) +\n      '<label class=\"fld\"><span id=\"lu\">รหัสสมาชิก</span><input name=\"u\" autocomplete=\"username\" required></label>' +\n      '<label class=\"fld\"><span id=\"lp\">PIN</span><input name=\"p\" type=\"password\" autocomplete=\"current-password\" required></label>' +\n      '<button class=\"btn block\" id=\"lbtn\" type=\"submit\">เข้าสู่ระบบ</button>' +\n      '<p class=\"muted small\" style=\"margin:14px 0 0;text-align:center\">ลืมรหัส? ติดต่อเจ้าหน้าที่กลุ่มอาชีพ' + (CFG.phone ? ' โทร ' + esc(CFG.phone) : '') + '</p></form></div>';\n    const f = $('#lf');\n    const sync = m => { mode = m; $('#lu').textContent = m === 'staff' ? 'ชื่อผู้ใช้' : 'รหัสสมาชิก'; $('#lp').textContent = m === 'staff' ? 'รหัสผ่าน' : 'PIN'; f.p.setAttribute('inputmode', m === 'staff' ? 'text' : 'numeric'); try { localStorage.setItem('ss_mode', m); } catch (e) { } };\n    bindSeg(f, (k, v) => sync(v)); sync(mode);\n    try { const last = localStorage.getItem('ss_user_' + mode); if (last) f.u.value = last; } catch (e) { }\n    f.addEventListener('submit', e => {\n      e.preventDefault();\n      const m = $('#lmsg'), b = $('#lbtn');\n      if (!f.u.value.trim() || !f.p.value) { m.hidden = false; m.className = 'msg err'; m.textContent = 'กรุณากรอกข้อมูลให้ครบ'; return; }\n      b.disabled = true; b.innerHTML = '<span class=\"spin\"></span> กำลังตรวจสอบ';\n      call(mode === 'staff' ? 'staffLogin' : 'memberLogin', f.u.value.trim(), f.p.value).then(res => {\n        TOKEN = res.token; HIST = [];\n        try { sessionStorage.setItem('ss_token', TOKEN); localStorage.setItem('ss_user_' + mode, f.u.value.trim()); } catch (er) { }\n        boot();\n      }).catch(err => { b.disabled = false; b.textContent = 'เข้าสู่ระบบ'; m.hidden = false; m.className = 'msg err'; m.textContent = err.message; f.p.value = ''; f.p.focus(); });\n    });\n  }\n  function logout(msg) {\n    if (TOKEN && !msg && hasGas) { try { google.script.run.logout(TOKEN); } catch (e) { } }\n    TOKEN = null; D = null; VIEW = ''; HIST = [];\n    try { sessionStorage.removeItem('ss_token'); sessionStorage.removeItem('ss_chat'); } catch (e) { }\n    closeSheet();\n    showLogin(msg || 'ออกจากระบบแล้ว', msg ? 'err' : 'ok');\n  }\n  function boot() {\n    root.innerHTML = '<div class=\"loading\"><div><span class=\"spin\" style=\"width:34px;height:34px;border-width:4px\"></span><p>กำลังโหลดข้อมูล...</p></div></div>';\n    api('getAll').then(d => {\n      D = d; CFG = Object.assign(CFG, d.config || {});\n      try { HIST = JSON.parse(sessionStorage.getItem('ss_chat') || '[]'); } catch (e) { HIST = []; }\n      shell(); go(isStaff() ? 'dash' : 'home');\n    }).catch(e => { if (TOKEN) showLogin(e.message); });\n  }\n\n  /* ================= SHELL ================= */\n  const NAV_STAFF = [['dash', '📊', 'ภาพรวม'], ['entry', '✍️', 'บันทึก'], ['members', '👥', 'สมาชิก'], ['clinic', '🩺', 'คลินิกหนี้'], ['more', '☰', 'เพิ่มเติม']];\n  const NAV_MEMBER = [['home', '🏠', 'หน้าแรก'], ['mysav', '💰', 'เงินออม'], ['clinic', '🩺', 'คลินิกหนี้'], ['chat', '💬', 'ผู้ช่วย'], ['me', '👤', 'ฉัน']];\n  const TITLES = { dash: 'ภาพรวมกลุ่มอาชีพ', entry: 'บันทึกรายการ', members: 'สมาชิก', member: 'ข้อมูลสมาชิก', clinic: 'คลินิกแก้หนี้', cmember: 'คลินิกแก้หนี้', more: 'เพิ่มเติม', groups: 'กลุ่มอาชีพ',\n    settings: 'ตั้งค่า', users: 'ผู้ใช้งาน', faq: 'คลังคำตอบแชตบอต', chatlog: 'คำถามที่ถามแชตบอต', chat: 'ผู้ช่วยการเงิน', home: 'หน้าแรก', mysav: 'เงินออมของฉัน', me: 'ข้อมูลของฉัน', ledger: 'รายรับ-รายจ่ายกลุ่ม' };\n  const PARENT = { member: 'members', cmember: 'clinic', groups: 'more', settings: 'more', users: 'more', faq: 'more', chatlog: 'more', ledger: 'more' };\n  function shell() {\n    const nav = isStaff() ? NAV_STAFF : NAV_MEMBER;\n    root.innerHTML = '<header class=\"top\"><div class=\"in\"><button class=\"back\" id=\"backBtn\" hidden aria-label=\"ย้อนกลับ\">←</button><div class=\"ttl\"><b id=\"vt\"></b><small>' + esc(CFG.appName) + ' · ' + esc(D.user.name) +\n      (D.user.role === 'officer' ? ' · ' + esc(groupName(D.user.groupId)) : D.user.role === 'admin' ? ' · ผู้ดูแลระบบ' : '') + '</small></div></div></header>' +\n      '<main id=\"view\"></main><nav class=\"nav\" id=\"nav\">' + nav.map(n => '<button data-go=\"' + n[0] + '\"><span class=\"e\">' + n[1] + '</span>' + n[2] + '</button>').join('') + '</nav>' +\n      (isStaff() ? '<button class=\"fab\" data-go=\"chat\" aria-label=\"ผู้ช่วยการเงิน\" title=\"ผู้ช่วยการเงิน (แชตบอต)\">💬</button>' : '');\n    if (isStaff()) PARENT.chat = 'more'; else delete PARENT.chat;\n    $('#backBtn').onclick = () => { const p = STACK.pop(); if (p) { VIEW = p[0]; ARG = p[1]; render(); window.scrollTo(0, 0); } else go(PARENT[VIEW] || (isStaff() ? 'dash' : 'home'), null, true); };\n  }\n  const STACK = [];\n  function go(view, arg, replace) {\n    if (!PARENT[view]) STACK.length = 0;          // เมนูหลัก = เริ่มลำดับย้อนกลับใหม่\n    else if (VIEW && !replace) { STACK.push([VIEW, ARG]); if (STACK.length > 30) STACK.shift(); }\n    VIEW = view; ARG = arg == null ? null : arg;\n    render(); window.scrollTo(0, 0);\n  }\n  let rendering = false;\n  function render() {\n    if (!D || !$('#view') || rendering) return;   // กันการวาดซ้อน (เช่น ช่องกรอกส่ง change ตอนถูกนำออก)\n    rendering = true;\n    try { renderNow(); } finally { rendering = false; }\n  }\n  function renderNow() {\n    tip.hidden = true;\n    const top = PARENT[VIEW] || VIEW;\n    $$('#nav button').forEach(b => b.classList.toggle('on', b.getAttribute('data-go') === top));\n    $('#vt').textContent = TITLES[VIEW] || '';\n    $('#backBtn').hidden = !PARENT[VIEW];\n    const old = $('#view'), v = old.cloneNode(false);  // ใช้ element ใหม่ทุกครั้ง เพื่อล้างตัวจับเหตุการณ์ของหน้าก่อน\n    old.replaceWith(v);\n    v.innerHTML = (VIEWS[VIEW] || VIEWS[isStaff() ? 'dash' : 'home'])(ARG);\n    if (BIND[VIEW]) BIND[VIEW](v, ARG);\n  }\n  document.addEventListener('click', e => {\n    const g = e.target.closest('[data-go]');\n    if (g && D) { e.preventDefault(); go(g.getAttribute('data-go'), g.getAttribute('data-arg')); }\n  });\n  const VIEWS = {}, BIND = {};\n\n  /* ================= กราฟ ================= */\n  function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; }\n  /** กราฟแท่งคู่รายเดือน — series = [{ name, color, values }] */\n  function colChart(months, series) {\n    const max = niceMax(Math.max(1, ...series.flatMap(s => s.values)));\n    const grid = [0, .5, 1].map(f => '<div class=\"gl\" style=\"bottom:' + f * 100 + '%\"><span>' + short(max * f) + '</span></div>').join('');\n    const cols = months.map((m, i) => {\n      const tipTxt = ymLabel(m) + '\\n' + series.map(s => s.name + ': ' + money(s.values[i]) + ' บาท').join('\\n');\n      return '<div class=\"col\" data-tip=\"' + esc(tipTxt) + '\">' + series.map(s => '<div class=\"bar\" style=\"height:' + (s.values[i] / max * 100) + '%;background:' + s.color + '\"></div>').join('') +\n        (i % 2 === (months.length - 1) % 2 ? '<span class=\"x\">' + ymLabel(m) + '</span>' : '') + '</div>';\n    }).join('');\n    return '<div class=\"legend\">' + series.map(s => '<span><i style=\"background:' + s.color + '\"></i>' + esc(s.name) + '</span>').join('') + '</div>' +\n      '<div class=\"chart\" role=\"img\" aria-label=\"' + esc(series.map(s => s.name).join(' และ ') + ' รายเดือน') + '\">' + grid + '<div class=\"cols\">' + cols + '</div></div><div class=\"chart-x\"></div>' +\n      '<details class=\"raw\"><summary>ดูเป็นตาราง</summary><div class=\"tbl-wrap\"><table class=\"tb\"><thead><tr><th>เดือน</th>' + series.map(s => '<th>' + esc(s.name) + '</th>').join('') + '</tr></thead><tbody>' +\n      months.map((m, i) => '<tr><td>' + ymLabel(m) + '</td>' + series.map(s => '<td>' + money(s.values[i]) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div></details>';\n  }\n  function hBars(rows) {\n    const max = Math.max(1, ...rows.map(r => r.v));\n    return '<div class=\"hbars\">' + rows.map(r => '<div class=\"hb\" data-tip=\"' + esc(r.l + '\\n' + money(r.v) + ' บาท') + '\"><span class=\"lb\">' + esc(r.l) + '</span><span class=\"tr\"><i style=\"width:' + Math.max(0, r.v) / max * 100 + '%\"></i></span><span class=\"v\">' + short(r.v) + '</span></div>').join('') + '</div>';\n  }\n\n  /* ================= เจ้าหน้าที่: ภาพรวม ================= */\n  let dashG = '';\n  VIEWS.dash = function () {\n    const db = D.dashboard, gs = db.groups.filter(g => !dashG || g.id === dashG);\n    const T = gs.reduce((t, g) => { ['members', 'savings', 'depMonth', 'wdMonth', 'fund', 'income', 'expense', 'debt', 'debtors'].forEach(k => t[k] = (t[k] || 0) + g[k]); return t; }, { members: 0, savings: 0, depMonth: 0, wdMonth: 0, fund: 0, income: 0, expense: 0, debt: 0, debtors: 0 });\n    const tr = dashG ? db.trendByGroup[dashG] : db.trend;\n    let h = '<div class=\"filters\"><select id=\"dg\" aria-label=\"เลือกกลุ่ม\">' + opt(db.groups.map(g => [g.id, (g.icon ? g.icon + ' ' : '') + g.name]), dashG, 'ทุกกลุ่มอาชีพ (' + db.groups.length + ')') + '</select></div>';\n    if (!db.groups.length) return h + '<div class=\"card empty\">ยังไม่มีกลุ่มอาชีพ' + (isAdmin() ? ' — <a href=\"#\" data-go=\"groups\">เพิ่มกลุ่มอาชีพ</a>' : '') + '</div>';\n    h += '<div class=\"hero\"><div class=\"k\">เงินออมสมาชิกรวม' + (dashG ? ' · ' + esc(groupName(dashG)) : '') + '</div><div class=\"v\">' + money(T.savings) + '<small>บาท</small></div>' +\n      '<div class=\"n\">เดือนนี้ ฝาก +' + money(T.depMonth) + ' · ถอน −' + money(T.wdMonth) + ' บาท</div></div>' +\n      '<div class=\"tiles\"><div class=\"tile\"><div class=\"l\">สมาชิก</div><div class=\"n\">' + T.members + '<small>คน</small></div><div class=\"s\">' + gs.length + ' กลุ่มอาชีพ</div></div>' +\n      '<div class=\"tile\"><div class=\"l\">กองทุนกลุ่ม (รับ−จ่าย)</div><div class=\"n\">' + money(T.fund) + '<small>บาท</small></div><div class=\"s\">รับ ' + short(T.income) + ' · จ่าย ' + short(T.expense) + '</div></div>' +\n      '<div class=\"tile\"><div class=\"l\">หนี้คงค้าง (คลินิก)</div><div class=\"n\">' + money(T.debt) + '<small>บาท</small></div><div class=\"s\">' + T.debtors + ' คนที่มีหนี้</div></div>' +\n      '<div class=\"tile\"><div class=\"l\">เงินออมเฉลี่ย/คน</div><div class=\"n\">' + money(T.members ? Math.round(T.savings / T.members) : 0) + '<small>บาท</small></div><div class=\"s\">เฉพาะสมาชิกที่ใช้งาน</div></div></div>';\n    h += '<div class=\"card\"><h3>💰 ฝาก-ถอนเงินออมรายเดือน</h3>' + colChart(db.months, [{ name: 'ฝาก', color: 'var(--s1)', values: tr.dep }, { name: 'ถอน', color: 'var(--s2)', values: tr.wd }]) + '</div>';\n    h += '<div class=\"card\"><h3>🧺 รายรับ-รายจ่ายกองทุนกลุ่มรายเดือน</h3>' + colChart(db.months, [{ name: 'รายรับ', color: 'var(--s1)', values: tr.inc }, { name: 'รายจ่าย', color: 'var(--s2)', values: tr.exp }]) + '</div>';\n    if (!dashG && db.groups.length > 1) h += '<div class=\"card\"><h3>🏆 เงินออมสมาชิกแยกตามกลุ่ม</h3>' + hBars(db.groups.slice().sort((a, b) => b.savings - a.savings).map(g => ({ l: g.name, v: g.savings }))) + '</div>';\n    h += '<div class=\"card\"><div class=\"row between\" style=\"margin-bottom:8px\"><h3 style=\"margin:0\">📋 สรุปรายกลุ่ม</h3><button class=\"btn sm ghost\" id=\"dcsv\">⬇ CSV</button></div><div class=\"tbl-wrap\"><table class=\"tb\"><thead><tr><th>กลุ่มอาชีพ</th><th>สมาชิก</th><th>เงินออม</th><th>กองทุนกลุ่ม</th><th>หนี้คงค้าง</th><th>มีหนี้</th><th>เป้าหมายออม</th></tr></thead><tbody>' +\n      gs.map(g => '<tr><td>' + esc((g.icon ? g.icon + ' ' : '') + g.name) + '</td><td>' + g.members + '</td><td>' + money(g.savings) + '</td><td>' + money(g.fund) + '</td><td>' + money(g.debt) + '</td><td>' + g.debtors + '</td><td>' + (g.goal ? Math.round(g.savings / g.goal * 100) + '%' : '-') + '</td></tr>').join('') +\n      '</tbody></table></div></div>';\n    return h;\n  };\n  BIND.dash = function () {\n    const s = $('#dg'); if (s) s.onchange = function () { dashG = this.value; render(); };\n    const c = $('#dcsv'); if (c) c.onclick = () => dlCsv('สรุปกลุ่มอาชีพ', [['name', 'กลุ่มอาชีพ'], ['members', 'สมาชิก'], ['savings', 'เงินออมสมาชิก'], ['income', 'รายรับกลุ่ม'], ['expense', 'รายจ่ายกลุ่ม'], ['fund', 'กองทุนกลุ่ม'], ['debt', 'หนี้คงค้าง'], ['debtors', 'จำนวนผู้มีหนี้']], D.dashboard.groups);\n  };\n\n  /* ================= เจ้าหน้าที่: บันทึกรายการ ================= */\n  let entryTab = 'sav', entF = { month: '', g: '' };\n  VIEWS.entry = function () {\n    const sav = entryTab === 'sav';\n    return '<div class=\"seg\" id=\"etab\"><button data-t=\"sav\" class=\"' + (sav ? 'on' : '') + '\">💰 ฝาก / ถอน สมาชิก</button><button data-t=\"led\" class=\"' + (!sav ? 'on' : '') + '\">🧺 รายรับ-รายจ่ายกลุ่ม</button></div>' +\n      '<div class=\"row\" style=\"margin-bottom:12px\"><button class=\"btn\" id=\"eNew1\">' + (sav ? '➕ ฝากเงิน' : '➕ รายรับ') + '</button><button class=\"btn gold\" id=\"eNew2\">' + (sav ? '➖ ถอนเงิน' : '➖ รายจ่าย') + '</button></div>' +\n      '<div class=\"filters\">' + (isAdmin() || !sav ? '<select id=\"eg\">' + opt(D.groups.map(g => [g.id, g.name]), entF.g, 'ทุกกลุ่ม') + '</select>' : '') +\n      '<input type=\"month\" id=\"em\" value=\"' + esc(entF.month) + '\" aria-label=\"เดือน\"><button class=\"btn sm ghost\" id=\"ecsv\">⬇ CSV</button></div><p class=\"small muted\" id=\"esum\"></p><div id=\"elist\"></div>';\n  };\n  function entryRows() {\n    if (entryTab === 'sav') return sortDate(D.savings.filter(t => (!entF.g || memberOf(t.memberId).groupId === entF.g) && (!entF.month || String(t.date).substr(0, 7) === entF.month)));\n    return sortDate(D.ledger.filter(t => (!entF.g || t.groupId === entF.g) && (!entF.month || String(t.date).substr(0, 7) === entF.month)));\n  }\n  function savRow(t, showName) {\n    const w = t.type === 'withdraw', m = memberOf(t.memberId);\n    return '<div class=\"li tap\" data-sav=\"' + esc(t.id) + '\"><div class=\"ic' + (w ? ' w' : '') + '\">' + (w ? '➖' : '➕') + '</div><div style=\"min-width:0\"><div class=\"t\">' + (showName ? esc(m.name || '(ลบแล้ว)') : (w ? 'ถอนเงินออม' : 'ฝากเงินออม')) + '</div>' +\n      '<div class=\"s\">' + thDate(t.date) + (showName ? ' · ' + esc(m.memberNo || '') + ' · ' + (w ? 'ถอน' : 'ฝาก') : '') + (t.note ? ' · ' + esc(t.note) : '') + '</div></div><div class=\"a ' + (w ? 'm' : 'p') + '\">' + (w ? '−' : '+') + money(t.amount) + '</div></div>';\n  }\n  function ledRow(t) {\n    const e = t.type === 'expense';\n    return '<div class=\"li tap\" data-led=\"' + esc(t.id) + '\"><div class=\"ic' + (e ? ' w' : '') + '\">' + (CAT_E[t.category] || '📌') + '</div><div style=\"min-width:0\"><div class=\"t\">' + esc(catName(t.type, t.category)) + '</div>' +\n      '<div class=\"s\">' + thDate(t.date) + ' · ' + esc(groupName(t.groupId)) + (t.note ? ' · ' + esc(t.note) : '') + '</div></div><div class=\"a ' + (e ? 'm' : 'p') + '\">' + (e ? '−' : '+') + money(t.amount) + '</div></div>';\n  }\n  BIND.entry = function (v) {\n    const draw = () => {\n      const rows = entryRows(), sav = entryTab === 'sav';\n      const pos = rows.filter(t => sav ? t.type !== 'withdraw' : t.type === 'income').reduce((s, t) => s + num(t.amount), 0), neg = rows.filter(t => sav ? t.type === 'withdraw' : t.type === 'expense').reduce((s, t) => s + num(t.amount), 0);\n      $('#esum').textContent = rows.length + ' รายการ · ' + (sav ? 'ฝาก ' : 'รับ ') + money(pos) + ' · ' + (sav ? 'ถอน ' : 'จ่าย ') + money(neg) + ' · สุทธิ ' + money(pos - neg) + ' บาท';\n      $('#elist').innerHTML = rows.length ? '<div class=\"list\">' + rows.slice(0, 300).map(t => sav ? savRow(t, true) : ledRow(t)).join('') + '</div>' + (rows.length > 300 ? '<p class=\"small muted\">แสดง 300 รายการล่าสุด — ใช้ตัวกรองเดือนหรือส่งออก CSV</p>' : '') : '<div class=\"card empty\">ยังไม่มีรายการ</div>';\n    };\n    draw();\n    $('#etab').onclick = e => { const b = e.target.closest('[data-t]'); if (b) { entryTab = b.getAttribute('data-t'); render(); } };\n    $('#eNew1').onclick = () => entryTab === 'sav' ? savingForm(null, { type: 'deposit' }) : ledgerForm(null, { type: 'income' });\n    $('#eNew2').onclick = () => entryTab === 'sav' ? savingForm(null, { type: 'withdraw' }) : ledgerForm(null, { type: 'expense' });\n    const eg = $('#eg'); if (eg) eg.onchange = function () { entF.g = this.value; draw(); };\n    $('#em').onchange = function () { entF.month = this.value; draw(); };\n    $('#ecsv').onclick = () => entryTab === 'sav'\n      ? dlCsv('เงินออมสมาชิก' + (entF.month ? '-' + entF.month : ''), [['date', 'วันที่'], [t => memberOf(t.memberId).memberNo, 'รหัสสมาชิก'], [t => memberOf(t.memberId).name, 'ชื่อ'], [t => groupName(memberOf(t.memberId).groupId), 'กลุ่ม'], [t => t.type === 'withdraw' ? 'ถอน' : 'ฝาก', 'ประเภท'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'], ['recordedBy', 'ผู้บันทึก']], entryRows())\n      : dlCsv('รายรับรายจ่ายกลุ่ม' + (entF.month ? '-' + entF.month : ''), [['date', 'วันที่'], [t => groupName(t.groupId), 'กลุ่ม'], [t => t.type === 'expense' ? 'รายจ่าย' : 'รายรับ', 'ประเภท'], [t => catName(t.type, t.category), 'หมวด'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'], ['recordedBy', 'ผู้บันทึก']], entryRows());\n    v.addEventListener('click', e => {\n      const a = e.target.closest('[data-sav]'); if (a) return savingForm(a.getAttribute('data-sav'));\n      const b = e.target.closest('[data-led]'); if (b) return ledgerForm(b.getAttribute('data-led'));\n    });\n  };\n\n  /** ฟอร์มฝาก/ถอนเงินออมสมาชิก */\n  function savingForm(id, preset) {\n    const r = id ? Object.assign({}, D.savings.find(t => t.id === id)) : Object.assign({ type: 'deposit', date: today() }, preset || {});\n    const ms = activeMembers().filter(m => !entF.g || !isAdmin() || m.groupId === entF.g || m.id === r.memberId);\n    const sh = openSheet(id ? 'แก้ไขรายการเงินออม' : (r.type === 'withdraw' ? '➖ ถอนเงินออม' : '➕ ฝากเงินออม'),\n      segHtml('type', r.type, [['deposit', '➕ ฝาก', 'dep'], ['withdraw', '➖ ถอน', 'wd']]) +\n      (r.memberId && preset && preset.memberId ? '<input type=\"hidden\" name=\"memberId\" value=\"' + esc(r.memberId) + '\"><p><b>' + esc(memberOf(r.memberId).name) + '</b> <span class=\"muted\">' + esc(memberOf(r.memberId).memberNo) + '</span></p>'\n        : '<label class=\"fld\"><span>สมาชิก *</span><input class=\"inp\" id=\"msq\" placeholder=\"🔍 พิมพ์ชื่อหรือรหัสเพื่อค้นหา\" style=\"margin-bottom:6px\"><select name=\"memberId\">' + opt(ms.map(m => [m.id, m.memberNo + ' · ' + m.name + (isAdmin() ? ' (' + groupName(m.groupId) + ')' : '')]), r.memberId, '— เลือกสมาชิก —') + '</select></label>') +\n      '<p class=\"small muted\" id=\"mbal\" style=\"margin:-6px 0 10px\"></p>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>จำนวนเงิน (บาท) *</span><input name=\"amount\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"any\" value=\"' + esc(r.amount || '') + '\"></label>' +\n      '<label class=\"fld\"><span>วันที่ *</span><input name=\"date\" type=\"date\" value=\"' + esc(r.date) + '\" max=\"' + today() + '\"></label></div>' +\n      '<label class=\"fld\"><span>หมายเหตุ</span><input name=\"note\" maxlength=\"300\" value=\"' + esc(r.note || '') + '\" placeholder=\"เช่น เงินสัจจะประจำเดือน\"></label>',\n      (id ? '<button class=\"btn ghost\" id=\"sDel\" style=\"flex:0 0 auto\">🗑</button>' : '<button class=\"btn ghost\" data-close>ยกเลิก</button>') + '<button class=\"btn\" id=\"sOk\">💾 บันทึก</button>');\n    bindSeg(sh);\n    const showBal = () => { const mid = formVal(sh, 'memberId'); $('#mbal').textContent = mid ? 'เงินออมคงเหลือ ' + money(balanceOf(mid)) + ' บาท' : ''; };\n    const sel = sh.querySelector('select[name=memberId]');\n    if (sel) {\n      sel.onchange = showBal;\n      $('#msq').oninput = function () {\n        const q = this.value.toLowerCase();\n        sel.innerHTML = opt(ms.filter(m => (m.memberNo + ' ' + m.name + ' ' + (m.phone || '')).toLowerCase().indexOf(q) !== -1).map(m => [m.id, m.memberNo + ' · ' + m.name]), '', q ? 'พบ ' + ms.filter(m => (m.memberNo + ' ' + m.name + ' ' + (m.phone || '')).toLowerCase().indexOf(q) !== -1).length + ' คน — เลือก' : '— เลือกสมาชิก —');\n        if (sel.options.length === 2) sel.selectedIndex = 1;\n        showBal();\n      };\n    }\n    showBal();\n    $('#sOk').onclick = function () {\n      const d = formData(sh, ['type', 'memberId', 'amount', 'date', 'note']);\n      if (!d.memberId) return toast('กรุณาเลือกสมาชิก', 'err');\n      if (!(num(d.amount) > 0)) return toast('กรุณากรอกจำนวนเงิน', 'err');\n      if (id) d.id = id;\n      saveBtn(this, mutate('saveRecord', 'Savings', d), () => toast((d.type === 'withdraw' ? 'บันทึกการถอน ' : 'บันทึกการฝาก ') + money(d.amount) + ' บาท เรียบร้อย', 'ok'));\n    };\n    if (id) $('#sDel').onclick = () => confirmBox('ลบรายการ ' + money(r.amount) + ' บาท ของ ' + esc(memberOf(r.memberId).name) + ' ใช่หรือไม่?').then(ok => ok && mutate('deleteRecord', 'Savings', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));\n  }\n\n  /** ฟอร์มรายรับ-รายจ่ายของกลุ่ม */\n  function ledgerForm(id, preset) {\n    const r = id ? Object.assign({}, D.ledger.find(t => t.id === id)) : Object.assign({ type: 'income', date: today(), groupId: D.user.groupId || entF.g || (D.groups[0] || {}).id }, preset || {});\n    const cats = t => Object.keys(D.cats[t]).map(k => [k, (CAT_E[k] || '') + ' ' + D.cats[t][k]]);\n    const sh = openSheet(id ? 'แก้ไขรายรับ-รายจ่าย' : (r.type === 'expense' ? '➖ รายจ่ายของกลุ่ม' : '➕ รายรับของกลุ่ม'),\n      segHtml('type', r.type, [['income', '➕ รายรับ', 'dep'], ['expense', '➖ รายจ่าย', 'wd']]) +\n      (isAdmin() ? '<label class=\"fld\"><span>กลุ่มอาชีพ *</span><select name=\"groupId\">' + opt(D.groups.map(g => [g.id, g.name]), r.groupId) + '</select></label>' : '<input type=\"hidden\" name=\"groupId\" value=\"' + esc(D.user.groupId) + '\"><p class=\"muted small\">กลุ่ม: <b>' + esc(groupName(D.user.groupId)) + '</b></p>') +\n      '<label class=\"fld\"><span>หมวด *</span><select name=\"category\">' + opt(cats(r.type), r.category) + '</select></label>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>จำนวนเงิน (บาท) *</span><input name=\"amount\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"any\" value=\"' + esc(r.amount || '') + '\"></label>' +\n      '<label class=\"fld\"><span>วันที่ *</span><input name=\"date\" type=\"date\" value=\"' + esc(r.date) + '\" max=\"' + today() + '\"></label></div>' +\n      '<label class=\"fld\"><span>รายละเอียด</span><input name=\"note\" maxlength=\"300\" value=\"' + esc(r.note || '') + '\" placeholder=\"เช่น ขายผลผลิตตลาดนัด, ซื้อวัตถุดิบ\"></label>',\n      (id ? '<button class=\"btn ghost\" id=\"lDel\" style=\"flex:0 0 auto\">🗑</button>' : '<button class=\"btn ghost\" data-close>ยกเลิก</button>') + '<button class=\"btn\" id=\"lOk\">💾 บันทึก</button>');\n    bindSeg(sh, (k, t) => { sh.querySelector('[name=category]').innerHTML = opt(cats(t), ''); });\n    $('#lOk').onclick = function () {\n      const d = formData(sh, ['type', 'groupId', 'category', 'amount', 'date', 'note']);\n      if (!(num(d.amount) > 0)) return toast('กรุณากรอกจำนวนเงิน', 'err');\n      if (id) d.id = id;\n      saveBtn(this, mutate('saveRecord', 'Ledger', d), () => toast('บันทึกรายการกลุ่มเรียบร้อย', 'ok'));\n    };\n    if (id) $('#lDel').onclick = () => confirmBox('ลบรายการ “' + esc(catName(r.type, r.category)) + '” ' + money(r.amount) + ' บาท ใช่หรือไม่?').then(ok => ok && mutate('deleteRecord', 'Ledger', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));\n  }\n\n  /* ================= เจ้าหน้าที่: สมาชิก ================= */\n  let memQ = '', memG = '';\n  VIEWS.members = function () {\n    return '<div class=\"row\" style=\"margin-bottom:12px\"><input class=\"search grow\" id=\"mq\" placeholder=\"🔍 ค้นหาชื่อ รหัส เบอร์โทร\" value=\"' + esc(memQ) + '\"><button class=\"btn\" id=\"mAdd\">＋ เพิ่ม</button></div>' +\n      (isAdmin() ? '<div class=\"filters\"><select id=\"mg\">' + opt(D.groups.map(g => [g.id, g.name]), memG, 'ทุกกลุ่ม') + '</select><button class=\"btn sm ghost\" id=\"mcsv\">⬇ CSV</button></div>' : '<div class=\"filters\"><button class=\"btn sm ghost\" id=\"mcsv\">⬇ CSV</button></div>') +\n      '<p class=\"small muted\" id=\"mcount\"></p><div id=\"mlist\"></div>';\n  };\n  function memList() { const q = memQ.toLowerCase(); return D.members.filter(m => (!memG || m.groupId === memG) && (!q || (m.memberNo + ' ' + m.name + ' ' + (m.phone || '')).toLowerCase().indexOf(q) !== -1)).sort((a, b) => String(a.memberNo).localeCompare(String(b.memberNo), 'th', { numeric: true })); }\n  BIND.members = function () {\n    const draw = () => {\n      const list = memList();\n      $('#mcount').textContent = list.length + ' คน';\n      $('#mlist').innerHTML = list.length ? '<div class=\"list\">' + list.map(m => {\n        const di = debtInfo(m.id);\n        return '<div class=\"li tap\" data-go=\"member\" data-arg=\"' + esc(m.id) + '\"><div class=\"ic\">' + (truthy(m.active) ? '👤' : '🚫') + '</div><div style=\"min-width:0\"><div class=\"t\">' + esc(m.name) + '</div><div class=\"s\">' + esc(m.memberNo) + (isAdmin() ? ' · ' + esc(groupName(m.groupId)) : '') + (di.total ? ' · 🩺 หนี้ ' + short(di.total) : '') + (truthy(m.active) ? '' : ' · ระงับ') + '</div></div>' +\n          '<div class=\"a\">' + money(balanceOf(m.id)) + '<small>เงินออม</small></div></div>';\n      }).join('') + '</div>' : '<div class=\"card empty\">' + (D.members.length ? 'ไม่พบสมาชิก' : 'ยังไม่มีสมาชิก — กด “＋ เพิ่ม”') + '</div>';\n    };\n    draw();\n    $('#mq').oninput = function () { memQ = this.value; draw(); };\n    const mg = $('#mg'); if (mg) mg.onchange = function () { memG = this.value; draw(); };\n    $('#mAdd').onclick = () => memberForm(null);\n    $('#mcsv').onclick = () => dlCsv('สมาชิก', [['memberNo', 'รหัสสมาชิก'], ['name', 'ชื่อ-นามสกุล'], ['phone', 'โทรศัพท์'], [m => groupName(m.groupId), 'กลุ่ม'], ['occupation', 'อาชีพ'], ['joinDate', 'วันที่เข้า'], [m => balanceOf(m.id), 'เงินออมคงเหลือ'], [m => debtInfo(m.id).total, 'หนี้คงค้าง'], ['income', 'รายได้/เดือน'], ['expense', 'รายจ่าย/เดือน'], [m => truthy(m.active) ? 'ใช้งาน' : 'ระงับ', 'สถานะ']], memList());\n  };\n  function nextMemberNo() {\n    let max = 0, pre = 'M', w = 4;\n    D.members.forEach(m => { const x = /^([A-Za-zก-๙]*)(\\d+)$/.exec(String(m.memberNo)); if (x && Number(x[2]) >= max) { max = Number(x[2]); pre = x[1]; w = x[2].length; } });\n    let n = String(max + 1); while (n.length < w) n = '0' + n; return pre + n;\n  }\n  function memberForm(id) {\n    const r = id ? Object.assign({}, memberOf(id)) : { memberNo: nextMemberNo(), joinDate: today(), groupId: D.user.groupId || memG || (D.groups[0] || {}).id, active: 'TRUE' };\n    const sh = openSheet(id ? 'แก้ไขสมาชิก' : 'เพิ่มสมาชิก',\n      '<div class=\"grid2\"><label class=\"fld\"><span>รหัสสมาชิก *</span><input name=\"memberNo\" value=\"' + esc(r.memberNo) + '\"></label><label class=\"fld\"><span>เบอร์โทร</span><input name=\"phone\" type=\"tel\" value=\"' + esc(r.phone || '') + '\"></label></div>' +\n      '<label class=\"fld\"><span>ชื่อ-นามสกุล *</span><input name=\"name\" value=\"' + esc(r.name || '') + '\"></label>' +\n      (isAdmin() ? '<label class=\"fld\"><span>กลุ่มอาชีพ *</span><select name=\"groupId\">' + opt(D.groups.map(g => [g.id, g.name]), r.groupId) + '</select></label>' : '<input type=\"hidden\" name=\"groupId\" value=\"' + esc(D.user.groupId) + '\">') +\n      '<div class=\"grid2\"><label class=\"fld\"><span>อาชีพ</span><input name=\"occupation\" value=\"' + esc(r.occupation || '') + '\"></label><label class=\"fld\"><span>วันที่เป็นสมาชิก</span><input name=\"joinDate\" type=\"date\" value=\"' + esc(r.joinDate || '') + '\"></label></div>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>รายได้ครัวเรือน/เดือน</span><input name=\"income\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(r.income || '') + '\"></label><label class=\"fld\"><span>รายจ่าย/เดือน</span><input name=\"expense\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(r.expense || '') + '\"></label></div>' +\n      '<label class=\"fld\"><span>เป้าหมายเงินออม (บาท)</span><input name=\"savingsGoal\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(r.savingsGoal || '') + '\"></label>' +\n      '<label class=\"fld\"><span>' + (id ? 'ตั้ง PIN ใหม่ (เว้นว่าง = ไม่เปลี่ยน)' : 'PIN เริ่มต้น * (อย่างน้อย 4 ตัว)') + '</span><input name=\"pin\" inputmode=\"numeric\" autocomplete=\"off\" placeholder=\"เช่น 4 หลักท้ายเบอร์โทร\"><span class=\"hint\">สมาชิกใช้รหัสสมาชิก + PIN เข้าแอป และเปลี่ยน PIN เองได้</span></label>' +\n      '<label class=\"fld\"><span>หมายเหตุ (เห็นเฉพาะเจ้าหน้าที่)</span><input name=\"note\" value=\"' + esc(r.note || '') + '\"></label>' +\n      '<label class=\"switch\"><input type=\"checkbox\" name=\"active\"' + (truthy(r.active) ? ' checked' : '') + '> เปิดใช้งาน</label>',\n      (id && isAdmin() ? '<button class=\"btn ghost\" id=\"mDel\" style=\"flex:0 0 auto\">🗑</button>' : '<button class=\"btn ghost\" data-close>ยกเลิก</button>') + '<button class=\"btn\" id=\"mOk\">💾 บันทึก</button>');\n    $('#mOk').onclick = function () {\n      const d = formData(sh, ['memberNo', 'phone', 'name', 'groupId', 'occupation', 'joinDate', 'income', 'expense', 'savingsGoal', 'pin', 'note', 'active']);\n      if (!d.memberNo || !d.name) return toast('กรุณากรอกรหัสและชื่อ', 'err');\n      if (!id && (d.pin || '').length < 4) return toast('กรุณาตั้ง PIN อย่างน้อย 4 ตัว', 'err');\n      if (id) d.id = id;\n      saveBtn(this, mutate('saveRecord', 'Members', d), () => toast('บันทึกสมาชิกแล้ว' + (d.pin ? ' — แจ้ง PIN ให้สมาชิก' : ''), 'ok'));\n    };\n    if (id && isAdmin()) $('#mDel').onclick = () => confirmBox('ลบสมาชิก “' + esc(r.name) + '”? (ลบได้เฉพาะสมาชิกที่ไม่มีรายการเงิน/หนี้)').then(ok => ok && mutate('deleteRecord', 'Members', id).then(() => { toast('ลบแล้ว', 'ok'); go('members', null, true); }));\n  }\n\n  VIEWS.member = function (id) {\n    const m = memberOf(id);\n    if (!m.id) return '<div class=\"card empty\">ไม่พบสมาชิก</div>';\n    const bal = balanceOf(id), di = debtInfo(id), txs = sortDate(D.savings.filter(t => t.memberId === id));\n    const dep = txs.filter(t => t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0), wd = txs.filter(t => t.type === 'withdraw').reduce((s, t) => s + num(t.amount), 0);\n    return '<div class=\"card\"><div class=\"row between\"><div class=\"grow\"><h3 style=\"margin:0\">' + esc(m.name) + ' ' + (truthy(m.active) ? '' : '<span class=\"pill bad\">ระงับ</span>') + '</h3><div class=\"small muted\">' + esc(m.memberNo) + ' · ' + esc(groupName(m.groupId)) + (m.phone ? ' · ☎ <a href=\"tel:' + esc(m.phone) + '\">' + esc(m.phone) + '</a>' : '') + (m.occupation ? ' · ' + esc(m.occupation) : '') + '</div></div><button class=\"btn sm ghost\" id=\"mdEdit\">✎ แก้ไข</button></div></div>' +\n      '<div class=\"hero\"><div class=\"k\">เงินออมคงเหลือ</div><div class=\"v\">' + money(bal) + '<small>บาท</small></div><div class=\"n\">ฝากรวม ' + money(dep) + ' · ถอนรวม ' + money(wd) + '</div>' + goalHtml(bal, m.savingsGoal) + '</div>' +\n      '<div class=\"row\" style=\"margin-bottom:14px\"><button class=\"btn\" id=\"mdDep\">➕ ฝาก</button><button class=\"btn gold\" id=\"mdWd\">➖ ถอน</button><button class=\"btn ghost\" data-go=\"cmember\" data-arg=\"' + esc(id) + '\">🩺 คลินิกหนี้' + (di.total ? ' (' + short(di.total) + ')' : '') + '</button></div>' +\n      '<h3>รายการเงินออม</h3>' + (txs.length ? '<div class=\"list\">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class=\"card empty\">ยังไม่มีรายการ</div>');\n  };\n  BIND.member = function (v, id) {\n    if (!$('#mdEdit')) return;\n    $('#mdEdit').onclick = () => memberForm(id);\n    $('#mdDep').onclick = () => savingForm(null, { memberId: id, type: 'deposit' });\n    $('#mdWd').onclick = () => savingForm(null, { memberId: id, type: 'withdraw' });\n    v.addEventListener('click', e => { const a = e.target.closest('[data-sav]'); if (a) savingForm(a.getAttribute('data-sav')); });\n  };\n\n  /* ================= คลินิกแก้หนี้ ================= */\n  let clQ = '';\n  VIEWS.clinic = function () {\n    if (!isStaff()) return VIEWS.cmember(D.user.id);\n    const rows = D.members.map(m => Object.assign({ m: m }, debtInfo(m.id))).filter(x => x.list.length);\n    const tot = rows.reduce((s, x) => s + x.total, 0), heavy = rows.filter(x => x.dti != null && x.dti > 40).length;\n    return '<div class=\"hero\"><div class=\"k\">🩺 หนี้คงค้างของสมาชิกในคลินิก</div><div class=\"v\">' + money(tot) + '<small>บาท</small></div><div class=\"n\">' + rows.filter(x => x.total).length + ' คนที่ยังมีหนี้ · ภาระหนี้เกิน 40% ของรายได้ ' + heavy + ' คน</div></div>' +\n      '<div class=\"row\" style=\"margin-bottom:12px\"><input class=\"search grow\" id=\"cq\" placeholder=\"🔍 ค้นหาสมาชิกเพื่อเปิดแฟ้มคลินิก\" value=\"' + esc(clQ) + '\"></div><div id=\"clist\"></div>' +\n      '<p class=\"small muted\">แตะชื่อสมาชิกเพื่อบันทึกหนี้ การชำระ แผนปลดหนี้ และบันทึกการให้คำปรึกษา · สมาชิกเปิดดูแฟ้มของตนเองได้ในแอป</p>';\n  };\n  BIND.clinic = function () {\n    if (!isStaff()) return BIND.cmember($('#view'), D.user.id);\n    const draw = () => {\n      const q = clQ.toLowerCase();\n      const list = D.members.filter(m => q ? (m.memberNo + ' ' + m.name).toLowerCase().indexOf(q) !== -1 : D.debts.some(d => d.memberId === m.id))\n        .map(m => Object.assign({ m: m }, debtInfo(m.id))).sort((a, b) => (b.dti || 0) - (a.dti || 0) || b.total - a.total);\n      $('#clist').innerHTML = list.length ? '<div class=\"list\">' + list.map(x => '<div class=\"li tap\" data-go=\"cmember\" data-arg=\"' + esc(x.m.id) + '\"><div class=\"ic' + (x.dti > 40 ? ' w' : '') + '\">' + (x.total ? '🩺' : '✅') + '</div><div style=\"min-width:0\"><div class=\"t\">' + esc(x.m.name) + '</div><div class=\"s\">' + esc(x.m.memberNo) + ' · ' + x.active.length + ' หนี้ค้าง · ผ่อน ' + money(x.monthly) + '/เดือน</div><div style=\"margin-top:3px\">' + dtiPill(x.dti) + '</div></div><div class=\"a m\">' + money(x.total) + '<small>คงเหลือ</small></div></div>').join('') + '</div>'\n        : '<div class=\"card empty\">' + (q ? 'ไม่พบสมาชิก' : 'ยังไม่มีสมาชิกที่บันทึกหนี้ — ค้นหาชื่อสมาชิกด้านบนเพื่อเปิดแฟ้มคลินิก') + '</div>';\n    };\n    draw();\n    $('#cq').oninput = function () { clQ = this.value; draw(); };\n  };\n\n  let planExtra = '', planMethod = 'avalanche';\n  /** จำลองแผนปลดหนี้รายเดือน (ดอกเบี้ยลดต้นลดดอก) */\n  function simulate(debts, extra, method) {\n    let ds = debts.map(d => ({ id: d.id, name: d.creditor, bal: d.outstanding, rate: num(d.rate), min: num(d.monthlyPayment), done: 0 }));\n    const budget = ds.reduce((s, d) => s + d.min, 0) + num(extra);\n    if (!ds.length) return null;\n    if (budget <= 0) return { error: 'ใส่ยอดผ่อนต่อเดือนในรายการหนี้ หรือใส่เงินโปะเพิ่ม เพื่อคำนวณแผน' };\n    let month = 0, interest = 0;\n    while (ds.some(d => d.bal > 0.005) && month < 600) {\n      month++;\n      ds.forEach(d => { if (d.bal > 0) { const i = d.bal * d.rate / 1200; d.bal += i; interest += i; } });\n      let left = budget;\n      ds.forEach(d => { if (d.bal > 0) { const p = Math.min(d.bal, d.min, left); d.bal -= p; left -= p; } });\n      const order = ds.filter(d => d.bal > 0.005).sort((a, b) => method === 'snowball' ? a.bal - b.bal : b.rate - a.rate || a.bal - b.bal);\n      for (const d of order) { if (left <= 0) break; const p = Math.min(d.bal, left); d.bal -= p; left -= p; }\n      ds.forEach(d => { if (d.bal <= 0.005 && !d.done) { d.bal = 0; d.done = month; } });\n      if (month === 1 && ds.every(d => d.bal > 0) && left <= 0 && ds.reduce((s, d) => s + d.bal, 0) >= debts.reduce((s, d) => s + d.outstanding, 0)) return { error: 'ยอดผ่อนรวม ' + money(budget) + ' บาท/เดือน ไม่พอจ่ายดอกเบี้ย หนี้จะไม่ลดลง — ควรเพิ่มยอดผ่อนหรือเจรจาลดดอกเบี้ยกับเจ้าหนี้' };\n    }\n    if (month >= 600) return { error: 'ตามยอดผ่อนนี้ใช้เวลาเกิน 50 ปี — ควรเพิ่มยอดผ่อนหรือเจรจาปรับโครงสร้างหนี้' };\n    return { months: month, interest: interest, budget: budget, order: ds.slice().sort((a, b) => a.done - b.done) };\n  }\n  function monthsText(n) { const y = Math.floor(n / 12), m = n % 12; return (y ? y + ' ปี ' : '') + (m ? m + ' เดือน' : (y ? '' : '0 เดือน')); }\n  function addMonths(n) { const d = new Date(); d.setMonth(d.getMonth() + n); return TM[d.getMonth()] + ' ' + (d.getFullYear() + 543); }\n\n  VIEWS.cmember = function (id) {\n    const m = memberOf(id);\n    if (!m.id) return '<div class=\"card empty\">ไม่พบสมาชิก</div>';\n    const di = debtInfo(id), self = D.user.role === 'member';\n    const notes = sortDate(D.counsel.filter(c => c.memberId === id));\n    const left = di.income ? di.income - num(m.expense) - di.monthly : null;\n    let h = (self ? '' : '<div class=\"card\"><b>' + esc(m.name) + '</b> <span class=\"muted small\">' + esc(m.memberNo) + ' · ' + esc(groupName(m.groupId)) + '</span></div>');\n    h += '<div class=\"hero\"><div class=\"k\">หนี้คงเหลือรวม</div><div class=\"v\">' + money(di.total) + '<small>บาท</small></div><div class=\"n\">' + di.active.length + ' รายการที่ยังผ่อน · ผ่อนรวม ' + money(di.monthly) + ' บาท/เดือน</div></div>';\n    h += '<div class=\"tiles\"><div class=\"tile\"><div class=\"l\">หนี้ต่อรายได้</div><div style=\"margin-top:4px\">' + dtiPill(di.dti) + '</div><div class=\"s\">ควรไม่เกิน 30–40%</div></div>' +\n      '<div class=\"tile\"><div class=\"l\">รายได้/เดือน</div><div class=\"n\">' + (di.income ? money(di.income) : '-') + '</div><div class=\"s\">รายจ่าย ' + (m.expense ? money(m.expense) : '-') + '</div></div>' +\n      '<div class=\"tile\"><div class=\"l\">เหลือหลังจ่ายทุกอย่าง</div><div class=\"n\" style=\"color:' + (left != null && left < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '\">' + (left == null ? '-' : money(left)) + '</div><div class=\"s\">รายได้ − รายจ่าย − ผ่อนหนี้</div></div>' +\n      '<div class=\"tile\"><div class=\"l\">เงินออมในกลุ่ม</div><div class=\"n\">' + money(balanceOf(id)) + '</div><div class=\"s\">ไม่ควรถอนมาโปะจนไม่มีเงินฉุกเฉิน</div></div></div>';\n    if (self && !di.income) h += '<div class=\"msg info\">ใส่รายได้และรายจ่ายต่อเดือนที่หน้า “ฉัน” เพื่อดูสัดส่วนหนี้ต่อรายได้</div>';\n    h += '<div class=\"row between\" style=\"margin:4px 0 10px\"><h3 style=\"margin:0\">📋 รายการหนี้</h3><button class=\"btn sm\" id=\"dAdd\">＋ เพิ่มหนี้</button></div>';\n    h += di.list.length ? '<div class=\"list\">' + di.list.sort((a, b) => (a.status === 'closed') - (b.status === 'closed') || b.outstanding - a.outstanding).map(d => {\n      const pct = num(d.principal) ? Math.min(100, Math.round(d.paid / num(d.principal) * 100)) : 0, closed = d.status === 'closed' || d.outstanding <= 0;\n      return '<div class=\"li\" style=\"grid-template-columns:42px 1fr\"><div class=\"ic' + (d.kind === 'informal' ? ' w' : '') + '\">' + (KIND_E[d.kind] || '📌') + '</div><div style=\"min-width:0\">' +\n        '<div class=\"row between\"><div class=\"t grow\">' + esc(d.creditor) + ' ' + (closed ? '<span class=\"pill ok\">✓ ปิดแล้ว</span>' : d.kind === 'informal' ? '<span class=\"pill bad\">หนี้นอกระบบ</span>' : '') + '</div><div class=\"a m\">' + money(d.outstanding) + '</div></div>' +\n        '<div class=\"s\">' + esc(D.debtKinds[d.kind] || d.kind) + ' · ยอดกู้ ' + money(d.principal) + (d.rate !== '' ? ' · ดอกเบี้ย ' + esc(d.rate) + '%/ปี' : '') + (d.monthlyPayment ? ' · ผ่อน ' + money(d.monthlyPayment) + '/เดือน' : '') + '</div>' +\n        '<div class=\"pbar\" style=\"margin:7px 0 4px\"><i style=\"width:' + pct + '%\"></i></div><div class=\"s\">ชำระแล้ว ' + money(d.paid) + ' (' + pct + '%)</div>' +\n        '<div class=\"row\" style=\"margin-top:8px\">' + (closed ? '' : '<button class=\"btn sm\" data-pay=\"' + esc(d.id) + '\">💵 บันทึกการชำระ</button>') + '<button class=\"btn sm ghost\" data-dhist=\"' + esc(d.id) + '\">ประวัติ</button><button class=\"btn sm ghost\" data-dedit=\"' + esc(d.id) + '\">✎</button></div></div></div>';\n    }).join('') + '</div>' : '<div class=\"card empty\">ยังไม่มีรายการหนี้ — กด “＋ เพิ่มหนี้” เพื่อเริ่มต้นวางแผน</div>';\n    if (di.active.length) {\n      const a = simulate(di.active, planExtra, planMethod);\n      h += '<div class=\"card\"><h3>🗓️ แผนปลดหนี้</h3><div class=\"grid2\"><label class=\"fld\"><span>เงินโปะเพิ่มต่อเดือน (บาท)</span><input id=\"pX\" type=\"number\" inputmode=\"decimal\" min=\"0\" value=\"' + esc(planExtra) + '\" placeholder=\"0\"></label>' +\n        '<label class=\"fld\"><span>วิธีปลดหนี้</span><select id=\"pM\">' + opt([['avalanche', 'ดอกเบี้ยสูงก่อน (ประหยัดสุด)'], ['snowball', 'ก้อนเล็กก่อน (สร้างกำลังใจ)']], planMethod) + '</select></label></div>';\n      if (!a || a.error) h += '<div class=\"msg err\">' + esc(a ? a.error : '') + '</div>';\n      else {\n        const base = num(planExtra) ? simulate(di.active, 0, planMethod) : null;\n        h += '<div class=\"tiles\" style=\"grid-template-columns:repeat(2,1fr)\"><div class=\"tile\"><div class=\"l\">หมดหนี้ใน</div><div class=\"n\">' + monthsText(a.months) + '</div><div class=\"s\">ประมาณ ' + addMonths(a.months) + '</div></div>' +\n          '<div class=\"tile\"><div class=\"l\">ดอกเบี้ยรวมโดยประมาณ</div><div class=\"n\">' + money(Math.round(a.interest)) + '</div><div class=\"s\">ผ่อนรวม ' + money(a.budget) + '/เดือน</div></div></div>' +\n          (base && !base.error ? '<div class=\"msg ok\">โปะเพิ่ม ' + money(planExtra) + ' บาท/เดือน หมดหนี้เร็วขึ้น ' + monthsText(Math.max(0, base.months - a.months)) + ' และประหยัดดอกเบี้ย ' + money(Math.max(0, Math.round(base.interest - a.interest))) + ' บาท</div>' : '') +\n          '<p class=\"small\" style=\"margin:6px 0 4px\"><b>ลำดับการปิดหนี้</b></p><ol class=\"small\" style=\"margin:0;padding-left:20px\">' + a.order.map(d => '<li>' + esc(d.name) + ' — ปิดได้ใน ' + monthsText(d.done) + '</li>').join('') + '</ol>' +\n          '<p class=\"hint\" style=\"margin-top:8px\">คำนวณแบบลดต้นลดดอกรายเดือน จากยอดคงเหลือ อัตราดอกเบี้ย และยอดผ่อนที่บันทึกไว้ เป็นค่าประมาณเพื่อวางแผนเท่านั้น</p>';\n      }\n      h += '</div>';\n    }\n    h += '<div class=\"row between\" style=\"margin:4px 0 10px\"><h3 style=\"margin:0\">🗒️ บันทึกการให้คำปรึกษา</h3>' + (self ? '' : '<button class=\"btn sm\" id=\"nAdd\">＋ บันทึก</button>') + '</div>';\n    h += notes.length ? '<div class=\"list\">' + notes.map(c => '<div class=\"li\" style=\"grid-template-columns:1fr' + (self ? '' : ' auto') + '\"><div><div class=\"t\">' + esc(c.topic || 'ให้คำปรึกษา') + '</div><div class=\"s\">' + thDate(c.date) + ' · ' + esc(c.counselor || '') + (c.nextDate ? ' · นัดครั้งถัดไป ' + thDate(c.nextDate) : '') + '</div>' +\n      (c.advice ? '<div style=\"white-space:pre-wrap;margin-top:4px;font-size:14.5px\">' + esc(c.advice) + '</div>' : '') + '</div>' + (self ? '' : '<button class=\"icon-btn\" data-nedit=\"' + esc(c.id) + '\">✎</button>') + '</div>').join('') + '</div>'\n      : '<div class=\"card empty\">' + (self ? 'ยังไม่มีบันทึกจากเจ้าหน้าที่ — ขอรับคำปรึกษาได้ที่เจ้าหน้าที่กลุ่ม หรือถาม “ผู้ช่วย” ได้ตลอดเวลา' : 'ยังไม่มีบันทึก') + '</div>';\n    h += '<div class=\"card\" style=\"background:var(--surface-2)\"><h3>📞 แหล่งช่วยเหลือ</h3><div class=\"small\">คลินิกแก้หนี้ (บสส.) <a href=\"tel:1443\">1443</a> · ศคง. ธนาคารแห่งประเทศไทย <a href=\"tel:1213\">1213</a> · ถูกทวงหนี้ข่มขู่ แจ้งตำรวจ <a href=\"tel:191\">191</a> / <a href=\"tel:1599\">1599</a> · ศูนย์ดำรงธรรม <a href=\"tel:1567\">1567</a> · สุขภาพจิต <a href=\"tel:1323\">1323</a></div>' +\n      '<button class=\"btn sm gold\" style=\"margin-top:10px\" data-go=\"chat\">💬 ถามผู้ช่วยการเงิน</button></div>';\n    return h;\n  };\n  BIND.cmember = function (v, id) {\n    if (!$('#dAdd')) return;\n    $('#dAdd').onclick = () => debtForm(null, id);\n    const px = $('#pX'), pm = $('#pM');\n    if (px) px.onchange = function () { planExtra = this.value; render(); };\n    if (pm) pm.onchange = function () { planMethod = this.value; render(); };\n    const na = $('#nAdd'); if (na) na.onclick = () => counselForm(null, id);\n    v.addEventListener('click', e => {\n      let b;\n      if ((b = e.target.closest('[data-pay]'))) return payForm(b.getAttribute('data-pay'));\n      if ((b = e.target.closest('[data-dedit]'))) return debtForm(b.getAttribute('data-dedit'), id);\n      if ((b = e.target.closest('[data-dhist]'))) return payHistory(b.getAttribute('data-dhist'));\n      if ((b = e.target.closest('[data-nedit]'))) return counselForm(b.getAttribute('data-nedit'), id);\n    });\n  };\n  function debtForm(did, memberId) {\n    const r = did ? Object.assign({}, D.debts.find(d => d.id === did)) : { kind: 'bank', status: 'active', startDate: '' };\n    const sh = openSheet(did ? 'แก้ไขรายการหนี้' : 'เพิ่มรายการหนี้',\n      '<label class=\"fld\"><span>เจ้าหนี้ / แหล่งเงินกู้ *</span><input name=\"creditor\" value=\"' + esc(r.creditor || '') + '\" placeholder=\"เช่น ธ.ก.ส., กองทุนหมู่บ้าน, นายทุนในหมู่บ้าน\"></label>' +\n      '<label class=\"fld\"><span>ประเภทหนี้</span><select name=\"kind\">' + opt(Object.keys(D.debtKinds).map(k => [k, (KIND_E[k] || '') + ' ' + D.debtKinds[k]]), r.kind) + '</select></label>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>ยอดหนี้ที่ต้องชำระ *</span><input name=\"principal\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(r.principal || '') + '\"><span class=\"hint\">ยอดคงค้าง ณ วันที่เริ่มบันทึก</span></label>' +\n      '<label class=\"fld\"><span>ดอกเบี้ย (% ต่อปี)</span><input name=\"rate\" type=\"number\" inputmode=\"decimal\" step=\"any\" value=\"' + esc(r.rate || '') + '\"><span class=\"hint\">ร้อยละ 20 ต่อเดือน = 240 ต่อปี</span></label></div>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>ผ่อนต่อเดือน (บาท)</span><input name=\"monthlyPayment\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(r.monthlyPayment || '') + '\"></label>' +\n      '<label class=\"fld\"><span>วันที่เริ่ม</span><input name=\"startDate\" type=\"date\" value=\"' + esc(r.startDate || '') + '\"></label></div>' +\n      '<label class=\"fld\"><span>หมายเหตุ</span><input name=\"note\" value=\"' + esc(r.note || '') + '\"></label>' +\n      (did ? '<label class=\"switch\"><input type=\"checkbox\" name=\"closed\"' + (r.status === 'closed' ? ' checked' : '') + '> ปิดหนี้แล้ว</label>' : ''),\n      (did ? '<button class=\"btn ghost\" id=\"dDel\" style=\"flex:0 0 auto\">🗑</button>' : '<button class=\"btn ghost\" data-close>ยกเลิก</button>') + '<button class=\"btn\" id=\"dOk\">💾 บันทึก</button>');\n    $('#dOk').onclick = function () {\n      const d = formData(sh, ['creditor', 'kind', 'principal', 'rate', 'monthlyPayment', 'startDate', 'note']);\n      if (!d.creditor || !(num(d.principal) > 0)) return toast('กรุณากรอกเจ้าหนี้และยอดหนี้', 'err');\n      d.memberId = memberId; d.status = formVal(sh, 'closed') === 'TRUE' ? 'closed' : 'active';\n      if (did) d.id = did;\n      saveBtn(this, mutate('saveRecord', 'Debts', d), () => toast('บันทึกรายการหนี้แล้ว', 'ok'));\n    };\n    if (did) $('#dDel').onclick = () => confirmBox('ลบหนี้ “' + esc(r.creditor) + '” และประวัติการชำระทั้งหมด?').then(ok => ok && mutate('deleteRecord', 'Debts', did).then(() => { toast('ลบแล้ว', 'ok'); render(); }));\n  }\n  function payForm(did) {\n    const d = debtInfo(D.debts.find(x => x.id === did).memberId).list.find(x => x.id === did);\n    const sh = openSheet('💵 บันทึกการชำระหนี้', '<p class=\"small muted\" style=\"margin-top:0\">' + esc(d.creditor) + ' · คงเหลือ <b>' + money(d.outstanding) + '</b> บาท</p>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>จำนวนที่ชำระ (บาท) *</span><input name=\"amount\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(d.monthlyPayment && num(d.monthlyPayment) <= d.outstanding ? d.monthlyPayment : '') + '\"></label>' +\n      '<label class=\"fld\"><span>วันที่ *</span><input name=\"date\" type=\"date\" value=\"' + today() + '\" max=\"' + today() + '\"></label></div><label class=\"fld\"><span>หมายเหตุ</span><input name=\"note\"></label>' +\n      '<p class=\"hint\">ใส่เฉพาะส่วนที่ตัดเงินต้น ถ้าทราบ (ถ้าไม่ทราบ ใส่ยอดที่จ่ายทั้งหมด)</p>',\n      '<button class=\"btn ghost\" data-close>ยกเลิก</button><button class=\"btn\" id=\"pOk\">💾 บันทึก</button>');\n    $('#pOk').onclick = function () {\n      const x = formData(sh, ['amount', 'date', 'note']);\n      if (!(num(x.amount) > 0)) return toast('กรุณากรอกจำนวนเงิน', 'err');\n      x.debtId = did;\n      saveBtn(this, mutate('saveRecord', 'DebtPayments', x), () => toast(num(x.amount) >= d.outstanding - 0.001 ? '🎉 ปิดหนี้ก้อนนี้แล้ว ยินดีด้วย!' : 'บันทึกการชำระแล้ว', 'ok'));\n    };\n  }\n  function payHistory(did) {\n    const d = D.debts.find(x => x.id === did), ps = sortDate(D.payments.filter(p => p.debtId === did));\n    const sh = openSheet('ประวัติการชำระ: ' + esc(d.creditor), ps.length ? '<div class=\"list\">' + ps.map(p => '<div class=\"li\" style=\"grid-template-columns:1fr auto auto\"><div><div class=\"t\">' + thDate(p.date) + '</div><div class=\"s\">' + esc(p.note || '') + ' · ' + esc(String(p.recordedBy || '').replace(/^member:/, 'สมาชิกบันทึก ')) + '</div></div><div class=\"a p\">' + money(p.amount) + '</div><button class=\"icon-btn\" data-pdel=\"' + esc(p.id) + '\" aria-label=\"ลบ\">🗑</button></div>').join('') + '</div>' : '<div class=\"empty\">ยังไม่มีการชำระ</div>');\n    sh.onclick = e => { const b = e.target.closest('[data-pdel]'); if (b) { const pid = b.getAttribute('data-pdel'); sh.onclick = null; confirmBox('ลบรายการชำระนี้?').then(ok => ok && mutate('deleteRecord', 'DebtPayments', pid).then(() => { toast('ลบแล้ว', 'ok'); render(); })); } };\n  }\n  function counselForm(cid, memberId) {\n    const r = cid ? Object.assign({}, D.counsel.find(c => c.id === cid)) : { date: today(), counselor: D.user.name };\n    const sh = openSheet(cid ? 'แก้ไขบันทึกคำปรึกษา' : 'บันทึกการให้คำปรึกษา',\n      '<div class=\"grid2\"><label class=\"fld\"><span>วันที่</span><input name=\"date\" type=\"date\" value=\"' + esc(r.date || '') + '\"></label><label class=\"fld\"><span>นัดครั้งถัดไป</span><input name=\"nextDate\" type=\"date\" value=\"' + esc(r.nextDate || '') + '\"></label></div>' +\n      '<label class=\"fld\"><span>หัวข้อ</span><input name=\"topic\" value=\"' + esc(r.topic || '') + '\" placeholder=\"เช่น วางแผนปิดหนี้นอกระบบ\"></label>' +\n      '<label class=\"fld\"><span>คำแนะนำ / ข้อตกลง</span><textarea name=\"advice\" rows=\"5\">' + esc(r.advice || '') + '</textarea><span class=\"hint\">สมาชิกจะเห็นบันทึกนี้ในแฟ้มคลินิกของตน</span></label>' +\n      '<label class=\"fld\"><span>ผู้ให้คำปรึกษา</span><input name=\"counselor\" value=\"' + esc(r.counselor || '') + '\"></label>',\n      (cid ? '<button class=\"btn ghost\" id=\"cDel\" style=\"flex:0 0 auto\">🗑</button>' : '<button class=\"btn ghost\" data-close>ยกเลิก</button>') + '<button class=\"btn\" id=\"cOk\">💾 บันทึก</button>');\n    $('#cOk').onclick = function () {\n      const d = formData(sh, ['date', 'nextDate', 'topic', 'advice', 'counselor']); d.memberId = memberId; if (cid) d.id = cid;\n      saveBtn(this, mutate('saveRecord', 'Counsel', d), () => toast('บันทึกแล้ว', 'ok'));\n    };\n    if (cid) $('#cDel').onclick = () => confirmBox('ลบบันทึกนี้?').then(ok => ok && mutate('deleteRecord', 'Counsel', cid).then(() => { toast('ลบแล้ว', 'ok'); render(); }));\n  }\n\n  /* ================= แชตบอต ================= */\n  const SUGGEST = ['เริ่มออมเงินยังไงดี', 'มีหนี้หลายก้อน ควรจ่ายอันไหนก่อน', 'หนี้นอกระบบ ทำอย่างไรดี', 'ควรมีเงินฉุกเฉินเท่าไร', 'ออมเพื่อไปฮัจย์', 'ลดรายจ่ายอย่างไรได้บ้าง'];\n  VIEWS.chat = function () {\n    const bot = CFG.botName || 'น้องออม';\n    return '<div class=\"card\" style=\"display:flex;gap:12px;align-items:center\"><div style=\"font-size:34px\">🤖</div><div><b style=\"font-family:var(--font-head)\">' + esc(bot) + ' · ผู้ช่วยการเงิน</b><div class=\"small muted\">ถามเรื่องการออม การจัดการหนี้ และบัญชีครัวเรือนได้ตลอด 24 ชม. · ห้ามพิมพ์รหัสผ่าน PIN หรือเลขบัญชี</div></div></div>' +\n      '<div class=\"chat\" id=\"chatBox\">' + (HIST.length ? '' : '<div class=\"bubble b\">อัสสลามุอะลัยกุม สวัสดีค่ะ 😊 ' + esc(bot) + ' ยินดีช่วยเรื่องการออมและการแก้หนี้ค่ะ เลือกคำถามด้านล่าง หรือพิมพ์ถามได้เลย</div>') +\n      HIST.map(bubble).join('') + '</div>' +\n      '<div class=\"chips\" id=\"chips\" style=\"margin:12px 0\">' + SUGGEST.map(s => '<button class=\"chip\">' + esc(s) + '</button>').join('') + '</div>' +\n      '<form class=\"composer\" id=\"chatF\"><textarea id=\"chatIn\" rows=\"1\" maxlength=\"1000\" placeholder=\"พิมพ์คำถาม...\" aria-label=\"คำถาม\"></textarea><button class=\"btn\" id=\"chatGo\" aria-label=\"ส่ง\">ส่ง</button></form>' +\n      (HIST.length ? '<p style=\"text-align:center\"><button class=\"btn sm ghost\" id=\"chatClr\">เริ่มบทสนทนาใหม่</button></p>' : '') +\n      '<p class=\"hint\" style=\"text-align:center\">คำตอบเป็นคำแนะนำทั่วไป ไม่ใช่คำปรึกษาทางกฎหมาย ตรวจสอบกับเจ้าหน้าที่ก่อนตัดสินใจเรื่องสำคัญ</p>';\n  };\n  function bubble(h) {\n    const src = h.source === 'ai' ? '🤖 ตอบโดย AI' : h.source === 'faq' ? '📚 จากคลังคำตอบ' : h.source === 'help' ? 'ℹ️ ระบบ' : '';\n    return '<div class=\"bubble ' + (h.role === 'user' ? 'u' : 'b') + '\">' + esc(h.content) + (h.role !== 'user' && src ? '<span class=\"src\">' + src + '</span>' : '') + '</div>';\n  }\n  BIND.chat = function () {\n    const box = $('#chatBox'), inp = $('#chatIn');\n    const scroll = () => { const last = box.lastElementChild; if (last) last.scrollIntoView({ block: 'end', behavior: 'smooth' }); };\n    const send = q => {\n      q = String(q || '').trim(); if (!q) return;\n      HIST.push({ role: 'user', content: q }); chatlogFresh = false;\n      box.insertAdjacentHTML('beforeend', bubble(HIST[HIST.length - 1]) + '<div class=\"bubble b\" id=\"typing\"><span class=\"spin\"></span> กำลังพิมพ์...</div>');\n      inp.value = ''; $('#chatGo').disabled = true; scroll();\n      api('chatAsk', HIST.slice(-12).map(h => ({ role: h.role, content: h.content }))).then(r => {\n        HIST.push({ role: 'assistant', content: r.answer, source: r.source });\n      }).catch(e => { HIST.push({ role: 'assistant', content: 'ขออภัยค่ะ ระบบขัดข้อง: ' + e.message, source: 'help' }); }).then(() => {\n        try { sessionStorage.setItem('ss_chat', JSON.stringify(HIST.slice(-40))); } catch (e) { }\n        const t = $('#typing'); if (t) t.remove();\n        if (VIEW !== 'chat') return;\n        box.insertAdjacentHTML('beforeend', bubble(HIST[HIST.length - 1])); $('#chatGo').disabled = false; scroll();\n      });\n    };\n    $('#chatF').addEventListener('submit', e => { e.preventDefault(); send(inp.value); });\n    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 700) { e.preventDefault(); send(inp.value); } });\n    $('#chips').onclick = e => { const c = e.target.closest('.chip'); if (c) send(c.textContent); };\n    const clr = $('#chatClr'); if (clr) clr.onclick = () => { HIST = []; try { sessionStorage.removeItem('ss_chat'); } catch (e) { } render(); };\n    if (HIST.length) scroll();\n  };\n\n  /* ================= สมาชิก: หน้าแรก / เงินออม / ฉัน ================= */\n  VIEWS.home = function () {\n    const m = memberOf(D.user.id), bal = balanceOf(m.id), di = debtInfo(m.id), g = groupOf(m.groupId), gs = (D.dashboard.groups || [])[0];\n    const txs = sortDate(D.savings.slice()).slice(0, 5), ym = today().substr(0, 7);\n    const thisMonth = D.savings.filter(t => String(t.date).substr(0, 7) === ym && t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0);\n    const hr = new Date().getHours();\n    return '<h2 style=\"margin-bottom:2px\">' + (hr < 12 ? 'อรุณสวัสดิ์' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น') + ' ' + esc(m.name) + '</h2><p class=\"muted small\" style=\"margin:0 0 12px\">' + esc(m.memberNo) + ' · ' + esc((g.icon ? g.icon + ' ' : '') + (g.name || '')) + '</p>' +\n      '<div class=\"hero\"><div class=\"k\">เงินออมของฉัน</div><div class=\"v\">' + money(bal) + '<small>บาท</small></div><div class=\"n\">เดือนนี้ฝากแล้ว ' + money(thisMonth) + ' บาท' + (num(g.monthlyShare) ? ' · กลุ่มกำหนด ' + money(g.monthlyShare) + '/เดือน' : '') + '</div>' + goalHtml(bal, m.savingsGoal, 'เป้าหมายของฉัน') + '</div>' +\n      '<div class=\"tiles\"><div class=\"tile\" data-go=\"clinic\" style=\"cursor:pointer\"><div class=\"l\">🩺 หนี้คงเหลือ</div><div class=\"n\">' + money(di.total) + '</div><div class=\"s\">' + (di.active.length ? di.active.length + ' รายการ · ' : '') + 'แตะเพื่อวางแผน</div></div>' +\n      '<div class=\"tile\"><div class=\"l\">หนี้ต่อรายได้</div><div style=\"margin-top:4px\">' + dtiPill(di.dti) + '</div></div>' +\n      (gs ? '<div class=\"tile\"><div class=\"l\">🧺 เงินออมทั้งกลุ่ม</div><div class=\"n\">' + short(gs.savings) + '</div><div class=\"s\">' + gs.members + ' สมาชิก</div></div><div class=\"tile\"><div class=\"l\">กองทุนกลุ่ม</div><div class=\"n\">' + short(gs.fund) + '</div><div class=\"s\">รายรับ − รายจ่ายของกลุ่ม</div></div>' : '') + '</div>' +\n      '<div class=\"card\" style=\"display:flex;gap:12px;align-items:center;cursor:pointer\" data-go=\"chat\"><div style=\"font-size:30px\">💬</div><div class=\"grow\"><b style=\"font-family:var(--font-head)\">มีคำถามเรื่องเงิน ถาม' + esc(CFG.botName || 'น้องออม') + 'ได้เลย</b><div class=\"small muted\">ออมยังไง · หนี้ก้อนไหนจ่ายก่อน · หนี้นอกระบบ</div></div><span>→</span></div>' +\n      '<div class=\"row between\"><h3 style=\"margin:0 0 8px\">รายการล่าสุด</h3>' + (D.savings.length ? '<a href=\"#\" data-go=\"mysav\">ดูทั้งหมด →</a>' : '') + '</div>' +\n      (txs.length ? '<div class=\"list\">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class=\"card empty\">ยังไม่มีรายการ — นำเงินไปฝากกับเจ้าหน้าที่กลุ่ม</div>');\n  };\n  let myYear = '';\n  VIEWS.mysav = function () {\n    const years = [...new Set(D.savings.map(t => String(t.date).substr(0, 4)).filter(Boolean))].sort().reverse();\n    const txs = sortDate(D.savings.filter(t => !myYear || String(t.date).substr(0, 4) === myYear));\n    const dep = txs.filter(t => t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0), wd = txs.filter(t => t.type === 'withdraw').reduce((s, t) => s + num(t.amount), 0);\n    return '<div class=\"filters\"><select id=\"my\">' + opt(years.map(y => [y, 'ปี ' + (Number(y) + 543)]), myYear, 'ทุกปี') + '</select></div>' +\n      '<div class=\"tiles\" style=\"grid-template-columns:repeat(3,1fr)\"><div class=\"tile\"><div class=\"l\">ฝาก</div><div class=\"n\" style=\"color:var(--ok)\">' + short(dep) + '</div></div><div class=\"tile\"><div class=\"l\">ถอน</div><div class=\"n\" style=\"color:var(--danger)\">' + short(wd) + '</div></div><div class=\"tile\"><div class=\"l\">คงเหลือ</div><div class=\"n\">' + short(balanceOf(D.user.id)) + '</div></div></div>' +\n      (txs.length ? '<div class=\"list\">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class=\"card empty\">ไม่มีรายการ</div>');\n  };\n  BIND.mysav = function () { $('#my').onchange = function () { myYear = this.value; render(); }; };\n  VIEWS.me = function () {\n    const m = memberOf(D.user.id);\n    return '<div class=\"card\"><h3>👤 ข้อมูลของฉัน</h3><p style=\"margin:0\">' + esc(m.name) + '<br><span class=\"muted small\">' + esc(m.memberNo) + ' · ' + esc(groupName(m.groupId)) + (m.phone ? ' · ' + esc(m.phone) : '') + (m.joinDate ? ' · สมาชิกตั้งแต่ ' + thDate(m.joinDate) : '') + '</span></p></div>' +\n      '<form class=\"card\" id=\"bf\"><h3>📒 รายได้-รายจ่ายของครัวเรือน</h3><p class=\"small muted\" style=\"margin-top:-4px\">ใช้คำนวณสัดส่วนหนี้ต่อรายได้ในคลินิกแก้หนี้ และช่วยให้ผู้ช่วยแนะนำได้ตรงขึ้น</p>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>รายได้ต่อเดือน</span><input name=\"income\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(m.income || '') + '\"></label><label class=\"fld\"><span>รายจ่ายต่อเดือน</span><input name=\"expense\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(m.expense || '') + '\"></label></div>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>อาชีพ</span><input name=\"occupation\" value=\"' + esc(m.occupation || '') + '\"></label><label class=\"fld\"><span>เป้าหมายเงินออม</span><input name=\"savingsGoal\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(m.savingsGoal || '') + '\"></label></div>' +\n      '<button class=\"btn\" type=\"submit\">💾 บันทึก</button></form>' +\n      '<form class=\"card\" id=\"pf\"><h3>🔒 เปลี่ยน PIN</h3><label class=\"fld\"><span>PIN เดิม</span><input name=\"o\" type=\"password\" inputmode=\"numeric\" autocomplete=\"current-password\"></label><label class=\"fld\"><span>PIN ใหม่ (อย่างน้อย 4 ตัว)</span><input name=\"n\" type=\"password\" inputmode=\"numeric\" autocomplete=\"new-password\"></label>' +\n      '<button class=\"btn\" type=\"submit\">เปลี่ยน PIN</button></form><button class=\"btn ghost block\" id=\"lo\">ออกจากระบบ</button>';\n  };\n  BIND.me = function () {\n    $('#bf').addEventListener('submit', e => { e.preventDefault(); const f = e.target; const b = f.querySelector('button'); b.disabled = true;\n      mutate('saveMyProfile', { income: f.income.value, expense: f.expense.value, occupation: f.occupation.value, savingsGoal: f.savingsGoal.value }).then(() => { toast('บันทึกแล้ว', 'ok'); render(); }).catch(() => { b.disabled = false; }); });\n    $('#pf').addEventListener('submit', e => { e.preventDefault(); const f = e.target;\n      if ((f.n.value || '').length < 4) return toast('PIN ใหม่ต้องมีอย่างน้อย 4 ตัว', 'err');\n      busy(true); api('changeSecret', f.o.value, f.n.value).then(() => { busy(false); f.reset(); toast('เปลี่ยน PIN แล้ว', 'ok'); }).catch(er => { busy(false); toast(er.message, 'err'); }); });\n    $('#lo').onclick = () => logout();\n  };\n\n  /* ================= เจ้าหน้าที่: เพิ่มเติม ================= */\n  VIEWS.more = function () {\n    const item = (go, e, t, s) => '<div class=\"li tap\" data-go=\"' + go + '\"><div class=\"ic\">' + e + '</div><div><div class=\"t\">' + t + '</div><div class=\"s\">' + s + '</div></div><div class=\"a\">›</div></div>';\n    return '<div class=\"list\">' + item('chat', '💬', 'ผู้ช่วยการเงิน (แชตบอต)', 'ตอบคำถามการออมและการแก้หนี้อัตโนมัติ') + item('groups', '🧺', 'กลุ่มอาชีพ', isAdmin() ? 'เพิ่ม/แก้ไขกลุ่ม เงินสัจจะ เป้าหมาย' : 'ข้อมูลกลุ่มอาชีพ') +\n      (isAdmin() ? item('users', '🧑‍💼', 'ผู้ใช้งาน (เจ้าหน้าที่)', 'เพิ่มเจ้าหน้าที่ประจำกลุ่ม / ผู้ดูแล') + item('faq', '📚', 'คลังคำตอบแชตบอต', 'คำถาม-คำตอบที่ใช้เมื่อไม่มี AI') + item('chatlog', '🗂️', 'คำถามที่ถามแชตบอต', 'ดูว่าสมาชิกสงสัยเรื่องอะไร') + item('settings', '⚙️', 'ตั้งค่าแอป & AI', 'ชื่อแอป ชื่อแชตบอต คีย์ OpenAI') : '') + '</div>' +\n      (isAdmin() && D.dbUrl ? '<p><a href=\"' + esc(D.dbUrl) + '\" target=\"_blank\" rel=\"noopener\">📗 เปิดฐานข้อมูล (Google Sheets) ↗</a></p>' : '') +\n      '<form class=\"card\" id=\"pw\"><h3>🔒 เปลี่ยนรหัสผ่าน</h3><label class=\"fld\"><span>รหัสผ่านเดิม</span><input name=\"o\" type=\"password\" autocomplete=\"current-password\"></label><label class=\"fld\"><span>รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)</span><input name=\"n\" type=\"password\" autocomplete=\"new-password\"></label><button class=\"btn\" type=\"submit\">เปลี่ยนรหัสผ่าน</button></form>' +\n      '<button class=\"btn ghost block\" id=\"lo\">ออกจากระบบ</button>';\n  };\n  BIND.more = function () {\n    $('#pw').addEventListener('submit', e => { e.preventDefault(); const f = e.target; if ((f.n.value || '').length < 8) return toast('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัว', 'err');\n      busy(true); api('changeSecret', f.o.value, f.n.value).then(() => { busy(false); f.reset(); toast('เปลี่ยนรหัสผ่านแล้ว', 'ok'); }).catch(er => { busy(false); toast(er.message, 'err'); }); });\n    $('#lo').onclick = () => logout();\n  };\n\n  VIEWS.groups = function () {\n    const st = {}; D.dashboard.groups.forEach(g => st[g.id] = g);\n    return (isAdmin() ? '<p><button class=\"btn\" id=\"gAdd\">＋ เพิ่มกลุ่มอาชีพ</button></p>' : '') + (D.groups.length ? '<div class=\"list\">' + D.groups.map(g => {\n      const s = st[g.id] || {};\n      return '<div class=\"li' + (isAdmin() ? ' tap' : '') + '\" data-g=\"' + esc(g.id) + '\"><div class=\"ic\">' + esc(g.icon || '🧺') + '</div><div style=\"min-width:0\"><div class=\"t\">' + esc(g.name) + (truthy(g.active) || g.active === '' ? '' : ' <span class=\"pill bad\">ปิด</span>') + '</div><div class=\"s\">' + esc(g.location || '') + ' · ' + (s.members || 0) + ' สมาชิก' + (num(g.monthlyShare) ? ' · ออม ' + money(g.monthlyShare) + '/เดือน' : '') + '</div>' + (num(g.savingsGoal) ? goalHtml(s.savings, g.savingsGoal, 'เป้าเงินออมกลุ่ม') : '') + '</div><div class=\"a\">' + short(s.savings || 0) + '<small>เงินออม</small></div></div>';\n    }).join('') + '</div>' : '<div class=\"card empty\">ยังไม่มีกลุ่มอาชีพ</div>');\n  };\n  BIND.groups = function (v) {\n    if (!isAdmin()) return;\n    $('#gAdd').onclick = () => groupForm(null);\n    v.addEventListener('click', e => { const a = e.target.closest('[data-g]'); if (a) groupForm(a.getAttribute('data-g')); });\n  };\n  function groupForm(id) {\n    const r = id ? Object.assign({}, groupOf(id)) : { active: 'TRUE', icon: '🧺' };\n    const sh = openSheet(id ? 'แก้ไขกลุ่มอาชีพ' : 'เพิ่มกลุ่มอาชีพ',\n      '<div class=\"grid2\" style=\"grid-template-columns:90px 1fr\"><label class=\"fld\"><span>ไอคอน</span><input name=\"icon\" value=\"' + esc(r.icon || '') + '\" maxlength=\"4\"></label><label class=\"fld\"><span>ชื่อกลุ่ม *</span><input name=\"name\" value=\"' + esc(r.name || '') + '\" placeholder=\"เช่น กลุ่มอาชีพเชือกกล้วย\"></label></div>' +\n      '<label class=\"fld\"><span>ที่ตั้ง</span><input name=\"location\" value=\"' + esc(r.location || '') + '\"></label>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>เงินออม/สัจจะต่อเดือน (บาท/คน)</span><input name=\"monthlyShare\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(r.monthlyShare || '') + '\"></label><label class=\"fld\"><span>เป้าหมายเงินออมของกลุ่ม</span><input name=\"savingsGoal\" type=\"number\" inputmode=\"decimal\" value=\"' + esc(r.savingsGoal || '') + '\"></label></div>' +\n      '<label class=\"fld\"><span>รายละเอียด</span><textarea name=\"description\" rows=\"3\">' + esc(r.description || '') + '</textarea></label>' +\n      '<label class=\"switch\"><input type=\"checkbox\" name=\"active\"' + (truthy(r.active) || r.active === '' ? ' checked' : '') + '> เปิดใช้งาน</label>',\n      (id ? '<button class=\"btn ghost\" id=\"gDel\" style=\"flex:0 0 auto\">🗑</button>' : '<button class=\"btn ghost\" data-close>ยกเลิก</button>') + '<button class=\"btn\" id=\"gOk\">💾 บันทึก</button>');\n    $('#gOk').onclick = function () {\n      const d = formData(sh, ['icon', 'name', 'location', 'monthlyShare', 'savingsGoal', 'description', 'active']); if (!d.name) return toast('กรุณากรอกชื่อกลุ่ม', 'err'); if (id) d.id = id;\n      saveBtn(this, mutate('saveRecord', 'Groups', d), () => toast('บันทึกกลุ่มแล้ว', 'ok'));\n    };\n    if (id) $('#gDel').onclick = () => confirmBox('ลบกลุ่ม “' + esc(r.name) + '”? (ลบได้เฉพาะกลุ่มที่ไม่มีสมาชิกและรายการ)').then(ok => ok && mutate('deleteRecord', 'Groups', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));\n  }\n\n  VIEWS.users = function () {\n    return '<p><button class=\"btn\" id=\"uAdd\">＋ เพิ่มผู้ใช้</button></p><div class=\"list\">' + (D.users || []).map(u => '<div class=\"li tap\" data-u=\"' + esc(u.id) + '\"><div class=\"ic\">' + (u.role === 'admin' ? '🛡️' : '🧑‍💼') + '</div><div style=\"min-width:0\"><div class=\"t\">' + esc(u.name) + (truthy(u.active) ? '' : ' <span class=\"pill bad\">ระงับ</span>') + '</div><div class=\"s\">' + esc(u.username) + ' · ' + (u.role === 'admin' ? 'ผู้ดูแลทุกกลุ่ม' : 'เจ้าหน้าที่ ' + esc(groupName(u.groupId))) + (u.lastLogin ? ' · เข้าล่าสุด ' + thDate(u.lastLogin) : '') + '</div></div><div class=\"a\">›</div></div>').join('') + '</div>' +\n      '<p class=\"small muted\">เจ้าหน้าที่ประจำกลุ่ม (เช่น ประธาน/เหรัญญิก) บันทึกฝาก-ถอน รายรับ-รายจ่าย สมาชิก และคลินิกหนี้ได้เฉพาะกลุ่มของตน แต่ดูแดชบอร์ดภาพรวมได้ทุกกลุ่ม</p>';\n  };\n  BIND.users = function (v) {\n    const form = id => {\n      const r = id ? Object.assign({}, D.users.find(u => u.id === id)) : { role: 'officer', active: 'TRUE', groupId: (D.groups[0] || {}).id };\n      const sh = openSheet(id ? 'แก้ไขผู้ใช้' : 'เพิ่มผู้ใช้',\n        '<div class=\"grid2\"><label class=\"fld\"><span>ชื่อผู้ใช้ *</span><input name=\"username\" value=\"' + esc(r.username || '') + '\" autocapitalize=\"off\"></label><label class=\"fld\"><span>ชื่อ-นามสกุล *</span><input name=\"name\" value=\"' + esc(r.name || '') + '\"></label></div>' +\n        '<label class=\"fld\"><span>สิทธิ์</span><select name=\"role\">' + opt([['officer', 'เจ้าหน้าที่ประจำกลุ่ม'], ['admin', 'ผู้ดูแลระบบ (ทุกกลุ่ม)']], r.role) + '</select></label>' +\n        '<label class=\"fld\" id=\"ugf\"><span>กลุ่มอาชีพ</span><select name=\"groupId\">' + opt(D.groups.map(g => [g.id, g.name]), r.groupId) + '</select></label>' +\n        '<label class=\"fld\"><span>' + (id ? 'รหัสผ่านใหม่ (เว้นว่าง = ไม่เปลี่ยน)' : 'รหัสผ่านเริ่มต้น * (อย่างน้อย 8 ตัว)') + '</span><input name=\"password\" autocomplete=\"new-password\"></label>' +\n        '<label class=\"switch\"><input type=\"checkbox\" name=\"active\"' + (truthy(r.active) ? ' checked' : '') + '> เปิดใช้งาน</label>',\n        (id ? '<button class=\"btn ghost\" id=\"uDel\" style=\"flex:0 0 auto\">🗑</button>' : '<button class=\"btn ghost\" data-close>ยกเลิก</button>') + '<button class=\"btn\" id=\"uOk\">💾 บันทึก</button>');\n      const syncRole = () => { $('#ugf').hidden = formVal(sh, 'role') === 'admin'; };\n      sh.querySelector('[name=role]').onchange = syncRole; syncRole();\n      $('#uOk').onclick = function () { const d = formData(sh, ['username', 'name', 'role', 'groupId', 'password', 'active']); if (id) d.id = id; saveBtn(this, mutate('saveRecord', 'Users', d), () => toast('บันทึกผู้ใช้แล้ว', 'ok')); };\n      if (id) $('#uDel').onclick = () => confirmBox('ลบผู้ใช้ “' + esc(r.username) + '”?').then(ok => ok && mutate('deleteRecord', 'Users', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));\n    };\n    $('#uAdd').onclick = () => form(null);\n    v.addEventListener('click', e => { const a = e.target.closest('[data-u]'); if (a) form(a.getAttribute('data-u')); });\n  };\n\n  VIEWS.faq = function () {\n    return '<p class=\"small muted\">แชตบอตใช้คำตอบเหล่านี้เมื่อไม่ได้ตั้งค่า AI หรือ AI ใช้ไม่ได้ ระบบจับคู่จาก “คำสำคัญ” ที่อยู่ในคำถาม</p><p><button class=\"btn\" id=\"fAdd\">＋ เพิ่มคำถาม-คำตอบ</button></p><div class=\"list\">' +\n      D.faq.map(f => '<div class=\"li tap\" data-f=\"' + esc(f.id) + '\" style=\"grid-template-columns:1fr auto\"><div style=\"min-width:0\"><div class=\"t\">' + esc(f.question) + (truthy(f.active) || f.active === '' ? '' : ' <span class=\"pill\">ปิด</span>') + '</div><div class=\"s\">คำสำคัญ: ' + esc(f.keywords || '-') + '</div></div><div class=\"a\">›</div></div>').join('') + '</div>';\n  };\n  BIND.faq = function (v) {\n    const form = id => {\n      const r = id ? Object.assign({}, D.faq.find(f => f.id === id)) : { active: 'TRUE' };\n      const sh = openSheet(id ? 'แก้ไขคำถาม-คำตอบ' : 'เพิ่มคำถาม-คำตอบ', '<label class=\"fld\"><span>คำถาม *</span><input name=\"question\" value=\"' + esc(r.question || '') + '\"></label>' +\n        '<label class=\"fld\"><span>คำสำคัญ (คั่นด้วยจุลภาค)</span><input name=\"keywords\" value=\"' + esc(r.keywords || '') + '\" placeholder=\"เช่น ออมเงิน,เก็บเงิน,ออมยังไง\"></label>' +\n        '<label class=\"fld\"><span>คำตอบ *</span><textarea name=\"answer\" rows=\"7\">' + esc(r.answer || '') + '</textarea></label><label class=\"switch\"><input type=\"checkbox\" name=\"active\"' + (truthy(r.active) || r.active === '' ? ' checked' : '') + '> ใช้งาน</label>',\n        (id ? '<button class=\"btn ghost\" id=\"fDel\" style=\"flex:0 0 auto\">🗑</button>' : '<button class=\"btn ghost\" data-close>ยกเลิก</button>') + '<button class=\"btn\" id=\"fOk\">💾 บันทึก</button>');\n      $('#fOk').onclick = function () { const d = formData(sh, ['question', 'keywords', 'answer', 'active']); if (id) d.id = id; saveBtn(this, mutate('saveRecord', 'FAQ', d), () => toast('บันทึกแล้ว', 'ok')); };\n      if (id) $('#fDel').onclick = () => confirmBox('ลบคำถามนี้?').then(ok => ok && mutate('deleteRecord', 'FAQ', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));\n    };\n    $('#fAdd').onclick = () => form(null);\n    v.addEventListener('click', e => { const a = e.target.closest('[data-f]'); if (a) form(a.getAttribute('data-f')); });\n  };\n\n  let chatlogFresh = true;\n  BIND.chatlog = function () {\n    if (chatlogFresh) return;\n    chatlogFresh = true;\n    api('getAll').then(d => { D = d; if (VIEW === 'chatlog') render(); }).catch(() => { });\n  };\n  VIEWS.chatlog = function () {\n    const L = D.chatLog || [];\n    return '<p class=\"small muted\">คำถามล่าสุด 200 รายการ (เก็บไม่เกิน 300 ตัวอักษร) ใช้ดูว่าสมาชิกต้องการความรู้เรื่องใด แล้วเพิ่มในคลังคำตอบหรือจัดอบรม</p>' +\n      (L.length ? '<div class=\"list\">' + L.map(c => '<div class=\"li\" style=\"grid-template-columns:1fr auto\"><div style=\"min-width:0\"><div class=\"t\" style=\"font-weight:400\">' + esc(c.question) + '</div><div class=\"s\">' + thDate(c.time) + ' · ' + esc(c.role === 'member' ? 'สมาชิก' : 'เจ้าหน้าที่') + '</div></div><span class=\"pill\">' + (c.source === 'ai' ? 'AI' : c.source === 'faq' ? 'คลังคำตอบ' : 'ไม่พบคำตอบ') + '</span></div>').join('') + '</div>' : '<div class=\"card empty\">ยังไม่มีคำถาม</div>');\n  };\n\n  VIEWS.settings = function () {\n    const s = D.settings || {};\n    return '<form class=\"card\" id=\"sf\"><h3>⚙️ ข้อมูลแอป</h3>' +\n      '<label class=\"fld\"><span>ชื่อแอป</span><input name=\"appName\" value=\"' + esc(s.appName || '') + '\"></label><label class=\"fld\"><span>หน่วยงาน / โครงการ</span><input name=\"org\" value=\"' + esc(s.org || '') + '\"></label>' +\n      '<label class=\"fld\"><span>เบอร์ติดต่อเจ้าหน้าที่</span><input name=\"phone\" value=\"' + esc(s.phone || '') + '\"></label>' +\n      '<h3 style=\"margin-top:18px\">🤖 แชตบอต</h3><label class=\"fld\"><span>ชื่อแชตบอต</span><input name=\"botName\" value=\"' + esc(s.botName || '') + '\"></label>' +\n      '<label class=\"switch\"><input type=\"checkbox\" name=\"aiEnabled\"' + (s.aiEnabled !== 'FALSE' ? ' checked' : '') + '> ใช้ AI ตอบ (ถ้าไม่มีคีย์ หรือปิด จะตอบจากคลังคำตอบ)</label>' +\n      '<div class=\"msg ' + (D.aiKeySet ? 'ok' : 'info') + '\">' + (D.aiKeySet ? '✓ ตั้งคีย์ OpenAI แล้ว (เก็บใน Script Properties ไม่แสดงที่หน้าเว็บ)' : 'ยังไม่ได้ตั้งคีย์ OpenAI — แชตบอตจะตอบจากคลังคำตอบ') + '</div>' +\n      '<label class=\"fld\"><span>' + (D.aiKeySet ? 'เปลี่ยนคีย์ OpenAI (เว้นว่าง = ไม่เปลี่ยน, พิมพ์ - เพื่อลบ)' : 'คีย์ OpenAI API') + '</span><input name=\"openaiKey\" type=\"password\" autocomplete=\"off\" placeholder=\"sk-...\"><span class=\"hint\">สร้างที่ platform.openai.com › API keys · มีค่าใช้จ่ายตามการใช้งาน ตั้งวงเงินที่บัญชี OpenAI ด้วย</span></label>' +\n      '<div class=\"grid2\"><label class=\"fld\"><span>รุ่น AI</span><input name=\"aiModel\" value=\"' + esc(s.aiModel || 'gpt-4o-mini') + '\"></label><label class=\"fld\"><span>จำนวนคำถาม AI ต่อคนต่อวัน</span><input name=\"chatDailyLimit\" type=\"number\" value=\"' + esc(s.chatDailyLimit || '30') + '\"></label></div>' +\n      '<label class=\"fld\"><span>ข้อมูลเพิ่มเติมให้แชตบอตรู้ (เช่น วันฝากเงินของกลุ่ม ระเบียบกลุ่ม)</span><textarea name=\"botExtra\" rows=\"4\">' + esc(s.botExtra || '') + '</textarea></label>' +\n      '<div class=\"row\"><button class=\"btn\" type=\"submit\">💾 บันทึก</button>' + (D.aiKeySet ? '<button class=\"btn ghost\" type=\"button\" id=\"aiTest\">ทดสอบ AI</button>' : '') + '</div></form>';\n  };\n  BIND.settings = function () {\n    $('#sf').addEventListener('submit', e => { e.preventDefault(); const f = e.target, b = f.querySelector('button[type=submit]');\n      const d = formData(f, ['appName', 'org', 'phone', 'botName', 'aiEnabled', 'openaiKey', 'aiModel', 'chatDailyLimit', 'botExtra']);\n      saveBtn(b, mutate('saveSettings', d), () => toast('บันทึกการตั้งค่าแล้ว', 'ok')); });\n    const t = $('#aiTest'); if (t) t.onclick = function () { const b = this; b.disabled = true; b.innerHTML = '<span class=\"spin\"></span>'; api('chatTestAI').then(r => toast(r, 'ok')).catch(e => toast(e.message, 'err')).then(() => { b.disabled = false; b.textContent = 'ทดสอบ AI'; }); };\n  };\n\n  /* ================= start ================= */\n  if (TOKEN) boot(); else showLogin('');\n})();\n<\/script>\n</body>\n</html>\n"};
+  var cfg = publicConfig_();
+  cfg.baseUrl = location.href.split('#')[0].split('?')[0];
+  var html = TPL.App.replace('<?!= cfg ?>', safeJson_(cfg));
+  var bar = isApp ? '' : '<div id="demobar" style="position:fixed;left:10px;top:10px;z-index:98;background:#1d2a25;color:#fff;font:12.5px/1.5 Sarabun,sans-serif;border-radius:10px;padding:7px 11px;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 20px)">' +
+    '<b>โหมดทดลอง</b> · ข้อมูลอยู่ในเบราว์เซอร์นี้เท่านั้น · สมาชิก <b>M001</b> / PIN <b>1234</b> · เจ้าหน้าที่ <b>officer1</b> / <b>demo12345</b> · ผู้ดูแล <b>admin</b> / <b>ChangeMe@2569</b> ' +
+    '<a href="#" onclick="__MOCK_RESET();sessionStorage.clear();location.reload();return false" style="color:#f3cf74">รีเซ็ตข้อมูล</a> <a href="#" onclick="this.parentNode.remove();return false" style="color:#fff;opacity:.7">✕</a></div>';
+  html = html.replace('</body>', bar + '</body>');
+  document.open(); document.write(html); document.close();
+})();
+
+</script></head><body></body></html>
