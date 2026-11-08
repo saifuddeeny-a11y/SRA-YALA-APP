@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<?!= include('Theme') ?>
+<?!= include('FormKit') ?>
+<style>
+  body { background: var(--bg); }
+  [hidden] { display: none !important; }
+
+  /* ---------- หน้าเข้าสู่ระบบ ---------- */
+  .ml { display: grid; grid-template-columns: 1.08fr 1fr; min-height: 100vh; }
+  .ml-side { position: relative; overflow: hidden; color: #fff; padding: 48px 56px; display: flex; flex-direction: column; justify-content: space-between; gap: 30px;
+    background: radial-gradient(circle at 18% 12%, rgba(199,154,43,.30), transparent 46%), linear-gradient(155deg, var(--brand) 0%, var(--brand-ink) 100%); }
+  .ml-side::after { content: ''; position: absolute; inset: 0; opacity: .08; pointer-events: none;
+    background-image: repeating-linear-gradient(45deg, #fff 0 1px, transparent 1px 30px), repeating-linear-gradient(-45deg, #fff 0 1px, transparent 1px 30px); }
+  .ml-side > * { position: relative; z-index: 1; }
+  .ml-brand { display: flex; align-items: center; gap: 14px; }
+  .ml-brand img { width: 54px; height: 54px; border-radius: 14px; background: #fff; object-fit: contain; padding: 4px; }
+  .ml-brand .mk { width: 54px; height: 54px; border-radius: 14px; background: var(--accent); color: var(--brand-ink); display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .ml-brand b { display: block; font-family: var(--font-head); font-size: 19px; line-height: 1.25; }
+  .ml-brand small { opacity: .8; font-size: 14px; }
+  .ml-side h1 { color: #fff; font-size: clamp(28px, 3.3vw, 42px); max-width: 17ch; margin-bottom: 14px; }
+  .ml-side h1 .hl { color: #f3cf74; white-space: nowrap; }
+  .ml-side p { color: rgba(255,255,255,.86); max-width: 40ch; font-size: 17.5px; margin: 0; }
+  .ml-feats { display: grid; gap: 12px; margin-top: 26px; }
+  .ml-feats div { display: flex; gap: 12px; align-items: center; font-size: 16px; color: rgba(255,255,255,.92); }
+  .ml-feats span { width: 38px; height: 38px; border-radius: 11px; background: rgba(255,255,255,.13); display: flex; align-items: center; justify-content: center; font-size: 19px; flex: none; }
+  .ml-foot { font-size: 13.5px; opacity: .7; }
+  .ml-main { display: flex; align-items: center; justify-content: center; padding: 34px 20px; }
+  .ml-card { width: 100%; max-width: 410px; }
+  .ml-card h2 { margin-bottom: 4px; }
+  .ml-card .sub { color: var(--muted); margin-bottom: 26px; }
+  .fld { display: grid; gap: 6px; margin-bottom: 16px; position: relative; }
+  .fld > span { font-family: var(--font-head); font-size: 15px; color: var(--ink-2); }
+  .fld input, .fld select, .fld textarea { width: 100%; padding: 12px 14px; border-radius: 11px; border: 1.5px solid var(--line); background: #fff; font-size: 16px; }
+  .fld input:focus, .fld select:focus, .fld textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 4px var(--brand-soft); }
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 70px; }
+  .pw-tg { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: none; color: var(--muted); font-family: var(--font-head); font-size: 14px; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+  .pw-tg:hover { color: var(--brand); background: var(--brand-soft); }
+  .ml-row { display: flex; justify-content: space-between; align-items: center; margin: -2px 0 20px; font-size: 14.5px; }
+  .ml-row label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+  .ml-row input { width: 16px; height: 16px; accent-color: var(--brand); }
+  .btn.block { width: 100%; padding: 13px; font-size: 17px; }
+  .msg { border-radius: 11px; padding: 11px 14px; font-size: 15px; margin-bottom: 16px; }
+  .msg.err { background: #fbeae7; color: var(--danger); }
+  .msg.ok { background: #e3f3ea; color: var(--ok); }
+  .msg.info { background: var(--accent-soft); color: #6b4f0e; }
+  .ml-links { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); display: grid; gap: 8px; font-size: 15px; color: var(--muted); text-align: center; }
+  @media (max-width: 880px) {
+    .ml { grid-template-columns: 1fr; }
+    .ml-side { padding: 26px 22px; }
+    .ml-side h1 { font-size: 25px; margin: 18px 0 6px; max-width: none; }
+    .ml-side p, .ml-feats, .ml-foot { display: none; }
+    .ml-main { align-items: flex-start; padding-top: 26px; }
+  }
+
+  /* ---------- หน้าสมาชิก ---------- */
+  .mt { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .mt .container { display: flex; align-items: center; gap: 14px; min-height: 64px; }
+  .mt .br { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); text-decoration: none !important; }
+  .mt .br img { width: 40px; height: 40px; border-radius: 10px; object-fit: contain; background: #fff; }
+  .mt .br b { font-family: var(--font-head); color: var(--brand-ink); font-size: 16.5px; display: block; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mt .br small { color: var(--muted); font-size: 12.5px; display: block; }
+  .mt .sp { margin-left: auto; display: flex; gap: 8px; align-items: center; flex: none; }
+  .mt .br { flex: 1 1 auto; } .mt .br > span { min-width: 0; overflow: hidden; }
+  .mt .who { text-align: right; font-size: 13px; color: var(--muted); line-height: 1.3; }
+  .mt .who b { color: var(--ink); font-family: var(--font-head); font-size: 14.5px; }
+  @media (max-width: 640px) { .mt .who, .mt .web span { display: none; } .mt .br small { display: none; } }
+  .tabs { background: #fff; border-bottom: 1px solid var(--line); }
+  .tabs .container { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .tabs a { padding: 13px 16px; white-space: nowrap; font-family: var(--font-head); color: var(--ink-2); border-bottom: 3px solid transparent; text-decoration: none !important; cursor: pointer; font-size: 15.5px; }
+  .tabs a:hover { color: var(--brand); }
+  .tabs a.on { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
+  .tabs a .bd { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: var(--accent); color: #241903; font-size: 12px; text-align: center; }
+  .page { padding: 28px 0 70px; }
+  .hello { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+  .hello h2 { margin: 0; }
+  .hello p { margin: 2px 0 0; color: var(--muted); }
+
+  .total { position: relative; overflow: hidden; border-radius: 18px; padding: 26px 28px; color: #fff; margin-bottom: 18px;
+    background: radial-gradient(circle at 90% 0, rgba(243,207,116,.35), transparent 40%), linear-gradient(130deg, var(--brand-ink), var(--brand)); box-shadow: var(--shadow); }
+  .total .k { font-family: var(--font-head); opacity: .85; }
+  .total .v { font-family: var(--font-head); font-weight: 700; font-size: clamp(32px, 6vw, 46px); line-height: 1.15; }
+  .total .v small { font-size: 18px; font-weight: 500; opacity: .85; margin-left: 6px; }
+  .total .n { font-size: 14.5px; opacity: .85; margin-top: 4px; }
+  .accs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 26px; }
+  @media (max-width: 860px) { .accs { grid-template-columns: 1fr; } }
+  .acc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; display: grid; gap: 8px; border-top: 4px solid var(--brand); }
+  .acc.hajj { border-top-color: var(--accent); } .acc.umrah { border-top-color: #2f8a6f; }
+  .acc .h { display: flex; align-items: center; gap: 10px; font-family: var(--font-head); font-weight: 600; color: var(--ink); }
+  .acc .h span { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: var(--brand-soft); }
+  .acc .bal { font-family: var(--font-head); font-weight: 700; font-size: 28px; color: var(--brand-ink); line-height: 1.2; }
+  .acc .bal small { font-size: 14px; color: var(--muted); font-weight: 500; margin-left: 4px; }
+  .acc .meta { font-size: 13.5px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .acc .pend { font-size: 13.5px; color: #8a6512; background: var(--accent-soft); padding: 4px 10px; border-radius: 8px; }
+  .goal { display: grid; gap: 5px; }
+  .goal .bar { height: 9px; border-radius: 999px; background: var(--brand-soft); overflow: hidden; }
+  .goal .bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--brand), #2f8a6f); }
+  .acc.hajj .goal .bar i { background: linear-gradient(90deg, #b0861f, var(--accent)); }
+  .goal .gt { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); font-family: var(--font-head); }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; margin-bottom: 18px; }
+  .panel h3 { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .between { justify-content: space-between; }
+  .tx { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .tx:last-child { border-bottom: 0; }
+  .tx .ic { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; background: var(--brand-soft); }
+  .tx.w .ic { background: #fbeae7; }
+  .tx .t { font-family: var(--font-head); font-weight: 500; color: var(--ink); line-height: 1.35; }
+  .tx .s { font-size: 13.5px; color: var(--muted); }
+  .tx .a { font-family: var(--font-head); font-weight: 700; text-align: right; white-space: nowrap; color: var(--ok); }
+  .tx.w .a { color: var(--danger); }
+  .tx.p .a, .tx.r .a { color: var(--muted); }
+  .tx.r .a { text-decoration: line-through; }
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12.5px; font-family: var(--font-head); margin-left: 4px; vertical-align: 1px; }
+  .pill.p { background: var(--accent-soft); color: #8a6512; } .pill.r { background: #fbeae7; color: var(--danger); }
+  .sel { padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-family: var(--font-head); font-size: 14.5px; }
+  .sumrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .sumrow div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .sumrow small { display: block; color: var(--muted); font-size: 13px; font-family: var(--font-head); }
+  .sumrow b { font-family: var(--font-head); font-size: 18px; color: var(--brand-ink); }
+  @media (max-width: 560px) { .sumrow { grid-template-columns: 1fr; } }
+  .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  .acc-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .acc-pick label { border: 1.5px solid var(--line); border-radius: 12px; padding: 12px; cursor: pointer; text-align: center; font-family: var(--font-head); background: #fff; }
+  .acc-pick label span { display: block; font-size: 24px; }
+  .acc-pick label.on, .acc-pick label:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
+  .acc-pick input { position: absolute; opacity: 0; pointer-events: none; }
+  .slip { border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; color: var(--muted); background: var(--surface-2); }
+  .slip:hover { border-color: var(--brand); color: var(--brand); }
+  .slip img { max-height: 180px; margin: 10px auto 0; border-radius: 8px; }
+  .fcard { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); cursor: pointer; transition: box-shadow .2s; margin-bottom: 10px; }
+  .fcard:hover { box-shadow: var(--shadow); }
+  .fcard .fi { width: 46px; height: 46px; border-radius: 12px; background: var(--brand-soft); display: flex; align-items: center; justify-content: center; font-size: 22px; flex: none; }
+  .fcard b { font-family: var(--font-head); font-size: 16.5px; display: block; }
+  .fcard p { margin: 2px 0 0; font-size: 14.5px; color: var(--muted); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .facts div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .facts small { display: block; color: var(--muted); font-family: var(--font-head); font-size: 13px; }
+  .facts b { font-family: var(--font-head); color: var(--brand-ink); font-weight: 600; word-break: break-word; }
+  .loading { min-height: 70vh; display: grid; place-items: center; text-align: center; color: var(--muted); }
+  .print-head { display: none; }
+  @media print {
+    .mt, .tabs, .no-print, .toast-wrap, #pvbar { display: none !important; }
+    body { background: #fff; font-size: 13px; }
+    .print-head { display: block; margin-bottom: 12px; }
+    .panel { border: 0; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading"><div><span class="spinner" style="width:38px;height:38px;border-width:4px"></span><p>กำลังโหลด...</p></div></div></div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+var BASE_URL = <?!= JSON.stringify(baseUrl) ?>;
+var CFG = <?!= memberConfig ?>;
+(function () {
+  'use strict';
+  var root = document.getElementById('root');
+  var hasGas = typeof google !== 'undefined' && google.script && google.script.run;
+  var TOKEN = null, D = null, TAB = 'home', ARG = null;
+  var ACC = ['savings', 'hajj', 'umrah'];
+  var ACC_ICON = { savings: '💰', hajj: '🕋', umrah: '🕌' };
+  var ACCL = CFG.accounts || { savings: 'เงินออมทรัพย์', hajj: 'บัญชีฮัจย์', umrah: 'บัญชีอุมเราะห์' };
+  try { TOKEN = sessionStorage.getItem('sra_mtoken'); } catch (e) { }
+
+  /* ---------------- helpers ---------------- */
+  var esc = SRAForm.esc;
+  function $(s, c) { return (c || document).querySelector(s); }
+  function $$(s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); }
+  function store(fn) { try { return fn(window.localStorage); } catch (e) { return null; } }
+  function toast(msg, type) { var el = document.createElement('div'); el.className = 'toast ' + (type || ''); el.textContent = msg; $('#toasts').appendChild(el); setTimeout(function () { el.remove(); }, 3800); }
+  function num(v) { var n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; }
+  function money(v) { return num(v).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+  var TM = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  function thDate(s, time) {
+    if (!s) return '-'; var d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T00:00:00') : new Date(s); if (isNaN(d)) return esc(s);
+    var t = d.getDate() + ' ' + TM[d.getMonth()] + ' ' + (d.getFullYear() + 543);
+    if (time) t += ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ' น.';
+    return t;
+  }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function spin() { return '<span class="spinner" style="width:16px;height:16px;border-width:2px;border-color:rgba(255,255,255,.35);border-top-color:#fff"></span>'; }
+
+  if (CFG.themeColor) document.documentElement.style.setProperty('--brand', CFG.themeColor);
+  if (CFG.accentColor) document.documentElement.style.setProperty('--accent', CFG.accentColor);
+
+  /** เรียกฟังก์ชันฝั่งเซิร์ฟเวอร์ → Promise */
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      if (!hasGas) { reject(new Error('ต้องเปิดผ่านเว็บแอป Google Apps Script')); return; }
+      var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(function (err) {
+        var msg = (err && err.message) || String(err);
+        if (/MEMBER_AUTH:/.test(msg)) { msg = msg.replace(/.*MEMBER_AUTH:\s*/, ''); logout(true, msg); }
+        reject(new Error(msg));
+      });
+      r[fn].apply(r, args);
+    });
+  }
+  function api(fn) { return call.apply(null, [fn, TOKEN].concat(Array.prototype.slice.call(arguments, 1))); }
+
+  /* ================================================================
+   *  LOGIN
+   * ================================================================ */
+  function brandBlock() {
+    return '<div class="ml-brand">' + (CFG.logoUrl ? '<img src="' + esc(CFG.logoUrl) + '" alt="">' : '<div class="mk">🕌</div>') +
+      '<div><small>' + esc(CFG.siteName) + '</small><b>' + esc(CFG.fundName) + '</b></div></div>';
+  }
+  function showLogin(msg, type) {
+    var saved = store(function (s) { return s.getItem('sra_member_no'); }) || '';
+    root.innerHTML = '<div class="ml"><aside class="ml-side">' + brandBlock() +
+      '<div><h1>ออมวันนี้ <span class="hl">เพื่อการเดินทาง</span>แห่งศรัทธา</h1>' +
+      '<p>เข้าสู่ระบบเพื่อดูยอดเงินออม บัญชีฮัจย์ และบัญชีอุมเราะห์ของคุณ ติดตามความก้าวหน้าสู่เป้าหมาย และกรอกแบบฟอร์มของกองทุน</p>' +
+      '<div class="ml-feats"><div><span>💰</span>ยอดคงเหลือแยกตามบัญชี อัปเดตจากเจ้าหน้าที่</div><div><span>🎯</span>ความก้าวหน้าสู่เป้าหมายฮัจย์-อุมเราะห์</div><div><span>🧾</span>แจ้งฝากเงินพร้อมแนบสลิป</div><div><span>📝</span>แบบฟอร์มและบันทึกรายรับ-รายจ่าย</div></div></div>' +
+      '<div class="ml-foot">' + esc(CFG.organization || '') + '</div></aside>' +
+      '<main class="ml-main"><form class="ml-card" id="lf" novalidate autocomplete="on">' +
+      '<h2>เข้าสู่ระบบสมาชิก</h2><p class="sub">กรอกรหัสสมาชิกและรหัสผ่านที่ได้รับจากเจ้าหน้าที่กองทุน</p>' +
+      '<div id="lmsg"' + (msg ? ' class="msg ' + (type || 'err') + '"' : ' hidden') + ' role="alert">' + esc(msg || '') + '</div>' +
+      (CFG.notice ? '<div class="msg info">' + esc(CFG.notice) + '</div>' : '') +
+      '<label class="fld"><span>รหัสสมาชิก</span><input name="u" autocomplete="username" required value="' + esc(saved) + '"></label>' +
+      '<label class="fld"><span>รหัสผ่าน</span><div class="pw-wrap"><input name="p" type="password" autocomplete="current-password" required><button type="button" class="pw-tg" data-pw>แสดง</button></div></label>' +
+      '<div class="ml-row"><label><input type="checkbox" name="r"' + (saved ? ' checked' : '') + '> จำรหัสสมาชิก</label></div>' +
+      '<button class="btn block" id="lbtn" type="submit">เข้าสู่ระบบ</button>' +
+      '<div class="ml-links"><span>ลืมรหัสผ่าน? ติดต่อเจ้าหน้าที่กองทุน' + (CFG.phone ? ' <a href="tel:' + esc(String(CFG.phone).replace(/[^0-9+]/g, '')) + '">' + esc(CFG.phone) + '</a>' : '') + '</span>' +
+      '<span>ยังไม่เป็นสมาชิก? <a href="' + esc(BASE_URL + '?page=forms') + '" target="_top">สมัครสมาชิกกองทุน</a></span>' +
+      '<a href="' + esc(BASE_URL) + '" target="_top">← กลับหน้าเว็บไซต์</a></div></form></main></div>';
+    var f = $('#lf');
+    (saved ? f.p : f.u).focus();
+    $('[data-pw]').onclick = function () { var show = f.p.type === 'password'; f.p.type = show ? 'text' : 'password'; this.textContent = show ? 'ซ่อน' : 'แสดง'; };
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var m = $('#lmsg'), b = $('#lbtn');
+      if (!f.u.value.trim() || !f.p.value) { m.hidden = false; m.className = 'msg err'; m.textContent = 'กรุณากรอกรหัสสมาชิกและรหัสผ่าน'; return; }
+      b.disabled = true; b.innerHTML = spin() + ' กำลังตรวจสอบ...';
+      call('memberLogin', f.u.value.trim(), f.p.value).then(function (res) {
+        TOKEN = res.token;
+        try { sessionStorage.setItem('sra_mtoken', TOKEN); } catch (er) { }
+        store(function (s) { if (f.r.checked) s.setItem('sra_member_no', f.u.value.trim()); else s.removeItem('sra_member_no'); });
+        boot();
+      }).catch(function (err) {
+        b.disabled = false; b.textContent = 'เข้าสู่ระบบ';
+        m.hidden = false; m.className = 'msg err'; m.textContent = err.message; f.p.value = ''; f.p.focus();
+      });
+    });
+  }
+
+  function logout(expired, msg) {
+    if (TOKEN && !expired && hasGas) { try { google.script.run.memberLogout(TOKEN); } catch (e) { } }
+    TOKEN = null; D = null; TAB = 'home';
+    try { sessionStorage.removeItem('sra_mtoken'); } catch (e) { }
+    showLogin(expired ? (msg || 'หมดเวลาการใช้งาน กรุณาเข้าสู่ระบบใหม่') : 'ออกจากระบบเรียบร้อยแล้ว', expired ? 'err' : 'ok');
+  }
+
+  function boot() {
+    root.innerHTML = '<div class="loading"><div><span class="spinner" style="width:38px;height:38px;border-width:4px"></span><p>กำลังโหลดข้อมูลบัญชี...</p></div></div>';
+    api('memberGetData').then(function (d) {
+      D = d; if (d.config) { CFG = d.config; ACCL = CFG.accounts || ACCL; }
+      if (D.member.mustChangePw) forceChange(); else shell();
+    }).catch(function (e) { if (TOKEN) showLogin(e.message); });
+  }
+  function refresh() { return api('memberGetData').then(function (d) { D = d; show(TAB, ARG, true); }); }
+
+  /* ---------- บังคับเปลี่ยนรหัสผ่านครั้งแรก ---------- */
+  function forceChange() {
+    root.innerHTML = '<div class="ml"><aside class="ml-side">' + brandBlock() + '<div><h1>ตั้งรหัสผ่านใหม่</h1><p>เพื่อความปลอดภัยของบัญชี กรุณาเปลี่ยนรหัสผ่านเริ่มต้นที่ได้รับจากเจ้าหน้าที่ก่อนใช้งาน</p></div><div class="ml-foot"></div></aside>' +
+      '<main class="ml-main"><form class="ml-card" id="cf" novalidate><h2>สวัสดี ' + esc(D.member.name) + '</h2><p class="sub">ตั้งรหัสผ่านใหม่อย่างน้อย 6 ตัวอักษร</p>' + pwFields() +
+      '<button class="btn block" id="cbtn" type="submit">บันทึกรหัสผ่านใหม่</button><div class="ml-links"><a href="#" id="lo">ออกจากระบบ</a></div></form></main></div>';
+    $('#lo').onclick = function (e) { e.preventDefault(); logout(false); };
+    bindPw($('#cf'), function () { D.member.mustChangePw = false; toast('ตั้งรหัสผ่านใหม่เรียบร้อย', 'ok'); shell(); });
+  }
+  function pwFields() {
+    return '<div id="pmsg" hidden></div><label class="fld"><span>รหัสผ่านปัจจุบัน</span><input name="o" type="password" autocomplete="current-password" required></label>' +
+      '<label class="fld"><span>รหัสผ่านใหม่</span><input name="n" type="password" autocomplete="new-password" minlength="6" required></label>' +
+      '<label class="fld"><span>ยืนยันรหัสผ่านใหม่</span><input name="c" type="password" autocomplete="new-password" required></label>';
+  }
+  function bindPw(f, onOk) {
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var m = $('#pmsg', f), b = f.querySelector('button[type=submit]'), label = b.textContent;
+      var err = !f.o.value ? 'กรุณากรอกรหัสผ่านปัจจุบัน' : f.n.value.length < 6 ? 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' : f.n.value !== f.c.value ? 'ยืนยันรหัสผ่านไม่ตรงกัน' : '';
+      if (err) { m.hidden = false; m.className = 'msg err'; m.textContent = err; return; }
+      b.disabled = true; b.innerHTML = spin() + ' กำลังบันทึก...';
+      api('memberChangePassword', f.o.value, f.n.value).then(function () { b.disabled = false; b.textContent = label; f.reset(); m.hidden = true; onOk(); })
+        .catch(function (er) { b.disabled = false; b.textContent = label; m.hidden = false; m.className = 'msg err'; m.textContent = er.message; });
+    });
+  }
+
+  /* ================================================================
+   *  SHELL
+   * ================================================================ */
+  var TABS = [['home', '🏠 ภาพรวม'], ['tx', '🧾 รายการเคลื่อนไหว'], ['deposit', '➕ แจ้งฝากเงิน'], ['forms', '📝 แบบฟอร์ม'], ['me', '👤 ข้อมูลของฉัน']];
+  function shell() {
+    root.innerHTML = '<header class="mt"><div class="container"><a class="br" href="' + esc(BASE_URL) + '" target="_top">' + (CFG.logoUrl ? '<img src="' + esc(CFG.logoUrl) + '" alt="">' : '') +
+      '<span><b>' + esc(CFG.fundName) + '</b><small>' + esc(CFG.siteName) + ' · ระบบสมาชิก</small></span></a>' +
+      '<div class="sp"><div class="who"><b>' + esc(D.member.name) + '</b><br>รหัส ' + esc(D.member.memberNo) + '</div>' +
+      '<a class="btn sm ghost web" href="' + esc(BASE_URL) + '" target="_top">🌐<span> หน้าเว็บไซต์</span></a><button class="btn sm" id="lo">ออกจากระบบ</button></div></div></header>' +
+      '<nav class="tabs" aria-label="เมนูสมาชิก"><div class="container" id="tabs"></div></nav><main class="page"><div class="container" id="view"></div></main>';
+    $('#lo').onclick = function () { logout(false); };
+    show(TAB, ARG);
+  }
+  function drawTabs() {
+    var pend = D.transactions.filter(function (t) { return t.status === 'pending'; }).length;
+    $('#tabs').innerHTML = TABS.filter(function (t) { return t[0] !== 'deposit' || CFG.allowDepositNotice; }).map(function (t) {
+      return '<a data-tab="' + t[0] + '" class="' + (TAB === t[0] || (TAB === 'form' && t[0] === 'forms') ? 'on' : '') + '">' + t[1] + (t[0] === 'tx' && pend ? '<span class="bd">' + pend + '</span>' : '') + '</a>';
+    }).join('');
+  }
+  function show(tab, arg, keep) {
+    TAB = tab; ARG = arg;
+    drawTabs();
+    var v = $('#view');
+    v.innerHTML = (VIEWS[tab] || VIEWS.home)(arg);
+    if (BIND[tab]) BIND[tab](v, arg);
+    if (!keep) window.scrollTo(0, 0);
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tab]');
+    if (t) { e.preventDefault(); show(t.getAttribute('data-tab'), t.getAttribute('data-arg')); }
+  });
+
+  var VIEWS = {}, BIND = {};
+
+  /* ---------- ภาพรวม ---------- */
+  function goalHtml(bal, goal) {
+    goal = num(goal); if (!goal) return '';
+    var pct = Math.max(0, Math.min(100, Math.round(num(bal) / goal * 100)));
+    var left = Math.max(0, goal - num(bal));
+    return '<div class="goal"><div class="gt"><span>เป้าหมาย ' + money(goal) + ' บาท</span><span>' + pct + '%</span></div><div class="bar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="gt"><span>' + (left > 0 ? 'อีก ' + money(left) + ' บาท' : '🎉 ถึงเป้าหมายแล้ว') + '</span></div></div>';
+  }
+  function accCard(a) {
+    var b = D.balances[a] || {}, goal = D.member[a + 'Goal'];
+    return '<div class="acc ' + a + '"><div class="h"><span>' + ACC_ICON[a] + '</span>' + esc(ACCL[a]) + '</div>' +
+      '<div class="bal">' + money(b.balance) + '<small>บาท</small></div>' +
+      '<div class="meta"><span>ฝากรวม ' + money(b.deposit) + '</span>' + (b.withdraw ? '<span>ถอนรวม ' + money(b.withdraw) + '</span>' : '') + '</div>' +
+      (b.pending ? '<div class="pend">⏳ รอตรวจสอบ ' + money(b.pending) + ' บาท</div>' : '') + goalHtml(b.balance, goal) + '</div>';
+  }
+  function txRow(t) {
+    var w = t.type === 'withdraw', st = t.status || 'approved';
+    var cls = 'tx' + (w ? ' w' : '') + (st === 'pending' ? ' p' : st === 'rejected' ? ' r' : '');
+    return '<div class="' + cls + '"><div class="ic">' + ACC_ICON[t.account] + '</div><div><div class="t">' + (w ? 'ถอน' : 'ฝาก') + ' · ' + esc(ACCL[t.account] || t.account) +
+      (st === 'pending' ? '<span class="pill p">รอตรวจสอบ</span>' : st === 'rejected' ? '<span class="pill r">ไม่อนุมัติ</span>' : '') + '</div>' +
+      '<div class="s">' + thDate(t.date) + (t.note ? ' · ' + esc(t.note) : '') + (t.hasSlip ? ' · 📎 แนบสลิป' : '') + '</div></div>' +
+      '<div class="a">' + (w ? '−' : '+') + money(t.amount) + '</div></div>';
+  }
+  VIEWS.home = function () {
+    var total = ACC.reduce(function (s, a) { return s + num((D.balances[a] || {}).balance); }, 0);
+    var h = new Date().getHours();
+    var hi = h < 12 ? 'อรุณสวัสดิ์' : h < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
+    var recent = D.transactions.slice(0, 6);
+    return '<div class="hello"><div><h2>' + hi + ' ' + esc(D.member.name) + '</h2><p>อัสสลามุอะลัยกุม · ' + (D.groupName ? esc(D.groupName) + ' · ' : '') + 'รหัสสมาชิก ' + esc(D.member.memberNo) + '</p></div>' +
+      (CFG.allowDepositNotice ? '<button class="btn accent" data-tab="deposit">➕ แจ้งฝากเงิน</button>' : '') + '</div>' +
+      '<div class="total"><div class="k">ยอดเงินรวมทุกบัญชี</div><div class="v">' + money(total) + '<small>บาท</small></div><div class="n">ข้อมูล ณ ' + thDate(new Date().toISOString(), true) + ' · นับเฉพาะรายการที่เจ้าหน้าที่ตรวจสอบแล้ว</div></div>' +
+      '<div class="accs">' + ACC.map(accCard).join('') + '</div>' +
+      '<div class="panel"><div class="row between" style="margin-bottom:6px"><h3 style="margin:0">🧾 รายการล่าสุด</h3>' + (D.transactions.length ? '<a href="#" data-tab="tx">ดูทั้งหมด →</a>' : '') + '</div>' +
+      (recent.length ? recent.map(txRow).join('') : '<div class="empty">ยังไม่มีรายการเงินในบัญชี</div>') + '</div>';
+  };
+
+  /* ---------- รายการเคลื่อนไหว ---------- */
+  var txF = { acc: '', year: '' };
+  VIEWS.tx = function () {
+    var years = []; D.transactions.forEach(function (t) { var y = String(t.date || '').substr(0, 4); if (y && years.indexOf(y) === -1) years.push(y); }); years.sort().reverse();
+    return '<div class="print-head"><h2>รายการเคลื่อนไหวบัญชี — ' + esc(CFG.fundName) + '</h2><p>' + esc(D.member.memberNo) + ' ' + esc(D.member.name) + ' · พิมพ์เมื่อ ' + thDate(new Date().toISOString(), true) + '</p></div>' +
+      '<div class="row between no-print" style="margin-bottom:16px"><div class="row"><select class="sel" id="fa" aria-label="บัญชี"><option value="">ทุกบัญชี</option>' +
+      ACC.map(function (a) { return '<option value="' + a + '"' + (txF.acc === a ? ' selected' : '') + '>' + esc(ACCL[a]) + '</option>'; }).join('') + '</select>' +
+      '<select class="sel" id="fy" aria-label="ปี"><option value="">ทุกปี</option>' + years.map(function (y) { return '<option value="' + y + '"' + (txF.year === y ? ' selected' : '') + '>' + (Number(y) + 543) + '</option>'; }).join('') + '</select></div>' +
+      '<button class="btn sm ghost" onclick="window.print()">🖨 พิมพ์รายการ</button></div><div id="txs"></div>';
+  };
+  BIND.tx = function () {
+    var draw = function () {
+      var list = D.transactions.filter(function (t) { return (!txF.acc || t.account === txF.acc) && (!txF.year || String(t.date).substr(0, 4) === txF.year); });
+      var ok = list.filter(function (t) { return (t.status || 'approved') === 'approved'; });
+      var dep = ok.filter(function (t) { return t.type !== 'withdraw'; }).reduce(function (s, t) { return s + num(t.amount); }, 0);
+      var wd = ok.filter(function (t) { return t.type === 'withdraw'; }).reduce(function (s, t) { return s + num(t.amount); }, 0);
+      $('#txs').innerHTML = '<div class="sumrow"><div><small>ฝาก</small><b style="color:var(--ok)">+' + money(dep) + '</b></div><div><small>ถอน</small><b style="color:var(--danger)">−' + money(wd) + '</b></div><div><small>สุทธิ</small><b>' + money(dep - wd) + '</b></div></div>' +
+        '<div class="panel">' + (list.length ? list.map(txRow).join('') : '<div class="empty">ไม่มีรายการ</div>') + '</div>';
+    };
+    draw();
+    $('#fa').onchange = function () { txF.acc = this.value; draw(); };
+    $('#fy').onchange = function () { txF.year = this.value; draw(); };
+  };
+
+  /* ---------- แจ้งฝากเงิน ---------- */
+  var slip = null;
+  VIEWS.deposit = function () {
+    if (!CFG.allowDepositNotice) return '<div class="panel"><div class="empty">ขณะนี้ปิดการแจ้งฝากเงินออนไลน์ กรุณาติดต่อเจ้าหน้าที่กองทุน</div></div>';
+    slip = null;
+    return '<div class="panel" style="max-width:720px"><h3>➕ แจ้งฝากเงิน</h3><p class="muted" style="margin-top:-6px">แจ้งการโอนหรือฝากเงินเข้าบัญชีของคุณ เจ้าหน้าที่จะตรวจสอบและอนุมัติ ยอดจึงจะเข้าบัญชี</p>' +
+      '<form id="df" novalidate><div class="acc-pick" role="radiogroup" aria-label="เลือกบัญชี">' + ACC.map(function (a, i) {
+        return '<label><input type="radio" name="acc" value="' + a + '"' + (i === 0 ? ' checked' : '') + '><span>' + ACC_ICON[a] + '</span>' + esc(ACCL[a]) + '</label>';
+      }).join('') + '</div>' +
+      '<div class="grid2"><label class="fld"><span>จำนวนเงิน (บาท) *</span><input name="amt" type="number" inputmode="decimal" min="1" step="any" required placeholder="0"></label>' +
+      '<label class="fld"><span>วันที่ฝาก/โอน *</span><input name="date" type="date" required value="' + today() + '" max="' + today() + '"></label></div>' +
+      '<label class="fld"><span>หมายเหตุ</span><input name="note" maxlength="300" placeholder="เช่น โอนผ่านธนาคาร..., ฝากกับเหรัญญิกกลุ่ม"></label>' +
+      '<div class="fld"><span>แนบสลิป / หลักฐาน (ไม่บังคับ)</span><div class="slip" id="slip" tabindex="0">📎 คลิกเพื่อเลือกภาพสลิป หรือไฟล์ PDF (ไม่เกิน 5 MB)</div></div>' +
+      '<button class="btn" type="submit" id="dbtn">ส่งแจ้งฝากเงิน</button></form></div>';
+  };
+  function shrink(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onerror = reject;
+      r.onload = function () {
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { resolve({ name: file.name, mimeType: file.type, data: String(r.result).split(',')[1], preview: /^image\//.test(file.type) ? r.result : '' }); return; }
+        var img = new Image();
+        img.onload = function () {
+          var max = 1600, s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+          var c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+          var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+          var url = c.toDataURL('image/jpeg', 0.85);
+          resolve({ name: file.name.replace(/\.\w+$/, '') + '.jpg', mimeType: 'image/jpeg', data: url.split(',')[1], preview: url });
+        };
+        img.onerror = function () { resolve({ name: file.name, mimeType: file.type, data: String(r.result).split(',')[1], preview: '' }); };
+        img.src = r.result;
+      };
+      r.readAsDataURL(file);
+    });
+  }
+  BIND.deposit = function () {
+    var f = $('#df'); if (!f) return;
+    var box = $('#slip');
+    var pick = function () {
+      var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,application/pdf';
+      inp.onchange = function () {
+        var file = inp.files[0]; if (!file) return;
+        if (file.size > 12 * 1048576) { toast('ไฟล์ใหญ่เกินไป', 'err'); return; }
+        box.innerHTML = '<span class="spinner"></span> กำลังเตรียมไฟล์...';
+        shrink(file).then(function (s) {
+          if (s.data.length * 0.75 > 5 * 1048576) { slip = null; box.innerHTML = '✕ ไฟล์ใหญ่เกิน 5 MB — คลิกเพื่อเลือกใหม่'; return; }
+          slip = s;
+          box.innerHTML = '✓ ' + esc(file.name) + ' <a href="#" data-rm>นำออก</a>' + (s.preview ? '<img src="' + s.preview + '" alt="ตัวอย่างสลิป">' : '');
+        }).catch(function () { box.textContent = '✕ อ่านไฟล์ไม่ได้ — คลิกเพื่อเลือกใหม่'; });
+      };
+      inp.click();
+    };
+    box.addEventListener('click', function (e) {
+      if (e.target.closest('[data-rm]')) { e.preventDefault(); e.stopPropagation(); slip = null; box.textContent = '📎 คลิกเพื่อเลือกภาพสลิป หรือไฟล์ PDF (ไม่เกิน 5 MB)'; return; }
+      pick();
+    });
+    box.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+    var syncAcc = function () { $$('.acc-pick label', f).forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); }); };
+    $$('.acc-pick input', f).forEach(function (i) { i.addEventListener('change', syncAcc); }); syncAcc();
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var acc = (f.querySelector('input[name=acc]:checked') || {}).value;
+      var amt = num(f.amt.value);
+      if (!(amt > 0)) { toast('กรุณากรอกจำนวนเงิน', 'err'); f.amt.focus(); return; }
+      if (!f.date.value) { toast('กรุณาระบุวันที่', 'err'); return; }
+      var b = $('#dbtn'); b.disabled = true; b.innerHTML = spin() + ' กำลังส่ง...';
+      api('memberNotifyDeposit', { account: acc, amount: amt, date: f.date.value, note: f.note.value, slip: slip ? { name: slip.name, mimeType: slip.mimeType, data: slip.data } : null })
+        .then(function () { toast('ส่งแจ้งฝากเงินเรียบร้อย รอเจ้าหน้าที่ตรวจสอบ', 'ok'); return refresh(); })
+        .then(function () { show('tx'); })
+        .catch(function (er) { b.disabled = false; b.textContent = 'ส่งแจ้งฝากเงิน'; toast(er.message, 'err'); });
+    });
+  };
+
+  /* ---------- แบบฟอร์ม ---------- */
+  function respCount(id) { return D.responses.filter(function (r) { return r.formId === id; }).length; }
+  VIEWS.forms = function () {
+    var list = D.forms || [];
+    var mem = list.filter(function (f) { return f.audience === 'member'; }), pub = list.filter(function (f) { return f.audience !== 'member'; });
+    var card = function (f) {
+      var n = respCount(f.id);
+      return '<div class="fcard" data-tab="form" data-arg="' + esc(f.id) + '" tabindex="0"><div class="fi">' + esc(f.icon || '📝') + '</div><div style="flex:1"><b>' + esc(f.title) + '</b>' +
+        (f.description ? '<p>' + esc(f.description) + '</p>' : '') + (n ? '<p style="color:var(--brand)">✓ คุณส่งแล้ว ' + n + ' ครั้ง</p>' : '') + '</div><span style="color:var(--brand);align-self:center">→</span></div>';
+    };
+    return (mem.length ? '<h3>📒 แบบฟอร์มสำหรับสมาชิก</h3>' + mem.map(card).join('') : '') +
+      (pub.length ? '<h3 style="margin-top:22px">📋 แบบฟอร์มทั่วไป</h3>' + pub.map(card).join('') : '') +
+      (!list.length ? '<div class="panel"><div class="empty">ยังไม่มีแบบฟอร์ม</div></div>' : '');
+  };
+  VIEWS.form = function (id) {
+    var f = (D.forms || []).filter(function (x) { return x.id === id; })[0];
+    if (!f) return '<div class="panel"><div class="empty">ไม่พบแบบฟอร์ม</div></div>';
+    return '<p><a href="#" data-tab="forms">← แบบฟอร์มทั้งหมด</a></p><div class="panel" style="max-width:780px"><h3>' + esc(f.icon || '📝') + ' ' + esc(f.title) + '</h3>' +
+      (f.description ? '<p class="muted" style="margin-top:-6px">' + esc(f.description) + '</p>' : '') + '<div id="fbox">' + SRAForm.render(f, { submitLabel: 'บันทึกข้อมูล' }) + '</div></div>';
+  };
+  BIND.form = function (v, id) {
+    var f = (D.forms || []).filter(function (x) { return x.id === id; })[0]; if (!f) return;
+    var bindOne = function () {
+      var el = $('form', $('#fbox'));
+      el.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var r = SRAForm.read(el, f);
+        if (r.missing.length) { toast('กรุณากรอก: ' + r.missing.join(', '), 'err'); return; }
+        var b = el.querySelector('button[type=submit]'); b.disabled = true; b.innerHTML = spin() + ' กำลังบันทึก...';
+        call('submitForm', f.id, r.data, TOKEN).then(function (res) {
+          D.responses.unshift({ id: 'local', formId: f.id, status: 'new', createdAt: new Date().toISOString() });
+          $('#fbox').innerHTML = SRAForm.done(res.message, true);
+          $('[data-sf-again]').onclick = function () { $('#fbox').innerHTML = SRAForm.render(f, { submitLabel: 'บันทึกข้อมูล' }); bindOne(); };
+        }).catch(function (er) { b.disabled = false; b.textContent = 'บันทึกข้อมูล'; toast(er.message, 'err'); });
+      });
+    };
+    bindOne();
+  };
+
+  /* ---------- ข้อมูลของฉัน ---------- */
+  VIEWS.me = function () {
+    var m = D.member;
+    var fact = function (k, v) { return '<div><small>' + k + '</small><b>' + (v ? esc(v) : '—') + '</b></div>'; };
+    return '<div class="panel"><h3>👤 ข้อมูลสมาชิก</h3><div class="facts">' + fact('รหัสสมาชิก', m.memberNo) + fact('ชื่อ-นามสกุล', m.name) + fact('เบอร์โทรศัพท์', m.phone) +
+      fact('กลุ่ม', D.groupName) + fact('วันที่เป็นสมาชิก', m.joinDate ? thDate(m.joinDate) : '') + fact('ที่อยู่', m.address) + '</div>' +
+      '<div class="facts" style="margin-top:10px">' + ACC.map(function (a) { var g = num(m[a + 'Goal']); return fact('เป้าหมาย' + ACCL[a], g ? money(g) + ' บาท' : 'ยังไม่ได้ตั้ง'); }).join('') + '</div>' +
+      '<p class="muted" style="margin:14px 0 0;font-size:14.5px">หากข้อมูลไม่ถูกต้อง หรือต้องการตั้ง/เปลี่ยนเป้าหมายการออม กรุณาแจ้งเจ้าหน้าที่กองทุน' + (CFG.phone ? ' โทร ' + esc(CFG.phone) : '') + '</p></div>' +
+      '<div class="panel" style="max-width:520px"><h3>🔒 เปลี่ยนรหัสผ่าน</h3><form id="pf" novalidate>' + pwFields() + '<button class="btn" type="submit">เปลี่ยนรหัสผ่าน</button></form></div>';
+  };
+  BIND.me = function () { bindPw($('#pf'), function () { toast('เปลี่ยนรหัสผ่านเรียบร้อย', 'ok'); }); };
+
+  /* ---------------- start ---------------- */
+  if (TOKEN) boot(); else showLogin('');
+})();
+</script>
+</body>
+</html>

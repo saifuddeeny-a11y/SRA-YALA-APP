@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<?!= include('Theme') ?>
+<style>
+  body { background: #f2f1ec; font-size: 15.5px; }
+  /* ---------- Login ---------- */
+  .login { min-height: 100vh; display: grid; place-items: center; padding: 20px;
+    background: radial-gradient(circle at 20% 10%, rgba(199,154,43,.18), transparent 40%), linear-gradient(140deg, #0a3f33, #0f5e4b); }
+  .login .box { width: min(420px, 100%); background: #fff; border-radius: 18px; padding: 34px 30px; box-shadow: var(--shadow-lg); }
+  .login h1 { font-size: 24px; margin: 14px 0 4px; }
+  .login .logo { width: 64px; height: 64px; border-radius: 14px; object-fit: contain; background: var(--brand-soft); }
+  .field { display: grid; gap: 6px; margin-bottom: 14px; }
+  .field > span.lb { font-family: var(--font-head); font-size: 14px; color: var(--ink-2); font-weight: 500; }
+  .field .hint { font-size: 13px; color: var(--muted); }
+  .inp, .field input:not([type=checkbox]):not([type=file]):not([type=color]), .field select, .field textarea {
+    width: 100%; padding: 10px 13px; border-radius: 10px; border: 1px solid #d9d5c9; background: #fff; font-size: 15.5px;
+  }
+  .inp:focus, .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+  .err-msg { color: var(--danger); font-size: 14px; min-height: 20px; }
+
+  /* ---------- Layout ---------- */
+  .shell { display: grid; grid-template-columns: 252px 1fr; min-height: 100vh; }
+  .side { background: #0b2f27; color: rgba(255,255,255,.85); position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+  .side .sb-brand { display: flex; gap: 10px; align-items: center; padding: 18px 18px 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .side .sb-brand img { width: 40px; height: 40px; border-radius: 10px; background: #fff; object-fit: contain; }
+  .side .sb-brand b { font-family: var(--font-head); color: #fff; font-size: 16px; display: block; line-height: 1.2; }
+  .side .sb-brand small { color: rgba(255,255,255,.6); font-size: 12.5px; }
+  .side nav { padding: 10px; display: grid; gap: 2px; }
+  .side .grp { font-size: 11.5px; letter-spacing: 1px; color: rgba(255,255,255,.45); padding: 14px 12px 6px; font-family: var(--font-head); text-transform: uppercase; }
+  .side a.it { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; color: rgba(255,255,255,.82); font-family: var(--font-head); font-size: 14.5px; cursor: pointer; text-decoration: none !important; }
+  .side a.it:hover { background: rgba(255,255,255,.07); color: #fff; }
+  .side a.it.on { background: var(--brand); color: #fff; }
+  .side a.it .em { width: 22px; text-align: center; font-size: 16px; }
+  .side a.it .badge { margin-left: auto; background: var(--accent); color: #241903; font-size: 12px; border-radius: 999px; padding: 0 8px; font-weight: 700; }
+  .side .foot { margin-top: auto; padding: 14px 18px; font-size: 13px; color: rgba(255,255,255,.5); border-top: 1px solid rgba(255,255,255,.08); }
+  .main { min-width: 0; }
+  .topb { position: sticky; top: 0; z-index: 30; background: rgba(242,241,236,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; padding: 12px 26px; }
+  .topb h1 { font-size: 21px; margin: 0; }
+  .topb .sp { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .topb .who { font-size: 14px; color: var(--muted); text-align: right; line-height: 1.3; }
+  .burger { display: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  .content { padding: 24px 26px 60px; max-width: 1280px; }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .side { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; z-index: 80; transform: translateX(-100%); transition: transform .2s; }
+    .side.open { transform: none; box-shadow: var(--shadow-lg); }
+    .burger { display: inline-flex; align-items: center; justify-content: center; }
+    .topb { padding: 10px 14px; } .content { padding: 18px 14px 60px; }
+    .topb .who { display: none; }
+  }
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 70; display: none; }
+  .scrim.on { display: block; }
+
+  /* ---------- Components ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .tile { background: #fff; border-radius: 14px; padding: 16px 18px; border: 1px solid var(--line); cursor: pointer; transition: box-shadow .15s; }
+  .tile:hover { box-shadow: var(--shadow); }
+  .tile .n { font-family: var(--font-head); font-size: 30px; font-weight: 700; color: var(--brand-ink); line-height: 1.1; }
+  .tile .l { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .tile .e { float: right; font-size: 22px; }
+  .box { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 18px; }
+  .box > h3 { font-size: 17px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .between { justify-content: space-between; }
+  .bar-mini { display: flex; align-items: flex-end; gap: 5px; height: 120px; padding-top: 10px; }
+  .bar-mini div { flex: 1; background: var(--brand-soft); border-radius: 5px 5px 0 0; position: relative; min-height: 3px; }
+  .bar-mini div.has { background: var(--brand); }
+  .bar-mini div span { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+  .bar-mini div b { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--ink-2); }
+
+  table.tbl { width: 100%; border-collapse: collapse; background: #fff; }
+  .tbl-wrap { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: auto; }
+  .tbl th, .tbl td { padding: 10px 12px; border-bottom: 1px solid #eeebe2; text-align: left; vertical-align: middle; }
+  .tbl th { font-family: var(--font-head); font-size: 13px; font-weight: 600; color: var(--muted); background: #faf9f5; white-space: nowrap; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl tr:hover td { background: #fcfbf8; }
+  .tbl .ttl { font-family: var(--font-head); font-weight: 500; color: var(--ink); }
+  .tbl .sub { font-size: 13px; color: var(--muted); }
+  .tbl img.th { width: 64px; height: 44px; object-fit: cover; border-radius: 6px; background: var(--brand-soft); }
+  .tbl .acts { white-space: nowrap; text-align: right; }
+  .icon-btn { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--line); background: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; vertical-align: middle; }
+  .icon-btn:hover { background: var(--brand-soft); border-color: var(--brand); }
+  .icon-btn.del:hover { background: #fbe9e7; border-color: var(--danger); }
+  .pill { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 12.5px; font-family: var(--font-head); background: #eee; color: #555; white-space: nowrap; }
+  .pill.on { background: #dff2e8; color: var(--ok); } .pill.off { background: #f3e7e5; color: var(--danger); } .pill.gold { background: var(--accent-soft); color: #7a5a10; } .pill.new { background: #e3ecfb; color: #2552a8; }
+  .search { flex: 1; min-width: 180px; max-width: 360px; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; cursor: pointer; font-family: var(--font-head); font-size: 14px; color: var(--ink-2); }
+  .tab.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .tab .c { opacity: .7; margin-left: 4px; }
+
+  /* gallery admin grid */
+  .ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+  .gitem { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; position: relative; }
+  .gitem.dragging { opacity: .4; }
+  .gitem.over { outline: 3px dashed var(--accent); }
+  .gitem .im { aspect-ratio: 4/3; background: var(--brand-soft); cursor: grab; }
+  .gitem .im img { width: 100%; height: 100%; object-fit: cover; }
+  .gitem .cap { padding: 8px 10px; font-size: 13.5px; display: flex; gap: 6px; align-items: center; }
+  .gitem .cap .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+  .gitem .ord { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; border-radius: 6px; padding: 1px 7px; }
+  .gitem .hid { position: absolute; top: 8px; right: 8px; }
+
+  /* dropzone */
+  .drop { border: 2px dashed #cfcab9; border-radius: 14px; padding: 22px; text-align: center; background: #fbfaf6; color: var(--muted); cursor: pointer; transition: all .15s; margin-bottom: 16px; }
+  .drop:hover, .drop.over { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
+  .drop b { color: var(--brand); font-family: var(--font-head); }
+  .queue { display: grid; gap: 6px; margin-bottom: 14px; }
+  .q { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 14px; }
+  .q .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .q .st { font-family: var(--font-head); font-size: 13px; }
+  .q .st.ok { color: var(--ok); } .q .st.err { color: var(--danger); }
+
+  /* drawer */
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(720px, 100%); background: #fff; z-index: 120; box-shadow: var(--shadow-lg); transform: translateX(100%); transition: transform .22s ease; display: flex; flex-direction: column; }
+  .drawer.open { transform: none; }
+  .drawer .dh { padding: 16px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+  .drawer .dh h2 { font-size: 19px; margin: 0; flex: 1; }
+  .drawer .db { padding: 20px 22px; overflow-y: auto; flex: 1; }
+  .drawer .df { padding: 14px 22px; border-top: 1px solid var(--line); display: flex; gap: 10px; justify-content: flex-end; background: #faf9f5; }
+  .dscrim { position: fixed; inset: 0; background: rgba(10,25,20,.35); z-index: 110; display: none; }
+  .dscrim.on { display: block; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+  .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; }
+  .switch input { width: 42px; height: 24px; appearance: none; -webkit-appearance: none; background: #d6d2c6; border-radius: 999px; position: relative; cursor: pointer; transition: background .15s; flex: none; }
+  .switch input::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch input:checked { background: var(--brand); }
+  .switch input:checked::after { left: 21px; }
+
+  /* image field */
+  .imgf { display: grid; grid-template-columns: 140px 1fr; gap: 12px; align-items: start; }
+  .imgf .pv { width: 140px; aspect-ratio: 4/3; border-radius: 10px; border: 1px solid var(--line); background: var(--brand-soft) center/cover no-repeat; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; overflow: hidden; }
+  .imgf .pv img { width: 100%; height: 100%; object-fit: cover; }
+  @media (max-width: 520px) { .imgf { grid-template-columns: 1fr; } }
+  .imgs-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .imgs-list .ii { position: relative; aspect-ratio: 4/3; border-radius: 8px; overflow: hidden; background: var(--brand-soft); }
+  .imgs-list .ii img { width: 100%; height: 100%; object-fit: cover; }
+  .imgs-list .ii button { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; }
+
+  /* rich editor */
+  .rte { border: 1px solid #d9d5c9; border-radius: 10px; overflow: hidden; background: #fff; }
+  .rte .tb { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px; border-bottom: 1px solid var(--line); background: #faf9f5; }
+  .rte .tb button { min-width: 32px; height: 30px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; font-size: 14px; padding: 0 7px; font-family: var(--font-head); }
+  .rte .tb button:hover { background: var(--brand-soft); }
+  .rte .tb .sep { width: 1px; background: var(--line); margin: 4px 3px; }
+  .rte .ed { min-height: 220px; max-height: 480px; overflow: auto; padding: 14px 16px; font-family: var(--font-body); font-size: 16px; line-height: 1.7; outline: none; }
+  .rte .ed img { max-width: 100%; border-radius: 8px; }
+  .rte .ed blockquote { margin: .6em 0; padding: 8px 14px; border-left: 4px solid var(--accent); background: var(--accent-soft); }
+  .rte textarea.src { display: none; width: 100%; min-height: 240px; border: 0; padding: 12px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  .rte.source .ed { display: none; } .rte.source textarea.src { display: block; }
+
+  /* media library */
+  .mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .mitem { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; }
+  .mitem:hover { box-shadow: var(--shadow); }
+  .mitem .im { aspect-ratio: 1; background: var(--brand-soft); display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-weight: 700; color: var(--brand); font-size: 18px; }
+  .mitem .im img { width: 100%; height: 100%; object-fit: cover; }
+  .mitem .nm { padding: 7px 9px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .msg { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+  .msg.new { border-left: 4px solid #2552a8; }
+  .msg .hd { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .msg .hd b { font-family: var(--font-head); }
+  .msg .tx { white-space: pre-wrap; margin-top: 8px; color: var(--ink-2); }
+  .dialog { position: fixed; inset: 0; z-index: 300; background: rgba(10,25,20,.45); display: none; align-items: center; justify-content: center; padding: 20px; }
+  .dialog.on { display: flex; }
+  .dialog .dbx { background: #fff; border-radius: 16px; padding: 22px; width: min(440px, 100%); box-shadow: var(--shadow-lg); }
+  .dialog .dbx.wide { width: min(900px, 100%); max-height: 86vh; display: flex; flex-direction: column; }
+  .dialog .dbx.wide .dbody { overflow: auto; flex: 1; margin: 10px 0; }
+  .loader { position: fixed; inset: 0; z-index: 400; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,.55); }
+  .loader.on { display: flex; }
+  .note { background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: #6b4f0d; margin-bottom: 14px; }
+  .note.info { background: var(--brand-soft); color: var(--brand-ink); }
+  code { background: #f1efe8; padding: 1px 6px; border-radius: 5px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="dscrim" id="dscrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="dh"><h2 id="drawerTitle"></h2><button class="icon-btn" data-close-drawer aria-label="ปิด">✕</button></div>
+  <div class="db" id="drawerBody"></div>
+  <div class="df" id="drawerFoot"></div>
+</aside>
+<div class="dialog" id="dialog"><div class="dbx" id="dialogBox"></div></div>
+<div class="loader" id="loader"><span class="spinner" style="width:42px;height:42px;border-width:4px"></span></div>
+<div class="toast-wrap" id="toasts"></div>
+<input type="file" id="hiddenFile" style="display:none">
+
+<script>
+var BASE_URL = <?!= JSON.stringify(baseUrl) ?>;
+var SITE_NAME = <?!= JSON.stringify(siteName) ?>;
+(function () {
+  'use strict';
+  /* ============================================================
+   *  CORE
+   * ============================================================ */
+  var TOKEN = null, USER = null, DB = null, VIEW = 'overview', VIEW_ARG = null;
+  var root = document.getElementById('root');
+  try { TOKEN = sessionStorage.getItem('sra_token'); } catch (e) { }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function $(sel, ctx) { return (ctx || document).querySelector(sel); }
+  function $$(sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); }
+  function truthy(v) { return v === true || String(v).toUpperCase() === 'TRUE'; }
+  function toast(msg, type) { var el = document.createElement('div'); el.className = 'toast ' + (type || ''); el.textContent = msg; $('#toasts').appendChild(el); setTimeout(function () { el.remove(); }, 3600); }
+  function busy(on) { $('#loader').classList.toggle('on', !!on); }
+  function fmtSize(n) { n = Number(n || 0); if (!n) return '-'; if (n < 1024) return n + ' B'; if (n < 1048576) return (n / 1024).toFixed(0) + ' KB'; return (n / 1048576).toFixed(1) + ' MB'; }
+  var TM = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  function thDate(s, withTime) { if (!s) return '-'; var d = new Date(s); if (isNaN(d)) return esc(s); var t = d.getDate() + ' ' + TM[d.getMonth()] + ' ' + (d.getFullYear() + 543); if (withTime) t += ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); return t; }
+
+  /** เรียก server function — คืน Promise */
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(function (err) {
+        var msg = (err && err.message) || String(err);
+        if (/^AUTH:/.test(msg) || /AUTH:/.test(msg)) { doLogout(true); msg = msg.replace(/.*AUTH:\s*/, ''); }
+        reject(new Error(msg));
+      });
+      r[fn].apply(r, args);
+    });
+  }
+  function api(fn) { var a = Array.prototype.slice.call(arguments, 1); return call.apply(null, [fn, TOKEN].concat(a)); }
+  function fail(e) { busy(false); toast(e.message || String(e), 'err'); }
+
+  /* ============================================================
+   *  CONFIG — ส่วนต่าง ๆ ของเว็บ
+   * ============================================================ */
+  var GALLERY_SECTIONS = function () {
+    var base = [
+      { v: 'home_activity', l: 'หน้าแรก › กิจกรรมดำเนินการ' },
+      { v: 'home_congrats', l: 'หน้าแรก › ขอแสดงความยินดี' },
+      { v: 'home_learning', l: 'หน้าแรก › แหล่งเรียนรู้' },
+      { v: 'model', l: 'หน้าโมเดล (แผนภาพโมเดล)' },
+      { v: 'research', l: 'หน้าพื้นที่วิจัย' }
+    ];
+    (DB ? DB.tables.Groups : []).forEach(function (g) { base.push({ v: 'group:' + g.id, l: 'กลุ่ม › ' + g.name }); });
+    (DB ? sortByOrder(DB.tables.Albums.slice()) : []).forEach(function (a) { base.unshift({ v: 'album:' + a.id, l: '📁 ' + a.title, album: a.id }); });
+    return base;
+  };
+  var DOC_PAGES = function () {
+    var base = [
+      { v: 'knowledge', l: 'ความรู้ใหม่ (คลังหลัก)' }, { v: 'model', l: 'โมเดล' }, { v: 'research', l: 'พื้นที่วิจัย' },
+      { v: 'dashboard', l: 'แสดง dashboard' }, { v: 'dashboard_data', l: 'ข้อมูล dashboard' }, { v: 'dashboard_debt', l: 'หนี้สินครัวเรือน' },
+      { v: 'process', l: 'กระบวนการ' }, { v: 'contact', l: 'ติดต่อ (คลังเอกสาร)' }
+    ];
+    (DB ? DB.tables.Groups : []).forEach(function (g) { base.push({ v: 'group:' + g.id, l: 'กลุ่ม › ' + g.name }); });
+    return base;
+  };
+  var LINK_SECTIONS = [
+    { v: 'learning', l: 'หน้าแรก › ปุ่มแหล่งเรียนรู้' }, { v: 'dashboard', l: 'หน้า dashboard หลัก' },
+    { v: 'dashboard_data', l: 'ข้อมูล dashboard' }, { v: 'dashboard_debt', l: 'หนี้สินครัวเรือน' }, { v: 'agency', l: 'ภาคีเครือข่าย / อบต.' }
+  ];
+  var PAGE_NAMES = { home: 'หน้าแรก (หัวข้อข่าว)', model: 'โมเดล', research: 'พื้นที่วิจัย', dashboard: 'แสดง dashboard', dashboard_data: 'ข้อมูล dashboard', dashboard_debt: 'หนี้สินครัวเรือน', knowledge: 'ความรู้ใหม่', process: 'กระบวนการ', news: 'ข่าวสาร (ทั้งหมด)', contact: 'ติดต่อ', reports: 'รายงานผลดำเนินการ', gallery: 'คลังภาพ', downloads: 'เอกสารดาวน์โหลด', tools: 'เครื่องมือ' };
+  var NEWS_CATS = function () { return String((DB && DB.settings.newsCategories) || 'ข่าว, กิจกรรม, ประชาสัมพันธ์, ประกาศ, ขอแสดงความยินดี').split(',').map(function (x) { return x.trim(); }).filter(Boolean); };
+  var DOC_CATS = ['สื่อการเรียนรู้', 'รายงานการวิจัย', 'รายงานผลการดำเนินงาน', 'คู่มือ', 'แบบฟอร์ม', 'เอกสารประกอบกิจกรรม', 'ประกาศ', 'อื่น ๆ'];
+  var TOOL_CATS = ['แบบสำรวจ', 'แบบฟอร์ม', 'ระบบบันทึกข้อมูล', 'Dashboard', 'แบบบันทึกบัญชีครัวเรือน', 'คู่มือ / ชุดเครื่องมือ', 'แอปพลิเคชัน'];
+  var STATUSES = [{ v: 'วางแผน', l: 'วางแผน' }, { v: 'กำลังดำเนินการ', l: 'กำลังดำเนินการ' }, { v: 'เสร็จสิ้น', l: 'เสร็จสิ้น' }, { v: 'ชะลอ/ยกเลิก', l: 'ชะลอ/ยกเลิก' }];
+  var GROUP_OPTS = function () { return (DB ? sortByOrder(DB.tables.Groups.slice()) : []).map(function (g) { return { v: g.id, l: g.name }; }).concat([{ v: 'all', l: 'ทุกกลุ่มอาชีพ' }]); };
+  function labelOf(list, v) { var f = (typeof list === 'function' ? list() : list).filter(function (x) { return x.v === v; })[0]; return f ? f.l : v; }
+
+  /** นิยามฟอร์มของแต่ละตาราง */
+  var ENT = {
+    News: {
+      name: 'ข่าว/กิจกรรม', fields: [
+        { k: 'title', l: 'หัวข้อข่าว', t: 'text', req: true },
+        { k: 'subtitle', l: 'หัวข้อรอง / คำโปรย', t: 'text' },
+        { row: [{ k: 'category', l: 'หมวดหมู่', t: 'combo', opts: NEWS_CATS }, { k: 'date', l: 'วันที่', t: 'date' }] },
+        { k: 'coverUrl', l: 'ภาพหน้าปก', t: 'image' },
+        { k: 'content', l: 'เนื้อหาข่าว', t: 'html' },
+        { k: 'images', l: 'อัลบั้มภาพประกอบข่าว', t: 'images' },
+        { row: [{ k: 'linkUrl', l: 'ลิงก์อ่านเพิ่มเติม (เช่น Facebook)', t: 'url' }, { k: 'linkLabel', l: 'ข้อความปุ่ม', t: 'text', ph: 'อ่านเพิ่มเติม' }] },
+        { row: [{ k: 'featured', l: 'ปักหมุดเป็นข่าวเด่นหน้าแรก', t: 'bool' }, { k: 'published', l: 'เผยแพร่', t: 'bool', def: true }] }
+      ]
+    },
+    Groups: {
+      name: 'กลุ่มอาชีพ', fields: [
+        { row: [{ k: 'name', l: 'ชื่อกลุ่ม', t: 'text', req: true }, { k: 'shortName', l: 'ชื่อย่อ (ใช้ในกราฟ)', t: 'text' }] },
+        { row: [{ k: 'icon', l: 'ไอคอน (อีโมจิ)', t: 'text', ph: '🌿' }, { k: 'members', l: 'จำนวนสมาชิก (คน)', t: 'number' }] },
+        { k: 'location', l: 'ที่ตั้ง', t: 'text' },
+        { k: 'summary', l: 'คำอธิบายกลุ่มโดยย่อ', t: 'textarea' },
+        { k: 'memberProfile', l: 'ลักษณะสมาชิก', t: 'textarea' },
+        { k: 'strengths', l: 'จุดแข็ง (หนึ่งบรรทัดต่อหนึ่งข้อ)', t: 'textarea', rows: 4 },
+        { k: 'limitations', l: 'ข้อจำกัด / ความท้าทาย (หนึ่งบรรทัดต่อหนึ่งข้อ)', t: 'textarea', rows: 4 },
+        { k: 'products', l: 'ผลิตภัณฑ์', t: 'text' },
+        { k: 'income', l: 'รายได้', t: 'text' },
+        { k: 'channels', l: 'ช่องทางจำหน่าย', t: 'text' },
+        { k: 'coverUrl', l: 'ภาพหน้าปกกลุ่ม', t: 'image' },
+        { k: 'detail', l: 'เนื้อหาเพิ่มเติม', t: 'html' },
+        { k: 'published', l: 'เผยแพร่', t: 'bool', def: true }
+      ]
+    },
+    Documents: {
+      name: 'เอกสาร / เครื่องมือ', fields: [
+        { row: [{ k: 'kind', l: 'ประเภท', t: 'select', req: true, opts: [{ v: 'document', l: '📄 เอกสารดาวน์โหลด' }, { v: 'tool', l: '🧰 เครื่องมือ (แบบฟอร์ม/ระบบ/แบบสำรวจ)' }] }, { k: 'icon', l: 'ไอคอน (อีโมจิ)', t: 'text', ph: '📄' }] },
+        { k: 'title', l: 'ชื่อเอกสาร / เครื่องมือ', t: 'text', req: true },
+        { row: [{ k: 'category', l: 'หมวดหมู่', t: 'combo', opts: function () { return DOC_CATS.concat(TOOL_CATS); } }, { k: 'page', l: 'แสดงเพิ่มที่หน้า', t: 'select', opts: DOC_PAGES, hint: 'เอกสารทุกชิ้นแสดงในหน้า "เอกสารดาวน์โหลด" · เครื่องมือแสดงในหน้า "เครื่องมือ"' }] },
+        { k: 'description', l: 'คำอธิบาย', t: 'textarea' },
+        { k: 'file', l: 'ไฟล์เอกสาร', t: 'docfile' },
+        { k: 'url', l: 'หรือ ลิงก์ภายนอก (เช่น AnyFlip, Google Drive)', t: 'url' },
+        { k: 'published', l: 'เผยแพร่', t: 'bool', def: true }
+      ]
+    },
+    Reports: {
+      name: 'รายงานผลดำเนินการ', fields: [
+        { k: 'title', l: 'ชื่อกิจกรรม / โครงการย่อย', t: 'text', req: true },
+        { row: [{ k: 'fiscalYear', l: 'ปีงบประมาณ (พ.ศ.)', t: 'text', ph: '2569' }, { k: 'phase', l: 'ระยะที่', t: 'text', ph: '1' }] },
+        { row: [{ k: 'activityDate', l: 'วันที่ดำเนินการ', t: 'date' }, { k: 'status', l: 'สถานะ', t: 'select', opts: STATUSES }] },
+        { row: [{ k: 'groupId', l: 'กลุ่มเป้าหมาย', t: 'select', opts: GROUP_OPTS }, { k: 'location', l: 'สถานที่', t: 'text' }] },
+        { k: 'objective', l: 'วัตถุประสงค์', t: 'textarea', rows: 2 },
+        { k: 'target', l: 'เป้าหมาย (เชิงปริมาณ/คุณภาพ)', t: 'textarea', rows: 2 },
+        { k: 'result', l: 'ผลการดำเนินงาน (สรุป)', t: 'textarea', rows: 4 },
+        { row: [{ k: 'participants', l: 'จำนวนผู้เข้าร่วม (คน)', t: 'number' }, { k: 'progress', l: 'ความก้าวหน้า (%)', t: 'number', hint: 'เว้นว่าง = คิดจากสถานะ' }] },
+        { row: [{ k: 'budget', l: 'งบประมาณ (บาท)', t: 'number' }, { k: 'spent', l: 'ใช้จ่ายจริง (บาท)', t: 'number' }] },
+        { k: 'coverUrl', l: 'ภาพหน้าปก', t: 'image' },
+        { k: 'images', l: 'ภาพกิจกรรม', t: 'images' },
+        { k: 'file', l: 'ไฟล์รายงานฉบับเต็ม (PDF / Word)', t: 'docfile', urlKey: 'fileUrl' },
+        { k: 'content', l: 'รายละเอียดเพิ่มเติม', t: 'html' },
+        { k: 'published', l: 'เผยแพร่', t: 'bool', def: true }
+      ]
+    },
+    KPIs: {
+      name: 'ตัวชี้วัด', fields: [
+        { k: 'name', l: 'ชื่อตัวชี้วัด', t: 'text', req: true },
+        { row: [{ k: 'fiscalYear', l: 'ปีงบประมาณ (เว้นว่าง = ทุกปี)', t: 'text' }, { k: 'unit', l: 'หน่วยนับ', t: 'text', ph: 'คน' }] },
+        { row: [{ k: 'target', l: 'ค่าเป้าหมาย', t: 'text' }, { k: 'result', l: 'ผลที่ได้', t: 'text' }] },
+        { k: 'note', l: 'หมายเหตุ / แหล่งข้อมูล', t: 'text' },
+        { k: 'published', l: 'แสดงผล', t: 'bool', def: true }
+      ]
+    },
+    Albums: {
+      name: 'อัลบั้ม', fields: [
+        { k: 'title', l: 'ชื่ออัลบั้ม', t: 'text', req: true },
+        { k: 'date', l: 'วันที่', t: 'date' },
+        { k: 'description', l: 'คำอธิบาย', t: 'textarea', rows: 2 },
+        { k: 'coverUrl', l: 'ภาพปก (เว้นว่าง = ใช้ภาพแรก)', t: 'image' },
+        { k: 'published', l: 'เผยแพร่', t: 'bool', def: true }
+      ]
+    },
+    Links: {
+      name: 'ลิงก์/ปุ่ม', fields: [
+        { k: 'section', l: 'ตำแหน่งที่แสดง', t: 'select', opts: LINK_SECTIONS, req: true },
+        { k: 'label', l: 'ข้อความ', t: 'text', req: true },
+        { k: 'url', l: 'URL', t: 'url', req: true },
+        { k: 'description', l: 'คำอธิบาย', t: 'text' },
+        { row: [{ k: 'icon', l: 'ไอคอน (อีโมจิ)', t: 'text', ph: '🔗' }, { k: 'style', l: 'รูปแบบ', t: 'select', opts: [{ v: 'card', l: 'การ์ดลิงก์' }, { v: 'button', l: 'ปุ่ม' }, { v: 'embed', l: 'ฝังในหน้า (iframe เช่น Looker Studio)' }] }] },
+        { k: 'published', l: 'แสดงผล', t: 'bool', def: true }
+      ]
+    },
+    Indicators: {
+      name: 'ตัวเลขสถิติ', fields: [
+        { k: 'section', l: 'แสดงที่', t: 'select', opts: [{ v: 'home', l: 'หน้าแรก (แถบตัวเลขใต้แบนเนอร์)' }, { v: 'dashboard', l: 'หน้า dashboard' }], req: true },
+        { k: 'label', l: 'ชื่อรายการ', t: 'text', req: true },
+        { row: [{ k: 'value', l: 'ค่า', t: 'text', req: true }, { k: 'unit', l: 'หน่วย', t: 'text' }] },
+        { k: 'note', l: 'หมายเหตุ', t: 'text' },
+        { k: 'published', l: 'แสดงผล', t: 'bool', def: true }
+      ]
+    },
+    Steps: {
+      name: 'ขั้นตอน', fields: [
+        { k: 'title', l: 'ชื่อขั้นตอน', t: 'text', req: true },
+        { k: 'description', l: 'รายละเอียด', t: 'textarea', rows: 4 },
+        { k: 'imageUrl', l: 'ภาพประกอบ', t: 'image' },
+        { k: 'published', l: 'แสดงผล', t: 'bool', def: true }
+      ]
+    },
+    Pages: {
+      name: 'หน้าเว็บ', fields: [
+        { k: 'title', l: 'ชื่อหน้า / หัวข้อ', t: 'text', req: true },
+        { k: 'subtitle', l: 'คำอธิบายใต้หัวข้อ', t: 'text' },
+        { k: 'content', l: 'เนื้อหา', t: 'html' },
+        { k: 'imageUrl', l: 'ภาพประกอบหลัก (ถ้ามี)', t: 'image' }
+      ]
+    },
+    Gallery: {
+      name: 'ภาพ', fields: [
+        { k: 'url', l: 'ภาพ', t: 'image', req: true },
+        { k: 'caption', l: 'คำบรรยายภาพ', t: 'text' },
+        { k: 'section', l: 'อัลบั้ม', t: 'select', opts: GALLERY_SECTIONS },
+        { k: 'published', l: 'แสดงผล', t: 'bool', def: true }
+      ]
+    }
+  };
+
+  /* ============================================================
+   *  LOGIN
+   * ============================================================ */
+  function showLogin(msg) {
+    root.innerHTML = '<div class="login"><form class="box" id="loginForm" autocomplete="on">' +
+      '<div class="row"><div class="logo" style="display:flex;align-items:center;justify-content:center;font-size:28px">🔐</div></div>' +
+      '<h1>' + esc(SITE_NAME) + '</h1><p class="muted" style="margin-bottom:22px">ระบบจัดการเว็บไซต์ (หลังบ้าน)</p>' +
+      '<label class="field"><span class="lb">ชื่อผู้ใช้</span><input name="u" autocomplete="username" required autofocus></label>' +
+      '<label class="field"><span class="lb">รหัสผ่าน</span><input name="p" type="password" autocomplete="current-password" required></label>' +
+      '<div class="err-msg" id="loginErr">' + esc(msg || '') + '</div>' +
+      '<button class="btn" style="width:100%;margin-top:6px" id="loginBtn">เข้าสู่ระบบ</button>' +
+      '<p style="text-align:center;margin:18px 0 0;font-size:14px"><a href="' + esc(BASE_URL) + '" target="_top">← กลับหน้าเว็บไซต์</a></p></form></div>';
+    $('#loginForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = $('#loginBtn'); btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px"></span>';
+      call('login', this.u.value, this.p.value).then(function (res) {
+        TOKEN = res.token; USER = res.user;
+        try { sessionStorage.setItem('sra_token', TOKEN); } catch (e) { }
+        boot();
+      }).catch(function (err) { btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ'; $('#loginErr').textContent = err.message; });
+    });
+  }
+  function doLogout(expired) {
+    if (TOKEN && !expired) { try { google.script.run.logout(TOKEN); } catch (e) { } }
+    TOKEN = null; USER = null; DB = null;
+    try { sessionStorage.removeItem('sra_token'); } catch (e) { }
+    closeDrawer();
+    showLogin(expired ? 'หมดเวลาการใช้งาน กรุณาเข้าสู่ระบบใหม่' : '');
+  }
+
+  function boot() {
+    root.innerHTML = '<div style="min-height:100vh;display:grid;place-items:center"><div style="text-align:center"><span class="spinner" style="width:40px;height:40px;border-width:4px"></span><p class="muted">กำลังโหลดข้อมูล...</p></div></div>';
+    api('adminGetAll').then(function (d) { DB = d; USER = d.user; shell(); show(VIEW, VIEW_ARG); }).catch(function (e) { if (TOKEN) { toast(e.message, 'err'); } showLogin(e.message); });
+  }
+  function reload() { return api('adminGetAll').then(function (d) { DB = d; renderSide(); show(VIEW, VIEW_ARG, true); }); }
+
+  /* ============================================================
+   *  SHELL
+   * ============================================================ */
+  var MENU = [
+    { g: 'ภาพรวม' }, { k: 'overview', e: '🏠', l: 'แดชบอร์ดผู้ดูแล' },
+    { g: 'กองทุน & สมาชิก' }, { k: 'members', e: '👥', l: 'สมาชิกกองทุน' }, { k: 'transactions', e: '💵', l: 'บันทึกเงินออม' }, { k: 'forms', e: '📝', l: 'แบบฟอร์มออนไลน์' },
+    { g: 'ผลดำเนินการ' }, { k: 'reports', e: '📈', l: 'รายงานผลดำเนินการ' }, { k: 'kpis', e: '🎯', l: 'ตัวชี้วัด' },
+    { g: 'เนื้อหา' }, { k: 'news', e: '📰', l: 'ข่าว / กิจกรรม / ประชาสัมพันธ์' }, { k: 'gallery', e: '🖼️', l: 'คลังภาพ / อัลบั้ม' }, { k: 'documents', e: '📁', l: 'เอกสาร & เครื่องมือ' },
+    { k: 'groups', e: '🧺', l: 'กลุ่มอาชีพ' }, { k: 'steps', e: '🪜', l: 'กระบวนการ' }, { k: 'pages', e: '📄', l: 'หน้าเว็บ' },
+    { g: 'ข้อมูล & ลิงก์' }, { k: 'indicators', e: '📊', l: 'ตัวเลขสถิติ' }, { k: 'links', e: '🔗', l: 'Dashboard / ลิงก์' },
+    { g: 'ระบบ' }, { k: 'media', e: '🗂️', l: 'คลังไฟล์ทั้งหมด' }, { k: 'messages', e: '✉️', l: 'ข้อความติดต่อ' }, { k: 'settings', e: '⚙️', l: 'ตั้งค่าเว็บไซต์' },
+    { k: 'users', e: '👥', l: 'ผู้ใช้งาน & ประวัติ', admin: true }
+  ];
+  function shell() {
+    root.innerHTML = '<div class="shell"><aside class="side" id="side"></aside><div class="main">' +
+      '<div class="topb"><button class="burger" id="burger" aria-label="เมนู">☰</button><h1 id="viewTitle"></h1>' +
+      '<div class="sp"><div class="who"><b>' + esc(USER.name) + '</b><br>' + (USER.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้แก้ไขเนื้อหา') + '</div>' +
+      '<a class="btn sm ghost" href="' + esc(BASE_URL) + '" target="_blank" rel="noopener">ดูหน้าเว็บ ↗</a><button class="btn sm" id="logoutBtn">ออกจากระบบ</button></div></div>' +
+      '<div class="content" id="view"></div></div></div><div class="scrim" id="scrim"></div>';
+    renderSide();
+    $('#logoutBtn').onclick = function () { doLogout(false); };
+    $('#burger').onclick = function () { $('#side').classList.add('open'); $('#scrim').classList.add('on'); };
+    $('#scrim').onclick = function () { $('#side').classList.remove('open'); $('#scrim').classList.remove('on'); };
+  }
+  function renderSide() {
+    var s = DB.settings || {};
+    var newMsg = DB.tables.Messages.filter(function (m) { return m.status === 'new'; }).length;
+    var badges = { messages: newMsg, transactions: (DB.tables.Transactions || []).filter(function (t) { return t.status === 'pending'; }).length, forms: (DB.tables.FormResponses || []).filter(function (r) { return r.status === 'new'; }).length };
+    $('#side').innerHTML = '<div class="sb-brand">' + (s.logoUrl ? '<img src="' + esc(s.logoUrl) + '" alt="">' : '') + '<div><b>' + esc(s.siteName || SITE_NAME) + '</b><small>ระบบจัดการเว็บไซต์</small></div></div><nav>' +
+      MENU.filter(function (m) { return !m.admin || USER.role === 'admin'; }).map(function (m) {
+        if (m.g) return '<div class="grp">' + m.g + '</div>';
+        return '<a class="it' + (VIEW === m.k ? ' on' : '') + '" data-view="' + m.k + '"><span class="em">' + m.e + '</span>' + m.l + (badges[m.k] ? '<span class="badge">' + badges[m.k] + '</span>' : '') + '</a>';
+      }).join('') + '</nav><div class="foot">เข้าสู่ระบบในชื่อ <b style="color:#fff">' + esc(USER.username) + '</b></div>';
+  }
+  function show(view, arg, keepScroll) {
+    VIEW = view; VIEW_ARG = arg;
+    $$('.side a.it').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-view') === view); });
+    var m = MENU.filter(function (x) { return x.k === view; })[0];
+    $('#viewTitle').textContent = m ? m.l : ({ member: 'บัญชีสมาชิก', responses: 'คำตอบแบบฟอร์ม' }[view] || '');
+    if (!m && view === 'member') $$('.side a.it').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-view') === 'members'); });
+    if (!m && view === 'responses') $$('.side a.it').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-view') === 'forms'); });
+    var el = $('#view');
+    el.innerHTML = (VIEWS[view] || VIEWS.overview)(arg);
+    if (BIND[view]) BIND[view](el, arg);
+    if (!keepScroll) window.scrollTo(0, 0);
+    $('#side').classList.remove('open'); $('#scrim').classList.remove('on');
+  }
+
+  document.addEventListener('click', function (e) {
+    var v = e.target.closest('[data-view]');
+    if (v) { e.preventDefault(); show(v.getAttribute('data-view'), v.getAttribute('data-arg')); return; }
+    if (e.target.closest('[data-close-drawer]') || e.target.id === 'dscrim') { closeDrawer(); return; }
+    var ed = e.target.closest('[data-edit]');
+    if (ed) { var p = ed.getAttribute('data-edit').split('|'); openEditor(p[0], p[1]); return; }
+    var dl = e.target.closest('[data-del]');
+    if (dl) { var q = dl.getAttribute('data-del').split('|'); removeRecord(q[0], q[1]); return; }
+    var mv = e.target.closest('[data-move]');
+    if (mv) { var r = mv.getAttribute('data-move').split('|'); moveRecord(r[0], r[1], Number(r[2])); return; }
+    var tg = e.target.closest('[data-toggle]');
+    if (tg) { var t = tg.getAttribute('data-toggle').split('|'); togglePublish(t[0], t[1]); return; }
+  });
+
+  /* ============================================================
+   *  GENERIC RECORD OPS
+   * ============================================================ */
+  function rows(table) { return (DB.tables[table] || []).slice(); }
+  function sortByOrder(list) { return list.sort(function (a, b) { return (Number(a.order) || 0) - (Number(b.order) || 0); }); }
+  function pk(table) { return table === 'Settings' ? 'key' : 'id'; }
+  function findRec(table, id) { return rows(table).filter(function (r) { return r[pk(table)] === id; })[0]; }
+  function upsertLocal(table, rec) {
+    var list = DB.tables[table], k = pk(table), i;
+    for (i = 0; i < list.length; i++) if (list[i][k] === rec[k]) { list[i] = rec; return; }
+    list.push(rec);
+  }
+  function save(table, rec) {
+    busy(true);
+    return api('adminSave', table, rec).then(function (saved) { busy(false); upsertLocal(table, saved); return saved; }).catch(function (e) { fail(e); throw e; });
+  }
+  function confirmBox(msg, okLabel, extra) {
+    return new Promise(function (resolve) {
+      var d = $('#dialog'), b = $('#dialogBox');
+      b.className = 'dbx';
+      b.innerHTML = '<h3 style="margin-bottom:8px">ยืนยัน</h3><p>' + msg + '</p>' + (extra || '') + '<div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn ghost" data-a="0">ยกเลิก</button><button class="btn danger" data-a="1">' + esc(okLabel || 'ลบ') + '</button></div>';
+      d.classList.add('on');
+      b.onclick = function (e) { var a = e.target.closest('[data-a]'); if (!a) return; d.classList.remove('on'); var chk = b.querySelector('input[type=checkbox]'); resolve(a.getAttribute('data-a') === '1' ? { ok: true, checked: chk ? chk.checked : false } : null); };
+    });
+  }
+  function removeRecord(table, id) {
+    var rec = findRec(table, id) || {};
+    var hasFile = !!rec.fileId;
+    confirmBox('ต้องการลบ “' + esc(rec.title || rec.name || rec.label || rec.caption || 'รายการนี้') + '” ใช่หรือไม่?' + (table === 'Albums' ? '<br><b>ภาพทั้งหมดในอัลบั้มจะถูกลบด้วย</b>' : ''), 'ลบ',
+      hasFile || table === 'Albums' ? '<label class="switch" style="margin-top:6px"><input type="checkbox" checked> ย้ายไฟล์ใน Google Drive ไปถังขยะด้วย</label>' : '')
+      .then(function (r) {
+        if (!r) return;
+        busy(true);
+        api('adminDelete', table, id, r.checked).then(function () {
+          busy(false);
+          DB.tables[table] = DB.tables[table].filter(function (x) { return x[pk(table)] !== id; });
+          if (r.checked && rec.fileId) DB.tables.Media = DB.tables.Media.filter(function (m) { return m.fileId !== rec.fileId; });
+          if (table === 'Albums') { galSec = 'home_activity'; DB.tables.Gallery = DB.tables.Gallery.filter(function (g) { return g.section !== 'album:' + id; }); }
+          toast('ลบเรียบร้อย', 'ok'); show(VIEW, VIEW === 'gallery' ? galSec : VIEW_ARG, true);
+        }).catch(fail);
+      });
+  }
+  function moveRecord(table, id, dir) {
+    var item = findRec(table, id); if (!item) return;
+    var scope = rows(table).filter(function (r) { return scopeKey(table, r) === scopeKey(table, item); });
+    var list = sortByOrder(scope);
+    var i = list.map(function (r) { return r.id; }).indexOf(id), j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    var tmp = list[i]; list[i] = list[j]; list[j] = tmp;
+    reorder(table, list.map(function (r) { return r.id; }));
+  }
+  function scopeKey(table, r) { return table === 'Gallery' || table === 'Links' || table === 'Indicators' ? r.section : table === 'Documents' ? '' : ''; }
+  function reorder(table, ids) {
+    ids.forEach(function (id, i) { var r = findRec(table, id); if (r) { r.order = String(i + 1); upsertLocal(table, r); } });
+    show(VIEW, VIEW_ARG, true);
+    api('adminReorder', table, ids).then(function () { toast('บันทึกลำดับแล้ว', 'ok'); }).catch(fail);
+  }
+  function togglePublish(table, id) {
+    var r = findRec(table, id); if (!r) return;
+    var o = { id: id, published: truthy(r.published) ? 'FALSE' : 'TRUE' };
+    save(table, o).then(function () { show(VIEW, VIEW_ARG, true); toast(o.published === 'TRUE' ? 'เผยแพร่แล้ว' : 'ซ่อนแล้ว', 'ok'); });
+  }
+  function pubPill(table, r) { var on = r.published === '' || truthy(r.published); return '<button class="pill ' + (on ? 'on' : 'off') + '" style="border:0;cursor:pointer" data-toggle="' + table + '|' + esc(r.id) + '" title="คลิกเพื่อสลับ">' + (on ? 'เผยแพร่' : 'ซ่อน') + '</button>'; }
+  function actBtns(table, id, opts) {
+    opts = opts || {};
+    return (opts.move ? '<button class="icon-btn" data-move="' + table + '|' + esc(id) + '|-1" title="เลื่อนขึ้น">↑</button> <button class="icon-btn" data-move="' + table + '|' + esc(id) + '|1" title="เลื่อนลง">↓</button> ' : '') +
+      '<button class="icon-btn" data-edit="' + table + '|' + esc(id) + '" title="แก้ไข">✎</button> ' +
+      (opts.noDel ? '' : '<button class="icon-btn del" data-del="' + table + '|' + esc(id) + '" title="ลบ">🗑</button>');
+  }
+
+  /* ============================================================
+   *  FILE UPLOAD
+   * ============================================================ */
+  function readAsDataUrl(blob) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = rej; r.readAsDataURL(blob); }); }
+  /** ย่อรูปก่อนอัปโหลด (ด้านยาวสุด 1920px) */
+  function prepareImage(file) {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return Promise.resolve(file);
+    return readAsDataUrl(file).then(function (url) {
+      return new Promise(function (resolve) {
+        var img = new Image();
+        img.onload = function () {
+          var max = 1920, w = img.naturalWidth, h = img.naturalHeight;
+          if (w <= max && h <= max && file.size < 900 * 1024) return resolve(file);
+          var s = Math.min(1, max / Math.max(w, h)); var cw = Math.round(w * s), ch = Math.round(h * s);
+          var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+          var ctx = c.getContext('2d');
+          var keepPng = file.type === 'image/png' && file.size < 1.5 * 1048576;
+          if (!keepPng) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cw, ch); }
+          ctx.drawImage(img, 0, 0, cw, ch);
+          c.toBlob(function (b) {
+            if (!b) return resolve(file);
+            b.name = keepPng ? file.name : file.name.replace(/\.(png|webp|jpe?g)$/i, '') + '.jpg';
+            resolve(b.size < file.size ? b : file);
+          }, keepPng ? 'image/png' : 'image/jpeg', 0.86);
+        };
+        img.onerror = function () { resolve(file); };
+        img.src = url;
+      });
+    });
+  }
+  var MAX_MB = 20;
+  /** อัปโหลด 1 ไฟล์ → คืนข้อมูลไฟล์ใน Drive */
+  function uploadOne(file, folder) {
+    if (file.size > MAX_MB * 1048576) return Promise.reject(new Error('ไฟล์ใหญ่เกิน ' + MAX_MB + ' MB'));
+    var isImg = /^image\//.test(file.type);
+    return (isImg ? prepareImage(file) : Promise.resolve(file)).then(function (f) {
+      return readAsDataUrl(f).then(function (dataUrl) {
+        var b64 = String(dataUrl).split(',')[1] || '';
+        return api('uploadFile', { name: f.name || file.name, mimeType: f.type || file.type || 'application/octet-stream', data: b64, folder: folder || (isImg ? 'Images' : 'Documents') });
+      });
+    }).then(function (rec) {
+      DB.tables.Media.push(rec);
+      if (rec.sharing && rec.sharing !== 'anyone') toast('คำเตือน: โดเมนไม่อนุญาตให้แชร์ไฟล์แบบสาธารณะ — ผู้ชมภายนอกอาจมองไม่เห็นไฟล์', 'err');
+      return rec;
+    });
+  }
+  /** อัปโหลดหลายไฟล์ พร้อมแสดงสถานะในกล่อง queueEl */
+  function uploadMany(files, queueEl, folder, onEach) {
+    files = Array.prototype.slice.call(files);
+    var items = files.map(function (f) {
+      var row = document.createElement('div'); row.className = 'q';
+      row.innerHTML = '<span>' + (/^image\//.test(f.type) ? '🖼️' : '📄') + '</span><span class="nm">' + esc(f.name) + '</span><span class="muted" style="font-size:12.5px">' + fmtSize(f.size) + '</span><span class="st">รอคิว</span>';
+      if (queueEl) queueEl.appendChild(row);
+      return { f: f, row: row };
+    });
+    var ok = 0;
+    return items.reduce(function (p, it) {
+      return p.then(function () {
+        $('.st', it.row).innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> กำลังอัปโหลด';
+        return uploadOne(it.f, folder).then(function (rec) {
+          ok++; $('.st', it.row).className = 'st ok'; $('.st', it.row).textContent = '✓ สำเร็จ';
+          return onEach ? onEach(rec, it.f) : null;
+        }).catch(function (e) { $('.st', it.row).className = 'st err'; $('.st', it.row).textContent = '✕ ' + e.message; });
+      });
+    }, Promise.resolve()).then(function () { return ok; });
+  }
+  function pickFiles(accept, multiple) {
+    return new Promise(function (resolve) {
+      var inp = document.createElement('input'); inp.type = 'file'; inp.accept = accept || ''; inp.multiple = !!multiple;
+      inp.onchange = function () { resolve(inp.files); }; inp.click();
+    });
+  }
+  function dropzone(el, accept, onFiles) {
+    el.addEventListener('click', function () { pickFiles(accept, true).then(function (f) { if (f && f.length) onFiles(f); }); });
+    el.addEventListener('dragover', function (e) { e.preventDefault(); el.classList.add('over'); });
+    el.addEventListener('dragleave', function () { el.classList.remove('over'); });
+    el.addEventListener('drop', function (e) { e.preventDefault(); el.classList.remove('over'); if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files); });
+  }
+
+  /* ---------- Media picker dialog ---------- */
+  function mediaPicker(onlyImages) {
+    return new Promise(function (resolve) {
+      var d = $('#dialog'), b = $('#dialogBox');
+      var list = rows('Media').filter(function (m) { return !onlyImages || /^image\//.test(m.mimeType); }).reverse();
+      b.className = 'dbx wide';
+      b.innerHTML = '<div class="row between"><h3 style="margin:0">เลือกจากคลังไฟล์</h3><button class="icon-btn" data-x>✕</button></div><div class="dbody">' +
+        (list.length ? '<div class="mgrid">' + list.map(function (m) { return '<div class="mitem" data-pick="' + esc(m.id) + '"><div class="im">' + (/^image\//.test(m.mimeType) ? '<img loading="lazy" src="' + esc(m.url) + '" alt="">' : esc((m.name.split('.').pop() || 'FILE').toUpperCase())) + '</div><div class="nm">' + esc(m.name) + '</div></div>'; }).join('') + '</div>' : '<p class="muted">ยังไม่มีไฟล์ในคลัง</p>') + '</div>';
+      d.classList.add('on');
+      b.onclick = function (e) {
+        if (e.target.closest('[data-x]')) { d.classList.remove('on'); resolve(null); return; }
+        var p = e.target.closest('[data-pick]');
+        if (p) { d.classList.remove('on'); resolve(findRec('Media', p.getAttribute('data-pick'))); }
+      };
+    });
+  }
+
+  /* ============================================================
+   *  FORM BUILDER
+   * ============================================================ */
+  function fieldHtml(f, val) {
+    var id = 'f_' + f.k, v = val == null ? '' : val;
+    var lab = '<span class="lb">' + esc(f.l) + (f.req ? ' <span style="color:var(--danger)">*</span>' : '') + '</span>';
+    var hint = f.hint ? '<span class="hint">' + esc(f.hint) + '</span>' : '';
+    var opts = typeof f.opts === 'function' ? f.opts() : f.opts;
+    switch (f.t) {
+      case 'textarea': return '<label class="field">' + lab + '<textarea id="' + id + '" data-k="' + f.k + '" rows="' + (f.rows || 3) + '">' + esc(v) + '</textarea>' + hint + '</label>';
+      case 'number': return '<label class="field">' + lab + '<input id="' + id + '" data-k="' + f.k + '" type="number" min="0" value="' + esc(v) + '">' + hint + '</label>';
+      case 'date': return '<label class="field">' + lab + '<input id="' + id + '" data-k="' + f.k + '" type="date" value="' + esc(String(v).substr(0, 10)) + '">' + hint + '</label>';
+      case 'url': return '<label class="field">' + lab + '<input id="' + id + '" data-k="' + f.k + '" type="url" placeholder="https://..." value="' + esc(v) + '">' + hint + '</label>';
+      case 'color': return '<label class="field">' + lab + '<div class="row"><input type="color" data-k="' + f.k + '" value="' + esc(v || '#0f5e4b') + '" style="width:52px;height:40px;border:0;background:none;padding:0"><code>' + esc(v) + '</code></div>' + hint + '</label>';
+      case 'bool':
+        var on = v === '' || v == null ? !!f.def : truthy(v);
+        return '<div class="field"><label class="switch"><input type="checkbox" data-k="' + f.k + '"' + (on ? ' checked' : '') + '> ' + esc(f.l) + '</label>' + hint + '</div>';
+      case 'select':
+        return '<label class="field">' + lab + '<select id="' + id + '" data-k="' + f.k + '">' + (f.req ? '' : '<option value="">— ไม่ระบุ —</option>') + opts.map(function (o) { return '<option value="' + esc(o.v) + '"' + (o.v === v ? ' selected' : '') + '>' + esc(o.l) + '</option>'; }).join('') + '</select>' + hint + '</label>';
+      case 'combo':
+        opts = typeof f.opts === 'function' ? f.opts() : f.opts;
+        return '<label class="field">' + lab + '<input id="' + id + '" data-k="' + f.k + '" list="dl_' + f.k + '" value="' + esc(v) + '"><datalist id="dl_' + f.k + '">' + opts.map(function (o) { return '<option value="' + esc(o) + '">'; }).join('') + '</datalist>' + hint + '</label>';
+      case 'image':
+        return '<div class="field">' + lab + '<div class="imgf" data-imgf="' + f.k + '"><div class="pv">' + (v ? '<img src="' + esc(v) + '" alt="">' : 'ไม่มีภาพ') + '</div><div>' +
+          '<input class="inp" data-k="' + f.k + '" type="url" placeholder="วาง URL ภาพ หรือกดอัปโหลด" value="' + esc(v) + '" style="margin-bottom:8px">' +
+          '<div class="row"><button type="button" class="btn sm" data-up>⬆ อัปโหลดภาพ</button><button type="button" class="btn sm ghost" data-lib>เลือกจากคลัง</button>' + (v ? '<button type="button" class="btn sm ghost" data-clear>ลบภาพ</button>' : '') + '</div>' +
+          '<div class="hint" data-st style="margin-top:6px">รองรับ JPG / PNG / WEBP — ระบบย่อขนาดให้อัตโนมัติ</div></div></div></div>';
+      case 'images':
+        var arr = []; try { arr = Array.isArray(v) ? v : JSON.parse(v || '[]'); } catch (e) { arr = []; }
+        return '<div class="field">' + lab + '<div data-imgs="' + f.k + '" data-val="' + esc(JSON.stringify(arr)) + '"><div class="imgs-list"></div>' +
+          '<div class="drop" style="padding:14px;margin:0"><b>⬆ อัปโหลดภาพหลายภาพ</b> หรือลากไฟล์มาวาง</div><div class="queue" style="margin-top:8px"></div></div></div>';
+      case 'html':
+        return '<div class="field">' + lab + '<div class="rte" data-rte="' + f.k + '"><div class="tb">' +
+          '<button type="button" data-c="bold" title="ตัวหนา"><b>B</b></button><button type="button" data-c="italic" title="ตัวเอียง"><i>I</i></button><button type="button" data-c="underline" title="ขีดเส้นใต้"><u>U</u></button><span class="sep"></span>' +
+          '<button type="button" data-c="formatBlock" data-v="h2">H2</button><button type="button" data-c="formatBlock" data-v="h3">H3</button><button type="button" data-c="formatBlock" data-v="p">¶</button><button type="button" data-c="formatBlock" data-v="blockquote">❝</button><span class="sep"></span>' +
+          '<button type="button" data-c="insertUnorderedList" title="รายการ">• รายการ</button><button type="button" data-c="insertOrderedList" title="ลำดับเลข">1. ลำดับ</button><span class="sep"></span>' +
+          '<button type="button" data-c="link" title="ใส่ลิงก์">🔗 ลิงก์</button><button type="button" data-c="img" title="แทรกภาพ">🖼️ ภาพ</button><button type="button" data-c="removeFormat" title="ล้างรูปแบบ">⌫</button><span class="sep"></span>' +
+          '<button type="button" data-c="source" title="แก้ไข HTML">&lt;/&gt;</button></div>' +
+          '<div class="ed" contenteditable="true">' + (v || '') + '</div><textarea class="src"></textarea></div></div>';
+      case 'docfile':
+        return '<div class="field">' + lab + '<div data-docfile="' + (f.urlKey || 'url') + '"><div class="row"><button type="button" class="btn sm" data-up>⬆ อัปโหลดไฟล์ (PDF, Word, Excel, PowerPoint, รูปภาพ)</button><button type="button" class="btn sm ghost" data-lib>เลือกจากคลัง</button></div><div class="hint" data-st style="margin-top:6px"></div></div></div>';
+      default:
+        return '<label class="field">' + lab + '<input id="' + id + '" data-k="' + f.k + '" value="' + esc(v) + '"' + (f.ph ? ' placeholder="' + esc(f.ph) + '"' : '') + '>' + hint + '</label>';
+    }
+  }
+  function formHtml(fields, rec) {
+    return fields.map(function (f) {
+      if (f.row) return '<div class="grid2">' + f.row.map(function (x) { return fieldHtml(x, rec[x.k]); }).join('') + '</div>';
+      return fieldHtml(f, rec[f.k]);
+    }).join('');
+  }
+  function flatFields(fields) { var out = []; fields.forEach(function (f) { if (f.row) out = out.concat(f.row); else out.push(f); }); return out; }
+
+  /** ผูกพฤติกรรมให้ field พิเศษ (ภาพ, หลายภาพ, rich text, ไฟล์เอกสาร) */
+  function bindForm(ctx, rec) {
+    $$('[data-imgf]', ctx).forEach(function (box) {
+      var inp = $('input[data-k]', box), pv = $('.pv', box), st = $('[data-st]', box);
+      var setVal = function (url) { inp.value = url || ''; pv.innerHTML = url ? '<img src="' + esc(url) + '" alt="">' : 'ไม่มีภาพ'; };
+      inp.addEventListener('change', function () { setVal(inp.value.trim()); });
+      box.addEventListener('click', function (e) {
+        if (e.target.closest('[data-up]')) {
+          pickFiles('image/*', false).then(function (files) {
+            if (!files || !files[0]) return;
+            st.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> กำลังอัปโหลด...';
+            uploadOne(files[0], 'Images').then(function (m) { setVal(m.url); st.textContent = '✓ อัปโหลดแล้ว: ' + m.name; if (rec && box.getAttribute('data-imgf') === 'url') rec.__fileId = m.fileId; })
+              .catch(function (er) { st.textContent = '✕ ' + er.message; });
+          });
+        }
+        if (e.target.closest('[data-lib]')) mediaPicker(true).then(function (m) { if (m) { setVal(m.url); if (rec && box.getAttribute('data-imgf') === 'url') rec.__fileId = m.fileId; } });
+        if (e.target.closest('[data-clear]')) setVal('');
+      });
+    });
+    $$('[data-imgs]', ctx).forEach(function (box) {
+      var arr = JSON.parse(box.getAttribute('data-val') || '[]');
+      var list = $('.imgs-list', box);
+      var draw = function () {
+        box.setAttribute('data-val', JSON.stringify(arr));
+        list.innerHTML = arr.map(function (u, i) { return '<div class="ii"><img src="' + esc(u) + '" alt=""><button type="button" data-rm="' + i + '" title="นำออก">×</button></div>'; }).join('');
+      };
+      draw();
+      list.addEventListener('click', function (e) { var b = e.target.closest('[data-rm]'); if (b) { arr.splice(Number(b.getAttribute('data-rm')), 1); draw(); } });
+      dropzone($('.drop', box), 'image/*', function (files) {
+        uploadMany(files, $('.queue', box), 'Images', function (m) { arr.push(m.url); draw(); });
+      });
+    });
+    $$('[data-rte]', ctx).forEach(function (box) {
+      var ed = $('.ed', box), src = $('textarea.src', box);
+      $('.tb', box).addEventListener('mousedown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
+      $('.tb', box).addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        var c = b.getAttribute('data-c');
+        if (c === 'source') {
+          if (box.classList.contains('source')) { ed.innerHTML = src.value; box.classList.remove('source'); }
+          else { src.value = ed.innerHTML; box.classList.add('source'); }
+          return;
+        }
+        ed.focus();
+        if (c === 'link') { var u = prompt('ใส่ URL ของลิงก์', 'https://'); if (u) document.execCommand('createLink', false, u); return; }
+        if (c === 'img') {
+          var sel = window.getSelection(); var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+          pickFiles('image/*', false).then(function (files) {
+            if (!files || !files[0]) return;
+            busy(true);
+            uploadOne(files[0], 'Images').then(function (m) {
+              busy(false); ed.focus();
+              if (range) { sel.removeAllRanges(); sel.addRange(range); }
+              document.execCommand('insertHTML', false, '<img src="' + m.url + '" alt="">');
+            }).catch(fail);
+          });
+          return;
+        }
+        document.execCommand(c, false, b.getAttribute('data-v') || null);
+      });
+    });
+    $$('[data-docfile]', ctx).forEach(function (box) {
+      var st = $('[data-st]', box), urlKey = box.getAttribute('data-docfile');
+      var showCur = function () { st.innerHTML = rec.fileId ? '📎 ไฟล์ปัจจุบัน: <b>' + esc(rec.fileName || rec.fileId) + '</b> (' + fmtSize(rec.size) + ') <a href="#" data-unfile style="margin-left:6px">นำไฟล์ออก</a>' : 'ยังไม่มีไฟล์แนบ'; };
+      showCur();
+      var apply = function (m) {
+        rec.fileId = m.fileId; rec.fileName = m.name; rec.mimeType = m.mimeType; rec.size = m.size; rec[urlKey] = m.viewUrl;
+        var u = $('[data-k=' + urlKey + ']', ctx); if (u) u.value = m.viewUrl;
+        var t = $('[data-k=title]', ctx); if (t && !t.value) t.value = m.name.replace(/\.[^.]+$/, '');
+        showCur();
+      };
+      box.addEventListener('click', function (e) {
+        if (e.target.closest('[data-up]')) {
+          pickFiles('', false).then(function (files) {
+            if (!files || !files[0]) return;
+            st.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> กำลังอัปโหลด ' + esc(files[0].name) + '...';
+            uploadOne(files[0], /^image\//.test(files[0].type) ? 'Images' : 'Documents').then(apply).catch(function (er) { st.textContent = '✕ ' + er.message; });
+          });
+        }
+        if (e.target.closest('[data-lib]')) mediaPicker(false).then(function (m) { if (m) apply(m); });
+        if (e.target.closest('[data-unfile]')) { e.preventDefault(); rec.fileId = ''; rec.fileName = ''; rec.size = ''; rec[urlKey] = ''; var u2 = $('[data-k=' + urlKey + ']', ctx); if (u2) u2.value = ''; showCur(); }
+      });
+    });
+  }
+  function readForm(ctx, fields, rec) {
+    var out = {}, missing = [];
+    flatFields(fields).forEach(function (f) {
+      if (f.t === 'docfile') return;
+      var v;
+      if (f.t === 'html') {
+        var box = $('[data-rte="' + f.k + '"]', ctx);
+        v = box.classList.contains('source') ? $('textarea.src', box).value : $('.ed', box).innerHTML;
+        if (v === '<br>' || v === '<p><br></p>') v = '';
+      } else if (f.t === 'images') {
+        v = JSON.parse($('[data-imgs="' + f.k + '"]', ctx).getAttribute('data-val') || '[]');
+      } else if (f.t === 'bool') {
+        v = $('[data-k="' + f.k + '"]', ctx).checked ? 'TRUE' : 'FALSE';
+      } else {
+        var el = $('[data-k="' + f.k + '"]', ctx); v = el ? el.value.trim() : '';
+      }
+      if (f.req && (v === '' || v == null)) missing.push(f.l);
+      out[f.k] = v;
+    });
+    ['fileId', 'fileName', 'mimeType', 'size', 'fileUrl'].forEach(function (k) { if (rec[k] !== undefined && out[k] === undefined) out[k] = rec[k]; });
+    if (rec.__fileId) out.fileId = rec.__fileId;
+    return { data: out, missing: missing };
+  }
+
+  /* ---------- Drawer editor ---------- */
+  function openDrawer(title, body, foot) {
+    $('#drawerTitle').textContent = title; $('#drawerBody').innerHTML = body; $('#drawerFoot').innerHTML = foot || '';
+    $('#drawer').classList.add('open'); $('#dscrim').classList.add('on'); $('#drawer').setAttribute('aria-hidden', 'false');
+    $('#drawerBody').scrollTop = 0;
+  }
+  function closeDrawer() { $('#drawer').classList.remove('open'); $('#dscrim').classList.remove('on'); $('#drawer').setAttribute('aria-hidden', 'true'); }
+
+  function openEditor(table, id, preset, after) {
+    var def = ENT[table];
+    var rec = id ? JSON.parse(JSON.stringify(findRec(table, id) || {})) : Object.assign({}, preset || {});
+    if ((table === 'News' || table === 'Reports') && typeof rec.images === 'string') { try { rec.images = JSON.parse(rec.images || '[]'); } catch (e) { rec.images = []; } }
+    var title = (id ? 'แก้ไข' : 'เพิ่ม') + def.name + (table === 'Pages' && id ? ': ' + (PAGE_NAMES[id] || id) : '');
+    openDrawer(title, '<form id="edForm" onsubmit="return false">' + formHtml(def.fields, rec) + '</form>',
+      '<button class="btn ghost" data-close-drawer>ยกเลิก</button><button class="btn" id="edSave">💾 บันทึก</button>');
+    var ctx = $('#drawerBody');
+    bindForm(ctx, rec);
+    $('#edSave').onclick = function () {
+      var r = readForm(ctx, def.fields, rec);
+      if (r.missing.length) { toast('กรุณากรอก: ' + r.missing.join(', '), 'err'); return; }
+      if (id) r.data.id = id;
+      Object.keys(preset || {}).forEach(function (k) { if (r.data[k] === undefined) r.data[k] = preset[k]; });
+      if (table === 'Documents' && !r.data.url && !r.data.fileId) { toast('กรุณาอัปโหลดไฟล์ หรือใส่ลิงก์', 'err'); return; }
+      save(table, r.data).then(function (saved) { closeDrawer(); toast('บันทึกเรียบร้อย', 'ok'); if (after) after(saved); show(VIEW, VIEW === 'gallery' ? galSec : VIEW_ARG, true); });
+    };
+  }
+
+  /* ============================================================
+   *  VIEWS
+   * ============================================================ */
+  var VIEWS = {}, BIND = {};
+
+  /* ---------- Overview ---------- */
+  VIEWS.overview = function () {
+    var t = DB.tables, st = DB.stats || {};
+    var newMsg = t.Messages.filter(function (m) { return m.status === 'new'; }).length;
+    var tile = function (n, l, e, v) { return '<div class="tile" data-view="' + v + '"><span class="e">' + e + '</span><div class="n">' + n + '</div><div class="l">' + l + '</div></div>'; };
+    var daily = st.daily || []; var mx = Math.max.apply(null, daily.map(function (d) { return d.count; }).concat([1]));
+    var ext = 0; ['Gallery', 'News', 'Groups', 'Reports'].forEach(function (k) { t[k].forEach(function (r) { ['url', 'coverUrl'].forEach(function (f) { if (/sitesv\//.test(r[f] || '')) ext++; }); }); });
+    var h = '<div class="tiles">' + tile(Number(st.visits || 0).toLocaleString('th-TH'), 'ผู้เข้าชมทั้งหมด', '👁️', 'overview') +
+      tile(t.Reports.length, 'รายงานผลดำเนินการ', '📈', 'reports') + tile(t.News.length, 'ข่าว / กิจกรรม', '📰', 'news') + tile(t.Gallery.length, 'ภาพในอัลบั้ม', '🖼️', 'gallery') +
+      tile(t.Documents.length, 'เอกสาร', '📁', 'documents') + tile(t.Groups.length, 'กลุ่มอาชีพ', '🧺', 'groups') + tile(newMsg, 'ข้อความใหม่', '✉️', 'messages') + tile((t.Members || []).length, 'สมาชิกกองทุน', '👥', 'members') + tile((t.Transactions || []).filter(function (x) { return x.status === 'pending'; }).length, 'แจ้งฝากรอตรวจสอบ', '⏳', 'transactions') + tile((t.FormResponses || []).filter(function (x) { return x.status === 'new'; }).length, 'คำตอบแบบฟอร์มใหม่', '📝', 'forms') + '</div>';
+    h += '<div class="grid2" style="gap:18px"><div class="box"><h3>⚡ ทางลัด</h3><div class="row">' +
+      '<button class="btn sm" data-view="reports">+ รายงานผล</button><button class="btn sm" data-quick="news">+ เพิ่มข่าว</button><button class="btn sm" data-view="gallery">⬆ อัปโหลดภาพ</button><button class="btn sm" data-view="documents">⬆ อัปโหลดเอกสาร</button><button class="btn sm ghost" data-view="settings">ตั้งค่าเว็บ</button></div>' +
+      '<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">' +
+      '<div style="display:grid;gap:8px;font-size:14.5px">' + (DB.links && DB.links.db ? '<a href="' + esc(DB.links.db) + '" target="_blank" rel="noopener">📗 เปิดฐานข้อมูล (Google Sheets) ↗</a>' : '') +
+      (DB.links && DB.links.folder ? '<a href="' + esc(DB.links.folder) + '" target="_blank" rel="noopener">📂 เปิดโฟลเดอร์ไฟล์ (Google Drive) ↗</a>' : '') +
+      '<a href="' + esc(BASE_URL) + '" target="_blank" rel="noopener">🌐 เปิดหน้าเว็บไซต์ ↗</a></div></div>' +
+      '<div class="box"><h3>📈 ผู้เข้าชม 14 วันล่าสุด</h3><div class="bar-mini">' + daily.map(function (d) {
+        return '<div class="' + (d.count ? 'has' : '') + '" style="height:' + Math.max(3, Math.round(d.count / mx * 100)) + '%" title="' + d.date + ': ' + d.count + '">' + (d.count ? '<b>' + d.count + '</b>' : '') + '<span>' + Number(d.date.substr(8, 2)) + '</span></div>';
+      }).join('') + '</div><div style="height:22px"></div></div></div>';
+    if (ext) h += '<div class="note">มีภาพ <b>' + ext + '</b> รายการที่ยังลิงก์ไปยัง Google Sites เดิม แนะนำให้ย้ายเข้า Google Drive ของระบบเพื่อความถาวร <button class="btn sm accent" style="margin-left:8px" data-view="settings">ไปที่เครื่องมือย้ายภาพ →</button></div>';
+    var latest = t.Messages.slice().sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); }).slice(0, 4);
+    h += '<div class="box"><h3>✉️ ข้อความล่าสุด</h3>' + (latest.length ? latest.map(msgHtml).join('') + '<a data-view="messages" href="#">ดูทั้งหมด →</a>' : '<p class="muted" style="margin:0">ยังไม่มีข้อความ</p>') + '</div>';
+    if (DB.tables.Logs) h += '<div class="box"><h3>🕘 การแก้ไขล่าสุด</h3><div class="tbl-wrap" style="border:0"><table class="tbl"><tbody>' + DB.tables.Logs.slice(0, 8).map(function (l) { return '<tr><td class="sub" style="white-space:nowrap">' + thDate(l.time, true) + '</td><td><b>' + esc(l.user) + '</b></td><td>' + esc(l.action) + '</td><td class="sub">' + esc(l.detail) + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+    return h;
+  };
+  BIND.overview = function (el) { $$('[data-quick]', el).forEach(function (b) { b.onclick = function () { openEditor('News'); }; }); };
+
+  /* ---------- News ---------- */
+  var newsQ = '', newsCat = '';
+  VIEWS.news = function () {
+    var cats = []; rows('News').forEach(function (n) { if (n.category && cats.indexOf(n.category) === -1) cats.push(n.category); });
+    return '<div class="row between" style="margin-bottom:16px"><div class="row" style="flex:1"><input class="search" id="nq" placeholder="ค้นหาข่าว..." value="' + esc(newsQ) + '">' +
+      '<select class="inp" id="ncat" style="width:auto"><option value="">ทุกหมวด</option>' + cats.map(function (c) { return '<option' + (c === newsCat ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+      '<button class="btn" id="addNews">+ เพิ่มข่าว / กิจกรรม</button></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>ภาพ</th><th>หัวข้อ</th><th>หมวด</th><th>วันที่</th><th>สถานะ</th><th></th></tr></thead><tbody id="nbody"></tbody></table></div>';
+  };
+  BIND.news = function (el) {
+    var draw = function () {
+      var q = newsQ.toLowerCase();
+      var list = rows('News').filter(function (n) { return (!newsCat || n.category === newsCat) && (!q || (n.title + ' ' + n.subtitle).toLowerCase().indexOf(q) !== -1); })
+        .sort(function (a, b) { return String(b.date || b.createdAt).localeCompare(String(a.date || a.createdAt)); });
+      $('#nbody').innerHTML = list.length ? list.map(function (n) {
+        var imgs = []; try { imgs = JSON.parse(n.images || '[]'); } catch (e) { }
+        return '<tr><td>' + (n.coverUrl ? '<img class="th" src="' + esc(n.coverUrl) + '" alt="">' : '<div class="th" style="width:64px;height:44px;border-radius:6px;background:var(--brand-soft);display:flex;align-items:center;justify-content:center">📰</div>') + '</td>' +
+          '<td><div class="ttl">' + (truthy(n.featured) ? '📌 ' : '') + esc(n.title) + '</div><div class="sub">' + esc(n.subtitle) + (imgs.length ? ' · 🖼️ ' + imgs.length + ' ภาพ' : '') + (n.linkUrl ? ' · 🔗 มีลิงก์' : '') + '</div></td>' +
+          '<td>' + (n.category ? '<span class="pill gold">' + esc(n.category) + '</span>' : '') + '</td><td class="sub">' + (n.date ? thDate(n.date) : '—') + '</td><td>' + pubPill('News', n) + '</td><td class="acts">' + actBtns('News', n.id) + '</td></tr>';
+      }).join('') : '<tr><td colspan="6" class="muted" style="text-align:center;padding:30px">ไม่พบข่าว</td></tr>';
+    };
+    draw();
+    $('#nq').oninput = function () { newsQ = this.value; draw(); };
+    $('#ncat').onchange = function () { newsCat = this.value; draw(); };
+    $('#addNews').onclick = function () { openEditor('News', null, { date: new Date().toISOString().substr(0, 10) }); };
+  };
+
+  /* ---------- Gallery ---------- */
+  var galSec = 'home_activity';
+  VIEWS.gallery = function (arg) {
+    if (arg) galSec = arg;
+    var secs = GALLERY_SECTIONS();
+    var count = function (s) { return rows('Gallery').filter(function (g) { return g.section === s; }).length; };
+    return '<div class="note info">เลือกอัลบั้มด้านล่าง แล้วลากไฟล์ภาพมาวางหรือคลิกเพื่ออัปโหลด (เลือกได้หลายภาพพร้อมกัน) · ลากภาพเพื่อจัดลำดับ · คลิก ✎ เพื่อใส่คำบรรยาย</div>' +
+      '<div class="row between" style="margin-bottom:8px"><b style="font-family:var(--font-head)">อัลบั้ม</b><button class="btn sm accent" id="newAlbum">+ สร้างอัลบั้มใหม่</button></div>' +
+      '<div class="tabs">' + secs.map(function (s) { return '<button class="tab' + (s.v === galSec ? ' on' : '') + '" data-gsec="' + esc(s.v) + '">' + esc(s.l) + '<span class="c">(' + count(s.v) + ')</span></button>'; }).join('') + '</div>' +
+      (/^album:/.test(galSec) ? (function () { var a = findRec('Albums', galSec.substr(6)) || {}; return '<div class="box row between" style="padding:12px 16px"><div><b>' + esc(a.title) + '</b> ' + pubPill('Albums', a) + '<div class="muted" style="font-size:13.5px">' + (a.date ? thDate(a.date) + ' · ' : '') + esc(a.description || 'แสดงในหน้า “คลังภาพ” ของเว็บไซต์') + '</div></div><div>' + actBtns('Albums', a.id) + '</div></div>'; })() : '') +
+      '<div class="drop" id="gdrop">🖼️ <b>คลิกเพื่อเลือกภาพ</b> หรือลากไฟล์ภาพมาวางที่นี่ — จะเพิ่มเข้าอัลบั้ม “' + esc(labelOf(GALLERY_SECTIONS, galSec)) + '”</div><div class="queue" id="gqueue"></div>' +
+      '<div class="row between" style="margin-bottom:10px"><span class="muted" style="font-size:14px">ลากภาพเพื่อเรียงลำดับ</span><button class="btn sm ghost" id="gurl">+ เพิ่มภาพจาก URL</button></div>' +
+      '<div class="ggrid" id="ggrid"></div>';
+  };
+  BIND.gallery = function (el) {
+    var list = sortByOrder(rows('Gallery').filter(function (g) { return g.section === galSec; }));
+    $('#ggrid').innerHTML = list.length ? list.map(function (g, i) {
+      var on = g.published === '' || truthy(g.published);
+      return '<div class="gitem" draggable="true" data-drag-id="' + esc(g.id) + '"><span class="ord">' + (i + 1) + '</span><span class="hid">' + pubPill('Gallery', g) + '</span><div class="im"' + (on ? '' : ' style="opacity:.4"') + '><img loading="lazy" src="' + esc(g.url) + '" alt=""></div>' +
+        '<div class="cap"><span class="t" title="' + esc(g.caption) + '">' + (g.caption ? esc(g.caption) : '<span class="muted">ไม่มีคำบรรยาย</span>') + '</span>' + actBtns('Gallery', g.id) + '</div></div>';
+    }).join('') : '<p class="muted">ยังไม่มีภาพในอัลบั้มนี้</p>';
+    $$('[data-gsec]', el).forEach(function (b) { b.onclick = function () { show('gallery', b.getAttribute('data-gsec')); }; });
+    dropzone($('#gdrop'), 'image/*', function (files) {
+      var base = list.length;
+      uploadMany(files, $('#gqueue'), 'Images', function (m, f) {
+        base++;
+        return api('adminSave', 'Gallery', { section: galSec, url: m.url, fileId: m.fileId, caption: '', order: String(base), published: 'TRUE' }).then(function (rec) { upsertLocal('Gallery', rec); });
+      }).then(function (n) { toast('อัปโหลดสำเร็จ ' + n + ' ภาพ', 'ok'); setTimeout(function () { show('gallery', galSec, true); }, 600); });
+    });
+    $('#gurl').onclick = function () { openEditor('Gallery', null, { section: galSec }); };
+    $('#newAlbum').onclick = function () {
+      openEditor('Albums', null, { date: new Date().toISOString().substr(0, 10) }, function (saved) { galSec = 'album:' + saved.id; });
+    };
+    enableDrag($('#ggrid'), 'Gallery');
+  };
+  function enableDrag(container, table) {
+    var dragEl = null;
+    container.addEventListener('dragstart', function (e) { dragEl = e.target.closest('[data-drag-id]'); if (dragEl) { dragEl.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', 'x'); } catch (er) { } } });
+    container.addEventListener('dragend', function () { if (dragEl) dragEl.classList.remove('dragging'); $$('.over', container).forEach(function (x) { x.classList.remove('over'); }); dragEl = null; });
+    container.addEventListener('dragover', function (e) { var t = e.target.closest('[data-drag-id]'); if (!dragEl || !t || t === dragEl) return; e.preventDefault(); $$('.over', container).forEach(function (x) { x.classList.remove('over'); }); t.classList.add('over'); });
+    container.addEventListener('drop', function (e) {
+      var t = e.target.closest('[data-drag-id]'); if (!dragEl || !t || t === dragEl) return; e.preventDefault();
+      var items = $$('[data-drag-id]', container);
+      var from = items.indexOf(dragEl), to = items.indexOf(t);
+      if (from < to) t.after(dragEl); else t.before(dragEl);
+      reorder(table, $$('[data-drag-id]', container).map(function (x) { return x.getAttribute('data-drag-id'); }));
+    });
+  }
+
+  /* ---------- Documents ---------- */
+  var docQ = '', docKind = 'document';
+  VIEWS.documents = function () {
+    var cnt = function (k) { return rows('Documents').filter(function (d) { return (d.kind || 'document') === k; }).length; };
+    return '<div class="tabs"><button class="tab' + (docKind === 'document' ? ' on' : '') + '" data-dkind="document">📄 เอกสารดาวน์โหลด<span class="c">(' + cnt('document') + ')</span></button><button class="tab' + (docKind === 'tool' ? ' on' : '') + '" data-dkind="tool">🧰 เครื่องมือ<span class="c">(' + cnt('tool') + ')</span></button></div>' +
+      '<div class="note info">' + (docKind === 'tool' ? 'เครื่องมือ = แบบฟอร์ม แบบสำรวจ ระบบบันทึกข้อมูล Dashboard หรือไฟล์ชุดเครื่องมือ แสดงในหน้า “เครื่องมือ” · ใส่ลิงก์ หรืออัปโหลดไฟล์ก็ได้' : 'เอกสารแสดงในหน้า “เอกสารดาวน์โหลด” และหน้าอื่นตามที่เลือก') + '</div>' +
+      '<div class="drop" id="ddrop">📁 <b>คลิกเพื่อเลือกไฟล์</b> หรือลากไฟล์มาวาง (PDF, Word, Excel, PowerPoint, รูปภาพ — ไม่เกิน ' + MAX_MB + ' MB ต่อไฟล์) ระบบจะสร้างรายการเอกสารให้อัตโนมัติ</div><div class="queue" id="dqueue"></div>' +
+      '<div class="row between" style="margin-bottom:14px"><input class="search" id="dq" placeholder="ค้นหา..." value="' + esc(docQ) + '"><button class="btn" id="addDoc">+ ' + (docKind === 'tool' ? 'เพิ่มเครื่องมือ (ลิงก์/ไฟล์)' : 'เพิ่มเอกสาร / ลิงก์') + '</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>เอกสาร</th><th>หมวด</th><th>แสดงที่</th><th>ขนาด</th><th>เปิดอ่าน</th><th>สถานะ</th><th></th></tr></thead><tbody id="dbody"></tbody></table></div>';
+  };
+  BIND.documents = function () {
+    var draw = function () {
+      var q = docQ.toLowerCase();
+      var list = sortByOrder(rows('Documents')).filter(function (d) { return (d.kind || 'document') === docKind; }).filter(function (d) { return !q || (d.title + ' ' + d.category + ' ' + d.description).toLowerCase().indexOf(q) !== -1; });
+      $('#dbody').innerHTML = list.length ? list.map(function (d) {
+        var ext = d.fileId ? (String(d.fileName || '').split('.').pop() || 'file').toUpperCase() : 'LINK';
+        if (d.icon) ext = d.icon + ' ' + ext;
+        return '<tr><td><div class="row" style="flex-wrap:nowrap"><span class="pill" style="min-width:48px;text-align:center">' + esc(ext) + '</span><div><div class="ttl">' + esc(d.title) + '</div><div class="sub">' + esc(d.description || '').substr(0, 80) + '</div></div></div></td>' +
+          '<td>' + (d.category ? '<span class="pill gold">' + esc(d.category) + '</span>' : '') + '</td><td class="sub">' + esc(labelOf(DOC_PAGES, d.page) || '-') + '</td><td class="sub">' + fmtSize(d.size) + '</td><td class="sub">' + (Number(d.downloads) || 0) + '</td>' +
+          '<td>' + pubPill('Documents', d) + '</td><td class="acts">' + (d.url ? '<a class="icon-btn" href="' + esc(d.url) + '" target="_blank" rel="noopener" title="เปิดดู">↗</a> ' : '') + actBtns('Documents', d.id, { move: true }) + '</td></tr>';
+      }).join('') : '<tr><td colspan="7" class="muted" style="text-align:center;padding:30px">ยังไม่มีเอกสาร</td></tr>';
+    };
+    draw();
+    $('#dq').oninput = function () { docQ = this.value; draw(); };
+    $('#addDoc').onclick = function () { openEditor('Documents', null, { page: docKind === 'tool' ? '' : 'knowledge', kind: docKind, icon: docKind === 'tool' ? '🧰' : '📄' }); };
+    $$('[data-dkind]').forEach(function (b) { b.onclick = function () { docKind = b.getAttribute('data-dkind'); show('documents', null, true); }; });
+    dropzone($('#ddrop'), '', function (files) {
+      uploadMany(files, $('#dqueue'), 'Documents', function (m) {
+        return api('adminSave', 'Documents', { kind: docKind, icon: docKind === 'tool' ? '🧰' : '📄', title: m.name.replace(/\.[^.]+$/, ''), category: '', page: docKind === 'tool' ? '' : 'knowledge', description: '', url: m.viewUrl, fileId: m.fileId, fileName: m.name, mimeType: m.mimeType, size: m.size, downloads: '0', published: 'TRUE' })
+          .then(function (rec) { upsertLocal('Documents', rec); });
+      }).then(function (n) { toast('อัปโหลดสำเร็จ ' + n + ' ไฟล์ — คลิก ✎ เพื่อแก้ชื่อ/หมวดหมู่', 'ok'); setTimeout(function () { show('documents', null, true); }, 600); });
+    });
+  };
+
+  /* ---------- Reports ---------- */
+  var repY = '', repQ = '';
+  var ST_PILL = { 'เสร็จสิ้น': 'on', 'กำลังดำเนินการ': 'gold', 'วางแผน': 'new', 'ชะลอ/ยกเลิก': 'off' };
+  VIEWS.reports = function () {
+    var years = []; rows('Reports').forEach(function (r) { if (r.fiscalYear && years.indexOf(r.fiscalYear) === -1) years.push(r.fiscalYear); }); years.sort().reverse();
+    var list = rows('Reports');
+    var done = list.filter(function (r) { return r.status === 'เสร็จสิ้น'; }).length, doing = list.filter(function (r) { return r.status === 'กำลังดำเนินการ'; }).length;
+    var people = list.reduce(function (a, r) { return a + (Number(r.participants) || 0); }, 0);
+    return '<div class="tiles"><div class="tile"><div class="n">' + list.length + '</div><div class="l">กิจกรรมทั้งหมด</div></div><div class="tile"><div class="n">' + done + '</div><div class="l">เสร็จสิ้น</div></div><div class="tile"><div class="n">' + doing + '</div><div class="l">กำลังดำเนินการ</div></div><div class="tile"><div class="n">' + people.toLocaleString('th-TH') + '</div><div class="l">ผู้เข้าร่วมรวม (คน)</div></div><div class="tile" data-view="kpis"><div class="n">' + rows('KPIs').length + '</div><div class="l">ตัวชี้วัด →</div></div></div>' +
+      '<div class="row between" style="margin-bottom:16px"><div class="row" style="flex:1"><input class="search" id="rq" placeholder="ค้นหากิจกรรม..." value="' + esc(repQ) + '">' +
+      '<select class="inp" id="ry" style="width:auto"><option value="">ทุกปีงบประมาณ</option>' + years.map(function (y) { return '<option' + (y === repY ? ' selected' : '') + '>' + esc(y) + '</option>'; }).join('') + '</select>' +
+      '<button class="btn sm ghost" id="rcsv">⬇ ส่งออก CSV (Excel)</button></div><button class="btn" id="addRep">+ เพิ่มรายงานผล</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>ภาพ</th><th>กิจกรรม</th><th>ปีงบ/ระยะ</th><th>สถานะ</th><th>ความก้าวหน้า</th><th>ไฟล์</th><th>แสดงผล</th><th></th></tr></thead><tbody id="rbody"></tbody></table></div>';
+  };
+  function repList() {
+    var q = repQ.toLowerCase();
+    return sortByOrder(rows('Reports')).filter(function (r) { return (!repY || r.fiscalYear === repY) && (!q || (r.title + ' ' + r.result).toLowerCase().indexOf(q) !== -1); });
+  }
+  BIND.reports = function () {
+    var draw = function () {
+      var list = repList();
+      $('#rbody').innerHTML = list.length ? list.map(function (r) {
+        var pg = r.progress !== '' ? Number(r.progress) : (r.status === 'เสร็จสิ้น' ? 100 : null);
+        return '<tr><td>' + (r.coverUrl ? '<img class="th" src="' + esc(r.coverUrl) + '" alt="">' : '<div style="width:64px;height:44px;border-radius:6px;background:var(--brand-soft);display:flex;align-items:center;justify-content:center">📈</div>') + '</td>' +
+          '<td><div class="ttl">' + esc(r.title) + '</div><div class="sub">' + esc(String(r.result || '').substr(0, 90)) + (r.participants ? ' · 👥 ' + esc(r.participants) + ' คน' : '') + '</div></td>' +
+          '<td class="sub">' + esc(r.fiscalYear || '-') + (r.phase ? ' / ระยะ ' + esc(r.phase) : '') + '</td><td>' + (r.status ? '<span class="pill ' + (ST_PILL[r.status] || '') + '">' + esc(r.status) + '</span>' : '-') + '</td>' +
+          '<td style="min-width:110px">' + (pg !== null ? '<div style="height:7px;border-radius:9px;background:var(--brand-soft);overflow:hidden"><div style="height:100%;width:' + pg + '%;background:var(--brand)"></div></div><span class="sub">' + pg + '%</span>' : '<span class="sub">-</span>') + '</td>' +
+          '<td>' + (r.fileId || r.fileUrl ? '📎' : '') + '</td><td>' + pubPill('Reports', r) + '</td><td class="acts">' + actBtns('Reports', r.id, { move: true }) + '</td></tr>';
+      }).join('') : '<tr><td colspan="8" class="muted" style="text-align:center;padding:30px">ยังไม่มีรายงาน</td></tr>';
+    };
+    draw();
+    $('#rq').oninput = function () { repQ = this.value; draw(); };
+    $('#ry').onchange = function () { repY = this.value; draw(); };
+    $('#addRep').onclick = function () { openEditor('Reports', null, { status: 'กำลังดำเนินการ', fiscalYear: String(new Date().getFullYear() + 543 + (new Date().getMonth() >= 9 ? 1 : 0)) }); };
+    $('#rcsv').onclick = function () {
+      var cols = [['title', 'กิจกรรม'], ['fiscalYear', 'ปีงบประมาณ'], ['phase', 'ระยะ'], ['activityDate', 'วันที่'], ['status', 'สถานะ'], ['progress', 'ความก้าวหน้า(%)'], ['participants', 'ผู้เข้าร่วม'], ['budget', 'งบประมาณ'], ['spent', 'ใช้จ่ายจริง'], ['objective', 'วัตถุประสงค์'], ['target', 'เป้าหมาย'], ['result', 'ผลการดำเนินงาน'], ['location', 'สถานที่']];
+      var csv = '﻿' + cols.map(function (c) { return c[1]; }).join(',') + '\n' + repList().map(function (r) { return cols.map(function (c) { return '"' + String(r[c[0]] || '').replace(/"/g, '""').replace(/\n/g, ' ') + '"'; }).join(','); }).join('\n');
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'รายงานผลดำเนินการ' + (repY ? '-' + repY : '') + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+    };
+  };
+
+  /* ---------- KPIs ---------- */
+  VIEWS.kpis = function () {
+    var list = sortByOrder(rows('KPIs'));
+    return '<div class="row between" style="margin-bottom:16px"><p class="muted" style="margin:0">ตัวชี้วัดแสดงในหน้า “รายงานผลดำเนินการ” พร้อมแถบความก้าวหน้าเทียบค่าเป้าหมาย</p><button class="btn" id="addKpi">+ เพิ่มตัวชี้วัด</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>ตัวชี้วัด</th><th>ปีงบ</th><th>เป้าหมาย</th><th>ผล</th><th>บรรลุ</th><th>แสดงผล</th><th></th></tr></thead><tbody>' +
+      (list.length ? list.map(function (k) {
+        var t = Number(String(k.target).replace(/[^0-9.]/g, '')), r = Number(String(k.result).replace(/[^0-9.]/g, ''));
+        var pct = t > 0 ? Math.round(r / t * 100) : null;
+        return '<tr><td><div class="ttl">' + esc(k.name) + '</div><div class="sub">' + esc(k.note) + '</div></td><td class="sub">' + esc(k.fiscalYear || 'ทุกปี') + '</td><td>' + esc(k.target || '—') + ' <span class="sub">' + esc(k.unit) + '</span></td><td><b>' + esc(k.result || '—') + '</b> <span class="sub">' + esc(k.unit) + '</span></td>' +
+          '<td>' + (pct !== null ? '<span class="pill ' + (pct >= 100 ? 'on' : pct >= 50 ? 'gold' : 'off') + '">' + pct + '%</span>' : '<span class="sub">ยังไม่กำหนดเป้า</span>') + '</td><td>' + pubPill('KPIs', k) + '</td><td class="acts">' + actBtns('KPIs', k.id, { move: true }) + '</td></tr>';
+      }).join('') : '<tr><td colspan="7" class="muted" style="text-align:center;padding:30px">ยังไม่มีตัวชี้วัด</td></tr>') + '</tbody></table></div>';
+  };
+  BIND.kpis = function () { $('#addKpi').onclick = function () { openEditor('KPIs'); }; };
+
+  /* ---------- Groups ---------- */
+  VIEWS.groups = function () {
+    var list = sortByOrder(rows('Groups'));
+    return '<div class="row between" style="margin-bottom:16px"><p class="muted" style="margin:0">ข้อมูลกลุ่มอาชีพจะแสดงในหน้า “พื้นที่วิจัย”, หน้ารายละเอียดกลุ่ม, เมนู และกราฟใน dashboard</p><button class="btn" id="addGroup">+ เพิ่มกลุ่มอาชีพ</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>กลุ่ม</th><th>ที่ตั้ง</th><th>สมาชิก</th><th>ภาพในอัลบั้ม</th><th>สถานะ</th><th></th></tr></thead><tbody>' +
+      list.map(function (g) {
+        var n = rows('Gallery').filter(function (x) { return x.section === 'group:' + g.id; }).length;
+        return '<tr><td><div class="ttl">' + esc((g.icon || '') + ' ' + g.name) + '</div><div class="sub">' + esc(String(g.summary || '').substr(0, 90)) + '…</div></td><td class="sub">' + esc(g.location) + '</td><td><b>' + esc(g.members || '-') + '</b> คน</td>' +
+          '<td><a href="#" data-view="gallery" data-arg="group:' + esc(g.id) + '">' + n + ' ภาพ — จัดการ</a></td><td>' + pubPill('Groups', g) + '</td><td class="acts">' + actBtns('Groups', g.id, { move: true }) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  };
+  BIND.groups = function () { $('#addGroup').onclick = function () { openEditor('Groups'); }; };
+
+  /* ---------- Steps ---------- */
+  VIEWS.steps = function () {
+    var list = sortByOrder(rows('Steps'));
+    return '<div class="row between" style="margin-bottom:16px"><p class="muted" style="margin:0">ขั้นตอนการดำเนินงานที่แสดงในหน้า “กระบวนการ” (ข้อความนำหน้าแก้ได้ที่ หน้าเว็บ › กระบวนการ)</p><button class="btn" id="addStep">+ เพิ่มขั้นตอน</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:50px">#</th><th>ขั้นตอน</th><th>สถานะ</th><th></th></tr></thead><tbody>' +
+      (list.length ? list.map(function (s, i) { return '<tr><td><b>' + (i + 1) + '</b></td><td><div class="ttl">' + esc(s.title) + '</div><div class="sub">' + esc(String(s.description || '').replace(/<[^>]+>/g, '').substr(0, 120)) + '</div></td><td>' + pubPill('Steps', s) + '</td><td class="acts">' + actBtns('Steps', s.id, { move: true }) + '</td></tr>'; }).join('') : '<tr><td colspan="4" class="muted" style="text-align:center;padding:30px">ยังไม่มีขั้นตอน</td></tr>') +
+      '</tbody></table></div>';
+  };
+  BIND.steps = function () { $('#addStep').onclick = function () { openEditor('Steps'); }; };
+
+  /* ---------- Pages ---------- */
+  VIEWS.pages = function () {
+    var order = ['home', 'model', 'research', 'reports', 'dashboard', 'dashboard_data', 'dashboard_debt', 'news', 'gallery', 'knowledge', 'downloads', 'tools', 'process', 'contact'];
+    var list = rows('Pages').sort(function (a, b) { return order.indexOf(a.id) - order.indexOf(b.id); });
+    return '<div class="note info">แก้ไขหัวข้อ คำอธิบาย และเนื้อหาของแต่ละหน้า (ข้อมูลเฉพาะ เช่น ข่าว ภาพ เอกสาร กลุ่มอาชีพ จัดการในเมนูของแต่ละส่วน) · ชื่อเมนูด้านบนของเว็บแก้ได้ที่ <a href="#" data-view="settings">ตั้งค่าเว็บไซต์</a></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>หน้า</th><th>หัวข้อที่แสดง</th><th>แก้ไขล่าสุด</th><th></th></tr></thead><tbody>' +
+      list.map(function (p) { return '<tr><td><span class="pill">' + esc(PAGE_NAMES[p.id] || p.id) + '</span></td><td><div class="ttl">' + esc(p.title) + '</div><div class="sub">' + esc(p.subtitle) + '</div></td><td class="sub">' + thDate(p.updatedAt, true) + '</td><td class="acts">' + actBtns('Pages', p.id, { noDel: true }) + '</td></tr>'; }).join('') +
+      '</tbody></table></div>';
+  };
+
+  /* ---------- Indicators ---------- */
+  VIEWS.indicators = function () {
+    var secs = [{ v: 'home', l: 'หน้าแรก' }, { v: 'dashboard', l: 'หน้า dashboard' }];
+    return '<div class="row between" style="margin-bottom:16px"><p class="muted" style="margin:0">ตัวเลขสถิติที่แสดงเป็นการ์ด (จำนวนสมาชิกรวมในหน้า dashboard คำนวณจากข้อมูลกลุ่มอาชีพโดยอัตโนมัติ)</p><button class="btn" id="addInd">+ เพิ่มตัวเลข</button></div>' +
+      secs.map(function (s) {
+        var list = sortByOrder(rows('Indicators').filter(function (r) { return r.section === s.v; }));
+        return '<div class="box"><h3>' + esc(s.l) + '</h3><div class="tbl-wrap" style="border:0"><table class="tbl"><tbody>' +
+          (list.length ? list.map(function (r) { return '<tr><td><div class="ttl" style="font-size:20px">' + esc(r.value) + ' <span class="sub">' + esc(r.unit) + '</span></div></td><td><div class="ttl">' + esc(r.label) + '</div><div class="sub">' + esc(r.note) + '</div></td><td>' + pubPill('Indicators', r) + '</td><td class="acts">' + actBtns('Indicators', r.id, { move: true }) + '</td></tr>'; }).join('') : '<tr><td class="muted">ยังไม่มีข้อมูล</td></tr>') +
+          '</tbody></table></div></div>';
+      }).join('');
+  };
+  BIND.indicators = function () { $('#addInd').onclick = function () { openEditor('Indicators', null, { section: 'home' }); }; };
+
+  /* ---------- Links ---------- */
+  VIEWS.links = function () {
+    return '<div class="note info">ลิงก์ไปยัง Dashboard (Canva, Looker Studio, Google Apps Script), แบบฟอร์ม และเว็บไซต์หน่วยงาน · เลือกรูปแบบ <b>“ฝังในหน้า”</b> เพื่อแสดง dashboard ภายในหน้าเว็บโดยตรง (เช่น ลิงก์ Embed ของ Looker Studio)</div>' +
+      '<div class="row" style="justify-content:flex-end;margin-bottom:14px"><button class="btn" id="addLink">+ เพิ่มลิงก์</button></div>' +
+      LINK_SECTIONS.map(function (s) {
+        var list = sortByOrder(rows('Links').filter(function (r) { return r.section === s.v; }));
+        return '<div class="box"><h3>' + esc(s.l) + ' <span class="muted" style="font-size:13px;font-weight:400">(' + list.length + ')</span></h3><div class="tbl-wrap" style="border:0"><table class="tbl"><tbody>' +
+          (list.length ? list.map(function (r) { return '<tr><td style="width:40px;font-size:20px">' + esc(r.icon || '🔗') + '</td><td><div class="ttl">' + esc(r.label) + '</div><div class="sub" style="word-break:break-all"><a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(String(r.url).substr(0, 80)) + '</a></div></td><td><span class="pill">' + esc({ card: 'การ์ด', button: 'ปุ่ม', embed: 'ฝังในหน้า' }[r.style] || r.style || 'การ์ด') + '</span></td><td>' + pubPill('Links', r) + '</td><td class="acts">' + actBtns('Links', r.id, { move: true }) + '</td></tr>'; }).join('') : '<tr><td class="muted">ยังไม่มีลิงก์</td></tr>') +
+          '</tbody></table></div></div>';
+      }).join('');
+  };
+  BIND.links = function () { $('#addLink').onclick = function () { openEditor('Links', null, { section: 'dashboard_data', style: 'card' }); }; };
+
+  /* ---------- Media ---------- */
+  var mediaQ = '';
+  VIEWS.media = function () {
+    return '<div class="drop" id="mdrop">🗂️ <b>อัปโหลดไฟล์เข้าคลัง</b> (คลิกหรือลากมาวาง) — ใช้สำหรับเก็บไฟล์ไว้เลือกใช้ภายหลัง</div><div class="queue" id="mqueue"></div>' +
+      '<div class="row between" style="margin-bottom:14px"><input class="search" id="mq" placeholder="ค้นหาชื่อไฟล์..." value="' + esc(mediaQ) + '"><span class="muted" style="font-size:14px">ทั้งหมด ' + rows('Media').length + ' ไฟล์ · คลิกที่ไฟล์เพื่อดูรายละเอียด</span></div><div class="mgrid" id="mgrid"></div>';
+  };
+  BIND.media = function () {
+    var draw = function () {
+      var q = mediaQ.toLowerCase();
+      var list = rows('Media').filter(function (m) { return !q || m.name.toLowerCase().indexOf(q) !== -1; }).reverse();
+      $('#mgrid').innerHTML = list.length ? list.map(function (m) { return '<div class="mitem" data-minfo="' + esc(m.id) + '"><div class="im">' + (/^image\//.test(m.mimeType) ? '<img loading="lazy" src="' + esc(m.url) + '" alt="">' : esc((m.name.split('.').pop() || 'FILE').toUpperCase())) + '</div><div class="nm" title="' + esc(m.name) + '">' + esc(m.name) + '</div></div>'; }).join('') : '<p class="muted">ยังไม่มีไฟล์</p>';
+    };
+    draw();
+    $('#mq').oninput = function () { mediaQ = this.value; draw(); };
+    dropzone($('#mdrop'), '', function (files) { uploadMany(files, $('#mqueue'), null).then(function (n) { toast('อัปโหลดสำเร็จ ' + n + ' ไฟล์', 'ok'); draw(); }); });
+    $('#mgrid').onclick = function (e) {
+      var it = e.target.closest('[data-minfo]'); if (!it) return;
+      var m = findRec('Media', it.getAttribute('data-minfo'));
+      var isImg = /^image\//.test(m.mimeType);
+      openDrawer('รายละเอียดไฟล์', (isImg ? '<img src="' + esc(m.url) + '" style="border-radius:12px;margin-bottom:16px;max-height:340px;object-fit:contain;background:#f4f2ea;width:100%" alt="">' : '') +
+        '<div class="field"><span class="lb">ชื่อไฟล์</span><div>' + esc(m.name) + '</div></div><div class="grid2"><div class="field"><span class="lb">ชนิด</span><div>' + esc(m.mimeType) + '</div></div><div class="field"><span class="lb">ขนาด</span><div>' + fmtSize(m.size) + '</div></div>' +
+        '<div class="field"><span class="lb">อัปโหลดโดย</span><div>' + esc(m.uploadedBy) + '</div></div><div class="field"><span class="lb">วันที่</span><div>' + thDate(m.createdAt, true) + '</div></div></div>' +
+        ['url|URL สำหรับแสดงผล', 'viewUrl|ลิงก์เปิดดู', 'downloadUrl|ลิงก์ดาวน์โหลด'].map(function (x) { var p = x.split('|'); return '<div class="field"><span class="lb">' + p[1] + '</span><div class="row" style="flex-wrap:nowrap"><input class="inp" readonly value="' + esc(m[p[0]]) + '"><button class="btn sm ghost" data-copy="' + esc(m[p[0]]) + '">คัดลอก</button></div></div>'; }).join(''),
+        '<button class="btn danger" id="mDel">🗑 ลบไฟล์</button><span style="flex:1"></span><a class="btn ghost" href="' + esc(m.viewUrl) + '" target="_blank" rel="noopener">เปิดใน Drive ↗</a>');
+      $$('[data-copy]', $('#drawerBody')).forEach(function (b) { b.onclick = function () { var v = b.getAttribute('data-copy'); (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(function () { toast('คัดลอกแล้ว', 'ok'); }).catch(function () { b.previousSibling.select(); document.execCommand('copy'); toast('คัดลอกแล้ว', 'ok'); }); }; });
+      $('#mDel').onclick = function () {
+        var used = usedIn(m);
+        confirmBox('ลบไฟล์ “' + esc(m.name) + '” และย้ายไปถังขยะของ Google Drive?' + (used.length ? '<br><br><b style="color:var(--danger)">ไฟล์นี้ถูกใช้งานอยู่ใน:</b> ' + esc(used.join(', ')) : ''), 'ลบไฟล์').then(function (r) {
+          if (!r) return; busy(true);
+          api('adminDelete', 'Media', m.id, true).then(function () { busy(false); DB.tables.Media = DB.tables.Media.filter(function (x) { return x.id !== m.id; }); closeDrawer(); toast('ลบไฟล์แล้ว', 'ok'); show('media', null, true); }).catch(fail);
+        });
+      };
+    };
+  };
+  function usedIn(m) {
+    var out = [], hit = function (v) { return v && (String(v).indexOf(m.fileId) !== -1); };
+    rows('News').forEach(function (n) { if (hit(n.coverUrl) || hit(n.images) || hit(n.content)) out.push('ข่าว: ' + n.title); });
+    rows('Gallery').forEach(function (g) { if (hit(g.url)) out.push('อัลบั้ม: ' + labelOf(GALLERY_SECTIONS, g.section)); });
+    rows('Documents').forEach(function (d) { if (d.fileId === m.fileId) out.push('เอกสาร: ' + d.title); });
+    rows('Groups').forEach(function (g) { if (hit(g.coverUrl) || hit(g.detail)) out.push('กลุ่ม: ' + g.name); });
+    rows('Pages').forEach(function (p) { if (hit(p.imageUrl) || hit(p.content)) out.push('หน้า: ' + p.title); });
+    rows('Reports').forEach(function (r) { if (hit(r.coverUrl) || hit(r.images) || hit(r.content) || r.fileId === m.fileId) out.push('รายงาน: ' + r.title); });
+    rows('Albums').forEach(function (r) { if (hit(r.coverUrl)) out.push('อัลบั้ม: ' + r.title); });
+    Object.keys(DB.settings).forEach(function (k) { if (hit(DB.settings[k])) out.push('ตั้งค่า: ' + k); });
+    return out;
+  }
+
+  /* ---------- Messages ---------- */
+  function msgHtml(m) {
+    return '<div class="msg' + (m.status === 'new' ? ' new' : '') + '"><div class="hd"><b>' + esc(m.name) + '</b>' + (m.status === 'new' ? '<span class="pill new">ใหม่</span>' : '<span class="pill">อ่านแล้ว</span>') +
+      '<span class="muted" style="font-size:13px">' + thDate(m.createdAt, true) + '</span><span style="flex:1"></span>' +
+      (m.status === 'new' ? '<button class="btn sm ghost" data-mread="' + esc(m.id) + '">ทำเครื่องหมายว่าอ่านแล้ว</button>' : '') + '<button class="icon-btn del" data-del="Messages|' + esc(m.id) + '" title="ลบ">🗑</button></div>' +
+      '<div class="sub" style="font-size:14px;color:var(--muted);margin-top:4px">' + [m.email ? '✉ <a href="mailto:' + esc(m.email) + '">' + esc(m.email) + '</a>' : '', m.phone ? '☎ ' + esc(m.phone) : ''].filter(Boolean).join(' · ') + '</div>' +
+      (m.subject ? '<div style="font-family:var(--font-head);margin-top:6px">เรื่อง: ' + esc(m.subject) + '</div>' : '') + '<div class="tx">' + esc(m.message) + '</div></div>';
+  }
+  VIEWS.messages = function () {
+    var list = rows('Messages').sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
+    return '<p class="muted">ข้อความจากแบบฟอร์มในหน้า “ติดต่อ” · ตั้งอีเมลแจ้งเตือนเมื่อมีข้อความใหม่ได้ที่ <a href="#" data-view="settings">ตั้งค่าเว็บไซต์</a></p>' + (list.length ? list.map(msgHtml).join('') : '<div class="box muted">ยังไม่มีข้อความ</div>');
+  };
+  BIND.messages = function (el) {
+    el.onclick = function (e) {
+      var b = e.target.closest('[data-mread]'); if (!b) return;
+      save('Messages', { id: b.getAttribute('data-mread'), status: 'read' }).then(function () { renderSide(); show('messages', null, true); });
+    };
+  };
+
+  /* ============================================================
+   *  ระบบสมาชิกกองทุน — สมาชิก / บันทึกเงินออม
+   * ============================================================ */
+  var ACC_KEYS = ['savings', 'hajj', 'umrah'];
+  var ACC_EMO = { savings: '💰', hajj: '🕋', umrah: '🕌' };
+  var TX_ST = { approved: ['อนุมัติแล้ว', 'on'], pending: ['รอตรวจสอบ', 'gold'], rejected: ['ไม่อนุมัติ', 'off'] };
+  function accLabel(a) { return ((DB && DB.accounts) || {})[a] || { savings: 'เงินออมทรัพย์', hajj: 'บัญชีฮัจย์', umrah: 'บัญชีอุมเราะห์' }[a] || a; }
+  function nnum(v) { var n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; }
+  function baht(v) { return nnum(v).toLocaleString('th-TH', { maximumFractionDigits: 2 }); }
+  function todayIso() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function memberOf(id) { return findRec('Members', id) || {}; }
+  function groupLabel(id) { var g = findRec('Groups', id); return g ? g.name : ''; }
+  function groupOpts() { return sortByOrder(rows('Groups')).map(function (g) { return { v: g.id, l: g.name }; }); }
+  /** ยอดคงเหลือ { memberId: { savings: n, hajj: n, umrah: n, total: n } } — นับเฉพาะที่อนุมัติ */
+  function balancesAll() {
+    var out = {};
+    rows('Transactions').forEach(function (t) {
+      if ((t.status || 'approved') !== 'approved') return;
+      var b = out[t.memberId] = out[t.memberId] || { savings: 0, hajj: 0, umrah: 0, total: 0 };
+      if (b[t.account] === undefined) return;
+      var a = nnum(t.amount) * (t.type === 'withdraw' ? -1 : 1);
+      b[t.account] += a; b.total += a;
+    });
+    return out;
+  }
+  function dlCsv(name, cols, list) {
+    var csv = '﻿' + cols.map(function (c) { return c[1]; }).join(',') + '\n' + list.map(function (r) {
+      return cols.map(function (c) { var v = typeof c[0] === 'function' ? c[0](r) : r[c[0]]; return '"' + String(v == null ? '' : v).replace(/"/g, '""').replace(/\n/g, ' ') + '"'; }).join(',');
+    }).join('\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = name + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  }
+  function memberUrl() { return BASE_URL + '?mode=member'; }
+
+  /* ---------- สมาชิกกองทุน ---------- */
+  var memQ = '', memG = '';
+  VIEWS.members = function () {
+    var ms = rows('Members'), bal = balancesAll();
+    var sum = { savings: 0, hajj: 0, umrah: 0 };
+    Object.keys(bal).forEach(function (k) { ACC_KEYS.forEach(function (a) { sum[a] += bal[k][a]; }); });
+    var pend = rows('Transactions').filter(function (t) { return t.status === 'pending'; }).length;
+    return '<div class="tiles"><div class="tile"><span class="e">👥</span><div class="n">' + ms.filter(function (m) { return truthy(m.active); }).length + '</div><div class="l">สมาชิกที่ใช้งาน (ทั้งหมด ' + ms.length + ')</div></div>' +
+      ACC_KEYS.map(function (a) { return '<div class="tile" data-view="transactions"><span class="e">' + ACC_EMO[a] + '</span><div class="n" style="font-size:24px">' + baht(sum[a]) + '</div><div class="l">' + esc(accLabel(a)) + ' (บาท)</div></div>'; }).join('') +
+      '<div class="tile" data-view="transactions"><span class="e">⏳</span><div class="n">' + pend + '</div><div class="l">รายการรอตรวจสอบ</div></div></div>' +
+      '<div class="note info">สมาชิกเข้าสู่ระบบได้ที่ <a href="' + esc(memberUrl()) + '" target="_blank" rel="noopener"><b>' + esc(memberUrl()) + '</b></a> <button class="btn sm ghost" id="copyMl" style="margin-left:6px">คัดลอกลิงก์</button><br>ด้วย <b>รหัสสมาชิก</b> และ <b>รหัสผ่านเริ่มต้น</b> ที่ตั้งให้ — ระบบจะให้เปลี่ยนรหัสผ่านเมื่อเข้าครั้งแรก</div>' +
+      '<div class="row between" style="margin-bottom:16px"><div class="row" style="flex:1"><input class="search" id="mq" placeholder="ค้นหารหัส ชื่อ เบอร์โทร..." value="' + esc(memQ) + '">' +
+      '<select class="inp" id="mg" style="width:auto"><option value="">ทุกกลุ่ม</option>' + groupOpts().map(function (g) { return '<option value="' + esc(g.v) + '"' + (memG === g.v ? ' selected' : '') + '>' + esc(g.l) + '</option>'; }).join('') + '</select>' +
+      '<button class="btn sm ghost" id="mcsv">⬇ ส่งออก CSV</button><button class="btn sm ghost" id="mimp">⬆ นำเข้าหลายคน</button></div><button class="btn" id="addMem">+ เพิ่มสมาชิก</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>กลุ่ม</th>' + ACC_KEYS.map(function (a) { return '<th style="text-align:right">' + ACC_EMO[a] + ' ' + esc(accLabel(a)) + '</th>'; }).join('') + '<th style="text-align:right">รวม</th><th>สถานะ</th><th></th></tr></thead><tbody id="mbody"></tbody></table></div>';
+  };
+  function memList() {
+    var q = memQ.toLowerCase();
+    return rows('Members').filter(function (m) { return (!memG || m.groupId === memG) && (!q || (m.memberNo + ' ' + m.name + ' ' + m.phone).toLowerCase().indexOf(q) !== -1); })
+      .sort(function (a, b) { return String(a.memberNo).localeCompare(String(b.memberNo), 'th', { numeric: true }); });
+  }
+  BIND.members = function (el) {
+    var bal = balancesAll();
+    var draw = function () {
+      var list = memList();
+      $('#mbody').innerHTML = list.length ? list.map(function (m) {
+        var b = bal[m.id] || { savings: 0, hajj: 0, umrah: 0, total: 0 };
+        return '<tr><td class="ttl">' + esc(m.memberNo) + '</td><td><a href="#" data-view="member" data-arg="' + esc(m.id) + '" class="ttl">' + esc(m.name) + '</a><div class="sub">' + esc(m.phone || '') + (truthy(m.mustChangePw) ? ' · ยังไม่เปลี่ยนรหัสเริ่มต้น' : '') + (m.lastLogin ? ' · เข้าล่าสุด ' + thDate(m.lastLogin) : '') + '</div></td>' +
+          '<td class="sub">' + esc(groupLabel(m.groupId) || '-') + '</td>' + ACC_KEYS.map(function (a) { return '<td style="text-align:right">' + baht(b[a]) + '</td>'; }).join('') +
+          '<td style="text-align:right"><b>' + baht(b.total) + '</b></td><td><span class="pill ' + (truthy(m.active) ? 'on' : 'off') + '">' + (truthy(m.active) ? 'ใช้งาน' : 'ระงับ') + '</span></td>' +
+          '<td class="acts"><button class="icon-btn" data-view="member" data-arg="' + esc(m.id) + '" title="บัญชี / รายการเงิน">💵</button> <button class="icon-btn" data-medit="' + esc(m.id) + '" title="แก้ไข">✎</button>' +
+          (USER.role === 'admin' ? ' <button class="icon-btn del" data-mdel="' + esc(m.id) + '" title="ลบ">🗑</button>' : '') + '</td></tr>';
+      }).join('') : '<tr><td colspan="9" class="muted" style="text-align:center;padding:30px">' + (rows('Members').length ? 'ไม่พบสมาชิก' : 'ยังไม่มีสมาชิก — กด “+ เพิ่มสมาชิก” หรือ “นำเข้าหลายคน”') + '</td></tr>';
+    };
+    draw();
+    $('#mq').oninput = function () { memQ = this.value; draw(); };
+    $('#mg').onchange = function () { memG = this.value; draw(); };
+    $('#addMem').onclick = function () { memberEditor(null); };
+    $('#mimp').onclick = importMembers;
+    $('#copyMl').onclick = function () { try { navigator.clipboard.writeText(memberUrl()); toast('คัดลอกลิงก์แล้ว', 'ok'); } catch (e) { prompt('คัดลอกลิงก์', memberUrl()); } };
+    $('#mcsv').onclick = function () {
+      dlCsv('สมาชิกกองทุน', [['memberNo', 'รหัสสมาชิก'], ['name', 'ชื่อ-นามสกุล'], ['phone', 'โทรศัพท์'], [function (m) { return groupLabel(m.groupId); }, 'กลุ่ม'], ['joinDate', 'วันที่เป็นสมาชิก'],
+        [function (m) { return (bal[m.id] || {}).savings || 0; }, accLabel('savings')], [function (m) { return (bal[m.id] || {}).hajj || 0; }, accLabel('hajj')], [function (m) { return (bal[m.id] || {}).umrah || 0; }, accLabel('umrah')],
+        [function (m) { return (bal[m.id] || {}).total || 0; }, 'รวม'], ['hajjGoal', 'เป้าหมายฮัจย์'], ['umrahGoal', 'เป้าหมายอุมเราะห์'], [function (m) { return truthy(m.active) ? 'ใช้งาน' : 'ระงับ'; }, 'สถานะ']], memList());
+    };
+    el.onclick = function (e) {
+      var b = e.target.closest('[data-medit]'); if (b) { memberEditor(b.getAttribute('data-medit')); return; }
+      var d = e.target.closest('[data-mdel]'); if (d) deleteMember(d.getAttribute('data-mdel'));
+    };
+  };
+
+  var MEMBER_FIELDS = function (isNew) {
+    return [
+      { row: [{ k: 'memberNo', l: 'รหัสสมาชิก (ใช้เข้าสู่ระบบ)', t: 'text', req: true, ph: 'เช่น M0001' }, { k: 'name', l: 'ชื่อ-นามสกุล', t: 'text', req: true }] },
+      { row: [{ k: 'phone', l: 'เบอร์โทรศัพท์', t: 'text' }, { k: 'groupId', l: 'กลุ่มอาชีพ', t: 'select', opts: groupOpts }] },
+      { row: [{ k: 'joinDate', l: 'วันที่เป็นสมาชิก', t: 'date' }, { k: 'active', l: 'เปิดใช้งานบัญชี', t: 'bool', def: true }] },
+      { k: 'address', l: 'ที่อยู่', t: 'textarea', rows: 2 },
+      { row: [{ k: 'hajjGoal', l: 'เป้าหมาย' + accLabel('hajj') + ' (บาท)', t: 'number' }, { k: 'umrahGoal', l: 'เป้าหมาย' + accLabel('umrah') + ' (บาท)', t: 'number' }] },
+      { row: [{ k: 'savingsGoal', l: 'เป้าหมาย' + accLabel('savings') + ' (บาท)', t: 'number' }, { k: 'note', l: 'หมายเหตุ (เห็นเฉพาะเจ้าหน้าที่)', t: 'text' }] },
+      { row: [{ k: 'password', l: isNew ? 'รหัสผ่านเริ่มต้น' : 'ตั้งรหัสผ่านใหม่ (เว้นว่าง = ไม่เปลี่ยน)', t: 'text', req: isNew, hint: 'อย่างน้อย 6 ตัวอักษร — แจ้งให้สมาชิกทราบ' }, { k: 'mustChangePw', l: 'ให้สมาชิกเปลี่ยนรหัสผ่านเมื่อเข้าครั้งแรก', t: 'bool', def: true }] }
+    ];
+  };
+  function memberEditor(id, after) {
+    var rec = id ? JSON.parse(JSON.stringify(memberOf(id))) : { joinDate: todayIso(), memberNo: nextMemberNo() };
+    var fields = MEMBER_FIELDS(!id);
+    if (id) rec.mustChangePw = 'TRUE';
+    openDrawer((id ? 'แก้ไขสมาชิก: ' + rec.name : 'เพิ่มสมาชิกกองทุน'), '<form id="memForm" onsubmit="return false">' + formHtml(fields, Object.assign({}, rec, { password: '' })) + '</form>',
+      '<button class="btn ghost" data-close-drawer>ยกเลิก</button><button class="btn" id="memSave">💾 บันทึก</button>');
+    var ctx = $('#drawerBody');
+    $('#memSave').onclick = function () {
+      var r = readForm(ctx, fields, {});
+      if (r.missing.length) { toast('กรุณากรอก: ' + r.missing.join(', '), 'err'); return; }
+      if (r.data.password && r.data.password.length < 6) { toast('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'err'); return; }
+      if (id) r.data.id = id;
+      if (!r.data.password) delete r.data.mustChangePw;
+      busy(true);
+      api('adminSaveMember', r.data).then(function (saved) {
+        busy(false); upsertLocal('Members', saved); closeDrawer();
+        toast('บันทึกสมาชิกเรียบร้อย' + (r.data.password ? ' — แจ้งรหัสผ่านให้สมาชิกทราบ' : ''), 'ok');
+        if (after) after(saved); show(VIEW, VIEW_ARG, true);
+      }).catch(fail);
+    };
+  }
+  function nextMemberNo() {
+    var max = 0, pre = 'M', width = 4;
+    rows('Members').forEach(function (m) { var x = /^([A-Za-zก-๙]*)(\d+)$/.exec(String(m.memberNo)); if (x && Number(x[2]) >= max) { max = Number(x[2]); pre = x[1]; width = x[2].length; } });
+    var n = String(max + 1); while (n.length < width) n = '0' + n;
+    return pre + n;
+  }
+  function deleteMember(id) {
+    var m = memberOf(id), n = rows('Transactions').filter(function (t) { return t.memberId === id; }).length;
+    confirmBox('ต้องการลบสมาชิก “' + esc(m.memberNo + ' ' + m.name) + '” ใช่หรือไม่?' + (n ? '<br><b style="color:var(--danger)">สมาชิกนี้มีรายการเงิน ' + n + ' รายการ ซึ่งจะถูกลบด้วย</b> — แนะนำให้แก้ไขเป็น “ระงับ” แทน' : ''), 'ลบ').then(function (r) {
+      if (!r) return;
+      busy(true);
+      api('adminDeleteMember', id, true).then(function () {
+        busy(false);
+        DB.tables.Members = DB.tables.Members.filter(function (x) { return x.id !== id; });
+        DB.tables.Transactions = DB.tables.Transactions.filter(function (x) { return x.memberId !== id; });
+        toast('ลบสมาชิกแล้ว', 'ok'); show('members', null, true);
+      }).catch(fail);
+    });
+  }
+  function importMembers() {
+    openDrawer('นำเข้าสมาชิกหลายคน', '<div class="note info">วางข้อมูลจาก Excel / Google Sheets ทีละบรรทัด: <b>รหัสสมาชิก, ชื่อ-นามสกุล, เบอร์โทร</b> (คั่นด้วยจุลภาคหรือแท็บ) — รหัสที่มีอยู่แล้วจะถูกข้าม</div>' +
+      '<label class="field"><span class="lb">ข้อมูลสมาชิก</span><textarea id="impTxt" rows="10" placeholder="M0001, นางสาวอามีนะห์ ตัวอย่าง, 0812345678&#10;M0002, นายอับดุลเลาะ ตัวอย่าง, 0898765432"></textarea></label>' +
+      '<label class="field"><span class="lb">กลุ่มอาชีพ (ทุกคนในรายการนี้)</span><select id="impG"><option value="">— ไม่ระบุ —</option>' + groupOpts().map(function (g) { return '<option value="' + esc(g.v) + '">' + esc(g.l) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="field"><span class="lb">รหัสผ่านเริ่มต้น (ทุกคน) *</span><input id="impPw" value="" placeholder="อย่างน้อย 6 ตัวอักษร"><span class="hint">สมาชิกต้องเปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งแรก</span></label><div id="impPrev" class="muted" style="font-size:14px"></div>',
+      '<button class="btn ghost" data-close-drawer>ยกเลิก</button><button class="btn" id="impGo">⬆ นำเข้า</button>');
+    var parse = function () {
+      return $('#impTxt').value.split(/\r?\n/).map(function (l) { return l.split(/\t|,/).map(function (x) { return x.trim(); }); })
+        .filter(function (c) { return c[0] && c[1] && !/^รหัส/.test(c[0]); })
+        .map(function (c) { return { memberNo: c[0], name: c[1], phone: c[2] || '', groupId: $('#impG').value, joinDate: todayIso() }; });
+    };
+    $('#impTxt').oninput = function () { $('#impPrev').textContent = 'พบ ' + parse().length + ' รายการ'; };
+    $('#impGo').onclick = function () {
+      var list = parse(), pw = $('#impPw').value.trim();
+      if (!list.length) { toast('ไม่พบข้อมูลที่จะนำเข้า', 'err'); return; }
+      if (pw.length < 6) { toast('รหัสผ่านเริ่มต้นต้องมีอย่างน้อย 6 ตัวอักษร', 'err'); return; }
+      busy(true);
+      api('adminImportMembers', list, pw).then(function (r) {
+        busy(false); r.added.forEach(function (m) { upsertLocal('Members', m); }); closeDrawer();
+        toast('นำเข้า ' + r.added.length + ' คน' + (r.skipped.length ? ' · ข้าม ' + r.skipped.length + ' (ซ้ำ/ไม่ครบ)' : ''), 'ok'); show('members', null, true);
+      }).catch(fail);
+    };
+  }
+
+  /* ---------- รายละเอียดสมาชิก ---------- */
+  VIEWS.member = function (id) {
+    var m = memberOf(id);
+    if (!m.id) return '<div class="box">ไม่พบสมาชิก <a href="#" data-view="members">← กลับ</a></div>';
+    var b = balancesAll()[id] || { savings: 0, hajj: 0, umrah: 0, total: 0 };
+    var pend = rows('Transactions').filter(function (t) { return t.memberId === id && t.status === 'pending'; });
+    return '<p><a href="#" data-view="members">← สมาชิกทั้งหมด</a></p>' +
+      '<div class="box row between"><div><h3 style="margin:0">' + esc(m.name) + ' <span class="pill ' + (truthy(m.active) ? 'on' : 'off') + '">' + (truthy(m.active) ? 'ใช้งาน' : 'ระงับ') + '</span></h3>' +
+      '<div class="sub">รหัส <b>' + esc(m.memberNo) + '</b>' + (m.phone ? ' · ☎ ' + esc(m.phone) : '') + (groupLabel(m.groupId) ? ' · ' + esc(groupLabel(m.groupId)) : '') + (m.joinDate ? ' · สมาชิกตั้งแต่ ' + thDate(m.joinDate) : '') + (m.lastLogin ? ' · เข้าระบบล่าสุด ' + thDate(m.lastLogin, true) : ' · ยังไม่เคยเข้าระบบ') + '</div>' + (m.note ? '<div class="sub">📝 ' + esc(m.note) + '</div>' : '') + '</div>' +
+      '<div class="row"><button class="btn sm ghost" id="mdEdit">✎ แก้ไข / รีเซ็ตรหัสผ่าน</button><button class="btn sm" id="mdDep">+ บันทึกฝาก</button><button class="btn sm accent" id="mdWd">− บันทึกถอน</button></div></div>' +
+      '<div class="tiles">' + ACC_KEYS.map(function (a) {
+        var g = nnum(m[a + 'Goal']), pct = g ? Math.min(100, Math.round(b[a] / g * 100)) : null;
+        return '<div class="tile" style="cursor:default"><span class="e">' + ACC_EMO[a] + '</span><div class="n" style="font-size:24px">' + baht(b[a]) + '</div><div class="l">' + esc(accLabel(a)) + (pct !== null ? ' · เป้า ' + baht(g) + ' (' + pct + '%)' : '') + '</div></div>';
+      }).join('') + '<div class="tile" style="cursor:default"><span class="e">Σ</span><div class="n" style="font-size:24px">' + baht(b.total) + '</div><div class="l">รวมทุกบัญชี</div></div></div>' +
+      (pend.length ? '<div class="note">⏳ มีรายการรอตรวจสอบ ' + pend.length + ' รายการ</div>' : '') +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>วันที่</th><th>บัญชี</th><th>ประเภท</th><th style="text-align:right">จำนวน (บาท)</th><th>หมายเหตุ</th><th>สถานะ</th><th>ผู้บันทึก</th><th></th></tr></thead><tbody>' +
+      txRows(rows('Transactions').filter(function (t) { return t.memberId === id; }), true) + '</tbody></table></div>';
+  };
+  BIND.member = function (el, id) {
+    $('#mdEdit') && ($('#mdEdit').onclick = function () { memberEditor(id); });
+    $('#mdDep') && ($('#mdDep').onclick = function () { txEditor(null, { memberId: id, type: 'deposit' }); });
+    $('#mdWd') && ($('#mdWd').onclick = function () { txEditor(null, { memberId: id, type: 'withdraw' }); });
+    bindTxActions(el);
+  };
+
+  /* ---------- บันทึกเงินออม (รายการฝาก-ถอน) ---------- */
+  function sortTx(list) { return list.sort(function (a, b) { var d = String(b.date).localeCompare(String(a.date)); return d || String(b.createdAt).localeCompare(String(a.createdAt)); }); }
+  function txRows(list, hideMember) {
+    list = sortTx(list);
+    if (!list.length) return '<tr><td colspan="9" class="muted" style="text-align:center;padding:30px">ยังไม่มีรายการ</td></tr>';
+    return list.map(function (t) {
+      var m = memberOf(t.memberId), st = TX_ST[t.status || 'approved'] || TX_ST.approved, w = t.type === 'withdraw';
+      return '<tr><td class="sub" style="white-space:nowrap">' + thDate(t.date) + '</td>' + (hideMember ? '' : '<td><a href="#" data-view="member" data-arg="' + esc(t.memberId) + '" class="ttl">' + esc(m.name || '(ลบแล้ว)') + '</a><div class="sub">' + esc(m.memberNo || '') + '</div></td>') +
+        '<td style="white-space:nowrap">' + ACC_EMO[t.account] + ' ' + esc(accLabel(t.account)) + '</td><td><span class="pill ' + (w ? 'off' : 'on') + '">' + (w ? 'ถอน' : 'ฝาก') + '</span></td>' +
+        '<td style="text-align:right;font-family:var(--font-head);font-weight:600;color:' + (w ? 'var(--danger)' : 'var(--ok)') + '">' + (w ? '−' : '+') + baht(t.amount) + '</td>' +
+        '<td class="sub">' + esc(t.note || '') + (t.slipUrl ? ' <a href="' + esc(t.slipUrl) + '" target="_blank" rel="noopener">📎 สลิป</a>' : '') + '</td>' +
+        '<td><span class="pill ' + st[1] + '">' + st[0] + '</span></td><td class="sub">' + esc(String(t.recordedBy || '').replace(/^member:/, 'สมาชิกแจ้ง ')) + '</td>' +
+        '<td class="acts" style="white-space:nowrap">' + (t.status === 'pending' ? '<button class="btn sm" data-txok="' + esc(t.id) + '">✓ อนุมัติ</button> <button class="icon-btn" data-txno="' + esc(t.id) + '" title="ไม่อนุมัติ">✕</button> ' : '') +
+        '<button class="icon-btn" data-txedit="' + esc(t.id) + '" title="แก้ไข">✎</button> <button class="icon-btn del" data-txdel="' + esc(t.id) + '" title="ลบ">🗑</button></td></tr>';
+    }).join('');
+  }
+  function bindTxActions(el) {
+    el.onclick = function (e) {
+      var b;
+      if ((b = e.target.closest('[data-txok]'))) return setTxStatus(b.getAttribute('data-txok'), 'approved');
+      if ((b = e.target.closest('[data-txno]'))) return setTxStatus(b.getAttribute('data-txno'), 'rejected');
+      if ((b = e.target.closest('[data-txedit]'))) return txEditor(b.getAttribute('data-txedit'));
+      if ((b = e.target.closest('[data-txdel]'))) {
+        var id = b.getAttribute('data-txdel'), t = findRec('Transactions', id) || {};
+        confirmBox('ลบรายการ' + (t.type === 'withdraw' ? 'ถอน' : 'ฝาก') + ' ' + baht(t.amount) + ' บาท ของ ' + esc(memberOf(t.memberId).name || '') + ' ใช่หรือไม่?', 'ลบ').then(function (r) {
+          if (!r) return; busy(true);
+          api('adminDeleteTransaction', id).then(function () { busy(false); DB.tables.Transactions = DB.tables.Transactions.filter(function (x) { return x.id !== id; }); renderSide(); toast('ลบรายการแล้ว', 'ok'); show(VIEW, VIEW_ARG, true); }).catch(fail);
+        });
+      }
+    };
+  }
+  function setTxStatus(id, st) {
+    busy(true);
+    api('adminSetTransactionStatus', id, st).then(function (saved) { busy(false); upsertLocal('Transactions', saved); renderSide(); toast(st === 'approved' ? 'อนุมัติแล้ว — ยอดเข้าบัญชีสมาชิก' : 'บันทึกว่าไม่อนุมัติ', 'ok'); show(VIEW, VIEW_ARG, true); }).catch(fail);
+  }
+  function txEditor(id, preset) {
+    var rec = id ? JSON.parse(JSON.stringify(findRec('Transactions', id) || {})) : Object.assign({ date: todayIso(), account: 'savings', type: 'deposit', status: 'approved' }, preset || {});
+    var memOpts = function () { return rows('Members').sort(function (a, b) { return String(a.memberNo).localeCompare(String(b.memberNo), 'th', { numeric: true }); }).map(function (m) { return { v: m.id, l: m.memberNo + ' · ' + m.name + (truthy(m.active) ? '' : ' (ระงับ)') }; }); };
+    var fields = [
+      { k: 'memberId', l: 'สมาชิก', t: 'select', req: true, opts: memOpts },
+      { row: [{ k: 'account', l: 'บัญชี', t: 'select', req: true, opts: ACC_KEYS.map(function (a) { return { v: a, l: ACC_EMO[a] + ' ' + accLabel(a) }; }) }, { k: 'type', l: 'ประเภท', t: 'select', req: true, opts: [{ v: 'deposit', l: '➕ ฝาก' }, { v: 'withdraw', l: '➖ ถอน' }] }] },
+      { row: [{ k: 'amount', l: 'จำนวนเงิน (บาท)', t: 'number', req: true }, { k: 'date', l: 'วันที่', t: 'date', req: true }] },
+      { k: 'note', l: 'หมายเหตุ', t: 'text', ph: 'เช่น ฝากเงินสดกับเหรัญญิก, โอนธนาคาร' },
+      { k: 'status', l: 'สถานะ', t: 'select', req: true, opts: [{ v: 'approved', l: 'อนุมัติแล้ว (นับเข้ายอด)' }, { v: 'pending', l: 'รอตรวจสอบ' }, { v: 'rejected', l: 'ไม่อนุมัติ' }] }
+    ];
+    openDrawer(id ? 'แก้ไขรายการเงิน' : (rec.type === 'withdraw' ? 'บันทึกการถอนเงิน' : 'บันทึกการฝากเงิน'), '<form id="txForm" onsubmit="return false">' + formHtml(fields, rec) +
+      (rec.slipUrl ? '<p><a href="' + esc(rec.slipUrl) + '" target="_blank" rel="noopener">📎 เปิดดูสลิปที่สมาชิกแนบ</a></p>' : '') + '<div class="sub" id="txBal"></div></form>',
+      '<button class="btn ghost" data-close-drawer>ยกเลิก</button><button class="btn" id="txSave">💾 บันทึก</button>');
+    var ctx = $('#drawerBody');
+    var showBal = function () {
+      var mid = $('[data-k=memberId]', ctx).value, acc = $('[data-k=account]', ctx).value;
+      var b = (balancesAll()[mid] || {})[acc] || 0;
+      $('#txBal').textContent = mid ? 'ยอดคงเหลือปัจจุบัน ' + accLabel(acc) + ': ' + baht(b) + ' บาท' : '';
+    };
+    $('[data-k=memberId]', ctx).onchange = showBal; $('[data-k=account]', ctx).onchange = showBal; showBal();
+    $('#txSave').onclick = function () {
+      var r = readForm(ctx, fields, {});
+      if (r.missing.length) { toast('กรุณากรอก: ' + r.missing.join(', '), 'err'); return; }
+      if (!(nnum(r.data.amount) > 0)) { toast('จำนวนเงินต้องมากกว่า 0', 'err'); return; }
+      if (id) r.data.id = id;
+      busy(true);
+      api('adminSaveTransaction', r.data).then(function (saved) { busy(false); upsertLocal('Transactions', saved); closeDrawer(); renderSide(); toast('บันทึกรายการเรียบร้อย', 'ok'); show(VIEW, VIEW_ARG, true); }).catch(fail);
+    };
+  }
+
+  var txF = { q: '', acc: '', type: '', st: '', month: '' };
+  VIEWS.transactions = function () {
+    var all = rows('Transactions'), pend = all.filter(function (t) { return t.status === 'pending'; });
+    var ym = todayIso().substr(0, 7);
+    var mon = all.filter(function (t) { return (t.status || 'approved') === 'approved' && String(t.date).substr(0, 7) === ym; });
+    var dep = mon.filter(function (t) { return t.type !== 'withdraw'; }).reduce(function (s, t) { return s + nnum(t.amount); }, 0);
+    var wd = mon.filter(function (t) { return t.type === 'withdraw'; }).reduce(function (s, t) { return s + nnum(t.amount); }, 0);
+    var sel = function (id, cur, opts, all) { return '<select class="inp" id="' + id + '" style="width:auto"><option value="">' + all + '</option>' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (cur === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select>'; };
+    return '<div class="tiles"><div class="tile"><span class="e">⏳</span><div class="n">' + pend.length + '</div><div class="l">รอตรวจสอบ</div></div>' +
+      '<div class="tile"><span class="e">➕</span><div class="n" style="font-size:24px">' + baht(dep) + '</div><div class="l">ฝากเดือนนี้ (บาท)</div></div>' +
+      '<div class="tile"><span class="e">➖</span><div class="n" style="font-size:24px">' + baht(wd) + '</div><div class="l">ถอนเดือนนี้ (บาท)</div></div>' +
+      '<div class="tile"><span class="e">🧾</span><div class="n">' + all.length + '</div><div class="l">รายการทั้งหมด</div></div></div>' +
+      (pend.length ? '<div class="box"><h3>⏳ สมาชิกแจ้งฝากเงิน — รอตรวจสอบ (' + pend.length + ')</h3><div class="tbl-wrap" style="border:0"><table class="tbl"><tbody>' + txRows(pend) + '</tbody></table></div></div>' : '') +
+      '<div class="row between" style="margin-bottom:16px"><div class="row" style="flex:1"><input class="search" id="tq" placeholder="ค้นหาสมาชิก / หมายเหตุ..." value="' + esc(txF.q) + '">' +
+      sel('ta', txF.acc, ACC_KEYS.map(function (a) { return [a, accLabel(a)]; }), 'ทุกบัญชี') + sel('tt', txF.type, [['deposit', 'ฝาก'], ['withdraw', 'ถอน']], 'ฝาก+ถอน') +
+      sel('ts', txF.st, [['approved', 'อนุมัติแล้ว'], ['pending', 'รอตรวจสอบ'], ['rejected', 'ไม่อนุมัติ']], 'ทุกสถานะ') +
+      '<input class="inp" type="month" id="tm" value="' + esc(txF.month) + '" style="width:auto" title="เดือน"><button class="btn sm ghost" id="tcsv">⬇ CSV</button></div>' +
+      '<button class="btn" id="addTx"' + (rows('Members').length ? '' : ' disabled title="เพิ่มสมาชิกก่อน"') + '>+ บันทึกรายการ</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>วันที่</th><th>สมาชิก</th><th>บัญชี</th><th>ประเภท</th><th style="text-align:right">จำนวน (บาท)</th><th>หมายเหตุ</th><th>สถานะ</th><th>ผู้บันทึก</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div><p class="sub" id="tsum"></p>';
+  };
+  function txList() {
+    var q = txF.q.toLowerCase();
+    return rows('Transactions').filter(function (t) {
+      var m = memberOf(t.memberId);
+      return (!txF.acc || t.account === txF.acc) && (!txF.type || t.type === txF.type) && (!txF.st || (t.status || 'approved') === txF.st) &&
+        (!txF.month || String(t.date).substr(0, 7) === txF.month) && (!q || ((m.memberNo || '') + ' ' + (m.name || '') + ' ' + (t.note || '')).toLowerCase().indexOf(q) !== -1);
+    });
+  }
+  BIND.transactions = function (el) {
+    var draw = function () {
+      var list = txList();
+      $('#tbody').innerHTML = txRows(list.slice());
+      var ok = list.filter(function (t) { return (t.status || 'approved') === 'approved'; });
+      var d = ok.filter(function (t) { return t.type !== 'withdraw'; }).reduce(function (s, t) { return s + nnum(t.amount); }, 0), w = ok.filter(function (t) { return t.type === 'withdraw'; }).reduce(function (s, t) { return s + nnum(t.amount); }, 0);
+      $('#tsum').textContent = list.length + ' รายการ · ฝาก ' + baht(d) + ' · ถอน ' + baht(w) + ' · สุทธิ ' + baht(d - w) + ' บาท (นับเฉพาะที่อนุมัติ)';
+    };
+    draw();
+    $('#tq').oninput = function () { txF.q = this.value; draw(); };
+    $('#ta').onchange = function () { txF.acc = this.value; draw(); };
+    $('#tt').onchange = function () { txF.type = this.value; draw(); };
+    $('#ts').onchange = function () { txF.st = this.value; draw(); };
+    $('#tm').onchange = function () { txF.month = this.value; draw(); };
+    $('#addTx').onclick = function () { txEditor(null); };
+    $('#tcsv').onclick = function () {
+      dlCsv('บันทึกเงินออม' + (txF.month ? '-' + txF.month : ''), [['date', 'วันที่'], [function (t) { return memberOf(t.memberId).memberNo; }, 'รหัสสมาชิก'], [function (t) { return memberOf(t.memberId).name; }, 'ชื่อ-นามสกุล'],
+        [function (t) { return accLabel(t.account); }, 'บัญชี'], [function (t) { return t.type === 'withdraw' ? 'ถอน' : 'ฝาก'; }, 'ประเภท'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'],
+        [function (t) { return (TX_ST[t.status || 'approved'] || [''])[0]; }, 'สถานะ'], ['recordedBy', 'ผู้บันทึก'], ['slipUrl', 'ลิงก์สลิป']], sortTx(txList()));
+    };
+    bindTxActions(el);
+  };
+
+  /* ============================================================
+   *  แบบฟอร์มออนไลน์ + คำตอบ
+   * ============================================================ */
+  var FIELD_TYPES = [['text', 'ข้อความสั้น'], ['textarea', 'ข้อความยาว'], ['number', 'ตัวเลข'], ['date', 'วันที่'], ['tel', 'เบอร์โทร'], ['email', 'อีเมล'],
+    ['select', 'รายการเลือก (dropdown)'], ['radio', 'เลือก 1 ข้อ'], ['checkbox', 'เลือกได้หลายข้อ'], ['section', '— หัวข้อส่วน —']];
+  function formFields(f) { try { return Array.isArray(f.fields) ? f.fields : JSON.parse(f.fields || '[]'); } catch (e) { return []; } }
+  function respOf(formId) { return rows('FormResponses').filter(function (r) { return r.formId === formId; }); }
+
+  VIEWS.forms = function () {
+    var list = sortByOrder(rows('Forms'));
+    return '<div class="row between" style="margin-bottom:16px"><p class="muted" style="margin:0;max-width:640px">สร้างแบบฟอร์มที่บันทึกข้อมูลลง Google Sheet (แท็บ FormResponses) โดยตรง แสดงที่เมนู “คลังความรู้ › แบบฟอร์มออนไลน์” — แบบฟอร์ม “สำหรับสมาชิก” กรอกได้ในหน้าระบบสมาชิก</p><button class="btn" id="addForm">+ สร้างแบบฟอร์ม</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>แบบฟอร์ม</th><th>ผู้กรอก</th><th>สถานะ</th><th>คำตอบ</th><th>แสดงผล</th><th></th></tr></thead><tbody>' +
+      (list.length ? list.map(function (f) {
+        var rs = respOf(f.id), nw = rs.filter(function (r) { return r.status === 'new'; }).length;
+        return '<tr><td><div class="ttl">' + esc(f.icon || '📝') + ' ' + esc(f.title) + '</div><div class="sub">' + formFields(f).filter(function (x) { return x.t !== 'section'; }).length + ' คำถาม · ' + esc(String(f.description || '').substr(0, 80)) + '</div></td>' +
+          '<td>' + (f.audience === 'member' ? '<span class="pill gold">🔒 สมาชิก</span>' : '<span class="pill">ทุกคน</span>') + '</td><td><span class="pill ' + (f.status === 'closed' ? 'off' : 'on') + '">' + (f.status === 'closed' ? 'ปิดรับ' : 'เปิดรับ') + '</span></td>' +
+          '<td><a href="#" data-view="responses" data-arg="' + esc(f.id) + '"><b>' + rs.length + '</b> คำตอบ</a>' + (nw ? ' <span class="pill new">ใหม่ ' + nw + '</span>' : '') + '</td><td>' + pubPill('Forms', f) + '</td>' +
+          '<td class="acts" style="white-space:nowrap"><button class="icon-btn" data-view="responses" data-arg="' + esc(f.id) + '" title="ดูคำตอบ">📊</button> <a class="icon-btn" href="' + esc(BASE_URL + '?page=form&id=' + f.id) + '" target="_blank" rel="noopener" title="เปิดดูหน้าเว็บ">↗</a> <button class="icon-btn" data-fbuild="' + esc(f.id) + '" title="แก้ไข">✎</button> ' + actBtns('Forms', f.id, { move: true }).replace(/<button class="icon-btn" data-edit="[^"]*"[^>]*>✎<\/button> /, '') + '</td></tr>';
+      }).join('') : '<tr><td colspan="6" class="muted" style="text-align:center;padding:30px">ยังไม่มีแบบฟอร์ม</td></tr>') + '</tbody></table></div>';
+  };
+  BIND.forms = function (el) {
+    $('#addForm').onclick = function () { formBuilder(null); };
+    $$('[data-fbuild]', el).forEach(function (b) { b.onclick = function () { formBuilder(b.getAttribute('data-fbuild')); }; });
+  };
+
+  function formBuilder(id) {
+    var rec = id ? JSON.parse(JSON.stringify(findRec('Forms', id) || {})) : { audience: 'public', status: 'open', icon: '📝', published: 'TRUE' };
+    var fields = formFields(rec).map(function (f) { return Object.assign({}, f); });
+    if (!fields.length) fields = [{ k: 'name', l: 'ชื่อ-นามสกุล', t: 'text', req: true }];
+    var meta = [
+      { k: 'title', l: 'ชื่อแบบฟอร์ม', t: 'text', req: true },
+      { k: 'description', l: 'คำอธิบาย', t: 'textarea', rows: 2 },
+      { row: [{ k: 'icon', l: 'ไอคอน (อีโมจิ)', t: 'text', ph: '📝' }, { k: 'audience', l: 'ผู้กรอก', t: 'select', req: true, opts: [{ v: 'public', l: 'ทุกคน (หน้าเว็บ)' }, { v: 'member', l: '🔒 เฉพาะสมาชิกที่เข้าสู่ระบบ' }] }] },
+      { row: [{ k: 'status', l: 'การรับข้อมูล', t: 'select', req: true, opts: [{ v: 'open', l: 'เปิดรับ' }, { v: 'closed', l: 'ปิดรับ' }] }, { k: 'published', l: 'แสดงบนเว็บไซต์', t: 'bool', def: true }] },
+      { k: 'successMessage', l: 'ข้อความหลังส่งสำเร็จ', t: 'text', ph: 'บันทึกข้อมูลเรียบร้อย ขอบคุณค่ะ' }
+    ];
+    openDrawer(id ? 'แก้ไขแบบฟอร์ม' : 'สร้างแบบฟอร์มใหม่', '<form id="fbForm" onsubmit="return false">' + formHtml(meta, rec) +
+      '<h3 style="margin:18px 0 8px;font-size:16px">คำถามในแบบฟอร์ม</h3><div id="fbList"></div><div class="row"><button type="button" class="btn sm" id="fbAdd">+ เพิ่มคำถาม</button><button type="button" class="btn sm ghost" id="fbSec">+ หัวข้อส่วน</button></div></form>',
+      '<button class="btn ghost" data-close-drawer>ยกเลิก</button><button class="btn" id="fbSave">💾 บันทึกแบบฟอร์ม</button>');
+    var ctx = $('#drawerBody'), listEl = $('#fbList');
+    var needOpts = function (t) { return t === 'select' || t === 'radio' || t === 'checkbox'; };
+    var sync = function () {
+      $$('[data-fi]', listEl).forEach(function (row) {
+        var f = fields[Number(row.getAttribute('data-fi'))]; if (!f) return;
+        f.l = $('[data-p=l]', row).value; f.t = $('[data-p=t]', row).value; f.req = $('[data-p=req]', row).checked;
+        f.hint = $('[data-p=hint]', row).value;
+        var o = $('[data-p=opts]', row); if (o) f.opts = o.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+      });
+    };
+    var draw = function () {
+      listEl.innerHTML = fields.map(function (f, i) {
+        var sec = f.t === 'section';
+        return '<div class="box" data-fi="' + i + '" style="padding:12px 14px;margin-bottom:10px;' + (sec ? 'background:var(--brand-soft)' : '') + '">' +
+          '<div class="row" style="flex-wrap:nowrap;align-items:flex-start"><b style="font-family:var(--font-head);min-width:22px;padding-top:9px">' + (i + 1) + '.</b><div style="flex:1;display:grid;gap:8px">' +
+          '<div class="row" style="flex-wrap:nowrap"><input class="inp" data-p="l" placeholder="' + (sec ? 'ชื่อหัวข้อส่วน' : 'คำถาม') + '" value="' + esc(f.l || '') + '" style="flex:1">' +
+          '<select class="inp" data-p="t" style="width:auto">' + FIELD_TYPES.map(function (t) { return '<option value="' + t[0] + '"' + (f.t === t[0] ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') + '</select></div>' +
+          (needOpts(f.t) ? '<textarea class="inp" data-p="opts" rows="3" placeholder="ตัวเลือก — หนึ่งบรรทัดต่อหนึ่งตัวเลือก">' + esc((f.opts || []).join('\n')) + '</textarea>' : '') +
+          '<div class="row"><input class="inp" data-p="hint" placeholder="คำอธิบายเพิ่มเติม (ไม่บังคับ)" value="' + esc(f.hint || '') + '" style="flex:1">' +
+          (sec ? '<input type="checkbox" data-p="req" hidden>' : '<label class="switch" style="white-space:nowrap"><input type="checkbox" data-p="req"' + (f.req ? ' checked' : '') + '> จำเป็น</label>') + '</div></div>' +
+          '<div style="display:grid;gap:4px"><button type="button" class="icon-btn" data-fm="' + i + '|-1" title="ขึ้น">↑</button><button type="button" class="icon-btn" data-fm="' + i + '|1" title="ลง">↓</button><button type="button" class="icon-btn del" data-fx="' + i + '" title="ลบ">🗑</button></div></div></div>';
+      }).join('') || '<p class="muted">ยังไม่มีคำถาม</p>';
+    };
+    draw();
+    listEl.addEventListener('change', function (e) { if (e.target.matches('[data-p=t]')) { sync(); draw(); } });
+    listEl.addEventListener('click', function (e) {
+      var m = e.target.closest('[data-fm]'), x = e.target.closest('[data-fx]');
+      if (m) { sync(); var p = m.getAttribute('data-fm').split('|'), i = Number(p[0]), j = i + Number(p[1]); if (j < 0 || j >= fields.length) return; var t = fields[i]; fields[i] = fields[j]; fields[j] = t; draw(); }
+      if (x) { sync(); fields.splice(Number(x.getAttribute('data-fx')), 1); draw(); }
+    });
+    var newKey = function () { var k; do { k = 'q' + Math.random().toString(36).slice(2, 7); } while (fields.some(function (f) { return f.k === k; })); return k; };
+    $('#fbAdd').onclick = function () { sync(); fields.push({ k: newKey(), l: '', t: 'text', req: false }); draw(); var r = $$('[data-fi]', listEl).pop(); if (r) $('[data-p=l]', r).focus(); };
+    $('#fbSec').onclick = function () { sync(); fields.push({ k: newKey(), l: '', t: 'section' }); draw(); };
+    $('#fbSave').onclick = function () {
+      sync();
+      var r = readForm(ctx, meta, rec);
+      if (r.missing.length) { toast('กรุณากรอก: ' + r.missing.join(', '), 'err'); return; }
+      var clean = fields.filter(function (f) { return String(f.l || '').trim(); }).map(function (f) {
+        var o = { k: f.k || newKey(), l: String(f.l).trim(), t: f.t || 'text' };
+        if (o.t !== 'section' && f.req) o.req = true;
+        if (f.hint) o.hint = f.hint;
+        if (needOpts(o.t)) o.opts = (f.opts || []).filter(Boolean);
+        return o;
+      });
+      var bad = clean.filter(function (f) { return needOpts(f.t) && !f.opts.length; })[0];
+      if (bad) { toast('คำถาม “' + bad.l + '” ต้องมีตัวเลือกอย่างน้อย 1 ข้อ', 'err'); return; }
+      if (!clean.some(function (f) { return f.t !== 'section'; })) { toast('กรุณาเพิ่มคำถามอย่างน้อย 1 ข้อ', 'err'); return; }
+      r.data.fields = JSON.stringify(clean);
+      if (id) r.data.id = id;
+      save('Forms', r.data).then(function () { closeDrawer(); toast('บันทึกแบบฟอร์มแล้ว', 'ok'); show(VIEW, VIEW_ARG, true); });
+    };
+  }
+
+  var respSt = '';
+  VIEWS.responses = function (formId) {
+    var f = findRec('Forms', formId);
+    if (!f) return '<div class="box">ไม่พบแบบฟอร์ม <a href="#" data-view="forms">← กลับ</a></div>';
+    var qs = formFields(f).filter(function (x) { return x.t !== 'section'; });
+    var list = respOf(formId).filter(function (r) { return !respSt || r.status === respSt; }).sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
+    var cnt = respOf(formId), nw = cnt.filter(function (r) { return r.status === 'new'; }).length;
+    var parse = function (r) { try { return JSON.parse(r.data || '{}'); } catch (e) { return {}; } };
+    var shown = qs.slice(0, 5);
+    return '<p><a href="#" data-view="forms">← แบบฟอร์มทั้งหมด</a></p><div class="row between" style="margin-bottom:14px"><div><h3 style="margin:0">' + esc(f.icon || '📝') + ' ' + esc(f.title) + '</h3><div class="sub">' + cnt.length + ' คำตอบ · ใหม่ ' + nw + '</div></div>' +
+      '<div class="row"><select class="inp" id="rst" style="width:auto"><option value="">ทุกสถานะ</option><option value="new"' + (respSt === 'new' ? ' selected' : '') + '>ใหม่</option><option value="reviewed"' + (respSt === 'reviewed' ? ' selected' : '') + '>ตรวจแล้ว</option></select>' +
+      '<button class="btn sm ghost" id="rcsvF">⬇ ส่งออก CSV (Excel)</button>' + (nw ? '<button class="btn sm" id="rall">✓ ทำเครื่องหมายตรวจแล้วทั้งหมด</button>' : '') + '</div></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>วันที่ส่ง</th>' + (f.audience === 'member' || cnt.some(function (r) { return r.memberName; }) ? '<th>สมาชิก</th>' : '') + shown.map(function (q) { return '<th>' + esc(q.l) + '</th>'; }).join('') + '<th>สถานะ</th><th></th></tr></thead><tbody>' +
+      (list.length ? list.map(function (r) {
+        var d = parse(r);
+        return '<tr><td class="sub" style="white-space:nowrap">' + thDate(r.createdAt, true) + '</td>' + (f.audience === 'member' || cnt.some(function (x) { return x.memberName; }) ? '<td class="sub">' + esc(r.memberName || '-') + '</td>' : '') +
+          shown.map(function (q) { return '<td>' + esc(String(d[q.k] == null ? '' : d[q.k]).substr(0, 60)) + '</td>'; }).join('') +
+          '<td><span class="pill ' + (r.status === 'new' ? 'new' : 'on') + '">' + (r.status === 'new' ? 'ใหม่' : 'ตรวจแล้ว') + '</span></td>' +
+          '<td class="acts" style="white-space:nowrap"><button class="icon-btn" data-rview="' + esc(r.id) + '" title="ดูทั้งหมด">👁</button> <button class="icon-btn del" data-del="FormResponses|' + esc(r.id) + '" title="ลบ">🗑</button></td></tr>';
+      }).join('') : '<tr><td colspan="' + (shown.length + 4) + '" class="muted" style="text-align:center;padding:30px">ยังไม่มีคำตอบ</td></tr>') + '</tbody></table></div>' +
+      (qs.length > shown.length ? '<p class="sub">ตารางแสดง ' + shown.length + ' คำถามแรก — กด 👁 เพื่อดูคำตอบครบทุกข้อ หรือส่งออก CSV</p>' : '');
+  };
+  BIND.responses = function (el, formId) {
+    var f = findRec('Forms', formId); if (!f) return;
+    var qs = formFields(f).filter(function (x) { return x.t !== 'section'; });
+    var parse = function (r) { try { return JSON.parse(r.data || '{}'); } catch (e) { return {}; } };
+    $('#rst').onchange = function () { respSt = this.value; show('responses', formId, true); };
+    $('#rcsvF').onclick = function () {
+      dlCsv(f.title, [[function (r) { return r.createdAt ? new Date(r.createdAt).toLocaleString('th-TH') : ''; }, 'วันที่ส่ง'], ['memberName', 'สมาชิก']].concat(qs.map(function (q) { return [function (r) { return parse(r)[q.k]; }, q.l]; }))
+        .concat([[function (r) { return r.status === 'new' ? 'ใหม่' : 'ตรวจแล้ว'; }, 'สถานะ']]), respOf(formId).sort(function (a, b) { return String(a.createdAt).localeCompare(String(b.createdAt)); }));
+    };
+    var ra = $('#rall');
+    if (ra) ra.onclick = function () {
+      var todo = respOf(formId).filter(function (r) { return r.status === 'new'; });
+      busy(true);
+      todo.reduce(function (p, r) { return p.then(function () { return api('adminSave', 'FormResponses', { id: r.id, status: 'reviewed' }).then(function (s) { upsertLocal('FormResponses', s); }); }); }, Promise.resolve())
+        .then(function () { busy(false); renderSide(); toast('ทำเครื่องหมายแล้ว ' + todo.length + ' รายการ', 'ok'); show('responses', formId, true); }).catch(fail);
+    };
+    $$('[data-rview]', el).forEach(function (b) {
+      b.onclick = function () {
+        var r = findRec('FormResponses', b.getAttribute('data-rview')), d = parse(r);
+        openDrawer('คำตอบ: ' + f.title, '<p class="sub">ส่งเมื่อ ' + thDate(r.createdAt, true) + (r.memberName ? ' · สมาชิก ' + esc(r.memberName) : '') + '</p>' +
+          formFields(f).map(function (q) { return q.t === 'section' ? '<h3 style="font-size:16px;margin:16px 0 6px">' + esc(q.l) + '</h3>' : '<div class="field"><span class="lb">' + esc(q.l) + '</span><div style="white-space:pre-wrap">' + (d[q.k] ? esc(d[q.k]) : '<span class="muted">—</span>') + '</div></div>'; }).join(''),
+          '<button class="btn ghost" data-close-drawer>ปิด</button>' + (r.status === 'new' ? '<button class="btn" id="rrev">✓ ตรวจแล้ว</button>' : ''));
+        var rv = $('#rrev');
+        if (rv) rv.onclick = function () { save('FormResponses', { id: r.id, status: 'reviewed' }).then(function () { closeDrawer(); renderSide(); show('responses', formId, true); }); };
+      };
+    });
+  };
+
+  /* ---------- Settings ---------- */
+  var SETTINGS_FORM = [
+    { h: '🏷️ ข้อมูลเว็บไซต์', f: [
+      { row: [{ k: 'siteName', l: 'ชื่อเว็บไซต์', t: 'text' }, { k: 'organization', l: 'หน่วยงาน', t: 'text' }] },
+      { k: 'tagline', l: 'สโลแกน', t: 'text' }, { k: 'welcome', l: 'ข้อความต้อนรับ (แถบเล็กบนแบนเนอร์)', t: 'text' },
+      { k: 'heroText', l: 'ข้อความแนะนำบนแบนเนอร์หน้าแรก', t: 'textarea' }] },
+    { h: '🖼️ ภาพ', f: [{ k: 'logoUrl', l: 'โลโก้', t: 'image' }, { k: 'heroImageUrl', l: 'ภาพแบนเนอร์หน้าแรก', t: 'image' }, { k: 'faviconUrl', l: 'Favicon (ไฟล์ .png สาธารณะ)', t: 'url' }] },
+    { h: '📞 ช่องทางติดต่อ', f: [
+      { row: [{ k: 'email', l: 'อีเมล', t: 'text' }, { k: 'phone', l: 'โทรศัพท์', t: 'text' }] },
+      { k: 'address', l: 'ที่อยู่', t: 'textarea', rows: 2 },
+      { row: [{ k: 'facebookUrl', l: 'Facebook Page', t: 'url' }, { k: 'chatUrl', l: 'ลิงก์ปุ่ม “แชทสด”', t: 'url' }] },
+      { k: 'notifyEmail', l: 'อีเมลรับแจ้งเตือน: ข้อความติดต่อ · คำตอบแบบฟอร์ม · สมาชิกแจ้งฝากเงิน (เว้นว่าง = ไม่แจ้ง)', t: 'text' }] },
+    { h: '🎨 รูปลักษณ์', f: [
+      { row: [{ k: 'themeColor', l: 'สีหลัก', t: 'color' }, { k: 'accentColor', l: 'สีเน้น', t: 'color' }] },
+      { k: 'footerText', l: 'ข้อความท้ายเว็บ', t: 'text' }, { k: 'showVisitCounter', l: 'แสดงตัวนับผู้เข้าชมท้ายเว็บ', t: 'bool', def: true }] },
+    { h: '🕋 ระบบสมาชิกกองทุน', f: [
+      { k: 'fundName', l: 'ชื่อกองทุน', t: 'text', ph: 'กองทุนออมทรัพย์และบัญชีฮัจย์-อุมเราะห์' },
+      { k: 'fundIntro', l: 'คำแนะนำกองทุน (แสดงบนหน้าแรก)', t: 'textarea', rows: 2 },
+      { row: [{ k: 'acc_savings', l: 'ชื่อบัญชีที่ 1', t: 'text', ph: 'เงินออมทรัพย์' }, { k: 'acc_hajj', l: 'ชื่อบัญชีที่ 2', t: 'text', ph: 'บัญชีฮัจย์' }] },
+      { row: [{ k: 'acc_umrah', l: 'ชื่อบัญชีที่ 3', t: 'text', ph: 'บัญชีอุมเราะห์' }, { k: 'menu_forms', l: 'ชื่อเมนูแบบฟอร์ม', t: 'text', ph: 'แบบฟอร์มออนไลน์' }] },
+      { k: 'memberNotice', l: 'ประกาศในหน้าเข้าสู่ระบบสมาชิก (เว้นว่าง = ไม่แสดง)', t: 'text' },
+      { k: 'memberDepositNotice', l: 'เปิดให้สมาชิก “แจ้งฝากเงิน” พร้อมแนบสลิปออนไลน์', t: 'bool', def: true }] },
+    { h: '🧭 ชื่อเมนู', f: [
+      { row: [{ k: 'menu_home', l: 'หน้าแรก', t: 'text' }, { k: 'menu_model', l: 'โมเดล', t: 'text' }] },
+      { row: [{ k: 'menu_research', l: 'พื้นที่วิจัย', t: 'text' }, { k: 'menu_dashboard', l: 'แสดง dashboard', t: 'text' }] },
+      { row: [{ k: 'menu_knowledge', l: 'ความรู้ใหม่', t: 'text' }, { k: 'menu_process', l: 'กระบวนการ', t: 'text' }] },
+      { row: [{ k: 'menu_news', l: 'ข่าวสาร', t: 'text' }, { k: 'menu_contact', l: 'ติดต่อ', t: 'text' }] },
+      { row: [{ k: 'menu_report', l: 'ผลดำเนินการ', t: 'text' }, { k: 'menu_library', l: 'คลังความรู้', t: 'text' }] },
+      { k: 'newsCategories', l: 'หมวดข่าว (คั่นด้วยจุลภาค) — แสดงเป็นเมนูย่อยของ “ข่าวสาร”', t: 'text' }] }
+  ];
+  VIEWS.settings = function () {
+    var s = DB.settings;
+    return '<form id="setForm" onsubmit="return false">' + SETTINGS_FORM.map(function (sec) { return '<div class="box"><h3>' + sec.h + '</h3>' + formHtml(sec.f, s) + '</div>'; }).join('') +
+      '<div class="row" style="position:sticky;bottom:12px;justify-content:flex-end;z-index:5"><button class="btn" id="setSave" style="box-shadow:var(--shadow-lg)">💾 บันทึกการตั้งค่า</button></div></form>' +
+      '<div class="grid2" style="gap:18px;margin-top:18px"><div class="box"><h3>🔑 เปลี่ยนรหัสผ่านของฉัน</h3><form id="pwForm" onsubmit="return false"><label class="field"><span class="lb">รหัสผ่านเดิม</span><input type="password" name="o" autocomplete="current-password"></label>' +
+      '<label class="field"><span class="lb">รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)</span><input type="password" name="n" autocomplete="new-password"></label><label class="field"><span class="lb">ยืนยันรหัสผ่านใหม่</span><input type="password" name="c" autocomplete="new-password"></label><button class="btn" id="pwSave">เปลี่ยนรหัสผ่าน</button></form></div>' +
+      '<div class="box"><h3>🛠️ เครื่องมือ</h3><p style="font-size:14.5px"><b>ย้ายภาพจากเว็บเดิม</b><br><span class="muted">ดาวน์โหลดภาพที่ยังลิงก์ไปยัง Google Sites เดิม มาเก็บใน Google Drive ของระบบ (ครั้งละ 25 ภาพ กดซ้ำจนครบ)</span></p><button class="btn sm accent" id="migrate">ย้ายภาพเข้า Drive</button><div id="migSt" class="muted" style="font-size:14px;margin-top:8px"></div>' +
+      '<hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><p style="font-size:14.5px"><b>ล้างแคชหน้าเว็บ</b><br><span class="muted">ใช้เมื่อแก้ข้อมูลใน Google Sheets โดยตรงแล้วหน้าเว็บยังไม่อัปเดต</span></p><button class="btn sm ghost" id="clearCache">ล้างแคช</button></div></div>';
+  };
+  BIND.settings = function (el) {
+    var ctx = $('#setForm');
+    var allFields = []; SETTINGS_FORM.forEach(function (s) { allFields = allFields.concat(s.f); });
+    bindForm(ctx, {});
+    $$('input[type=color]', ctx).forEach(function (c) { c.oninput = function () { c.nextSibling.textContent = c.value; }; });
+    $('#setSave').onclick = function () {
+      var r = readForm(ctx, allFields, {}); busy(true);
+      api('saveSettings', r.data).then(function (s) { busy(false); DB.settings = s; renderSide(); toast('บันทึกการตั้งค่าแล้ว', 'ok'); }).catch(fail);
+    };
+    $('#pwSave').onclick = function () {
+      var f = $('#pwForm');
+      if (f.n.value !== f.c.value) { toast('รหัสผ่านใหม่ไม่ตรงกัน', 'err'); return; }
+      busy(true); api('changePassword', f.o.value, f.n.value).then(function () { busy(false); f.reset(); toast('เปลี่ยนรหัสผ่านแล้ว', 'ok'); }).catch(fail);
+    };
+    $('#migrate').onclick = function () {
+      var b = this; b.disabled = true; $('#migSt').innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> กำลังย้ายภาพ อาจใช้เวลา 1–3 นาที...';
+      api('migrateExternalImages').then(function (r) {
+        b.disabled = false; $('#migSt').textContent = 'ย้ายสำเร็จ ' + r.done + ' ภาพ, ล้มเหลว ' + r.failed + ', คงเหลือ ' + r.remaining + ' ภาพ' + (r.remaining ? ' — กดอีกครั้งเพื่อทำต่อ' : ' ✓ ครบแล้ว');
+        return reload();
+      }).catch(function (e) { b.disabled = false; $('#migSt').textContent = '✕ ' + e.message; });
+    };
+    $('#clearCache').onclick = function () { api('adminClearCache').then(function () { toast('ล้างแคชแล้ว', 'ok'); }).catch(fail); };
+  };
+
+  /* ---------- Users ---------- */
+  VIEWS.users = function () {
+    if (USER.role !== 'admin') return '<div class="box">เฉพาะผู้ดูแลระบบ</div>';
+    var list = rows('Users');
+    return '<div class="row between" style="margin-bottom:14px"><p class="muted" style="margin:0"><b>admin</b> = จัดการได้ทุกอย่างรวมถึงผู้ใช้ · <b>editor</b> = แก้ไขเนื้อหาได้ทั้งหมด ยกเว้นจัดการผู้ใช้</p><button class="btn" id="addUser">+ เพิ่มผู้ใช้</button></div>' +
+      '<div class="tbl-wrap" style="margin-bottom:22px"><table class="tbl"><thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อ</th><th>สิทธิ์</th><th>เข้าใช้ล่าสุด</th><th>สถานะ</th><th></th></tr></thead><tbody>' +
+      list.map(function (u) { return '<tr><td class="ttl">' + esc(u.username) + (u.id === USER.id ? ' <span class="pill new">คุณ</span>' : '') + '</td><td>' + esc(u.name) + '</td><td><span class="pill ' + (u.role === 'admin' ? 'gold' : '') + '">' + esc(u.role) + '</span></td><td class="sub">' + thDate(u.lastLogin, true) + '</td><td>' + (truthy(u.active) ? '<span class="pill on">ใช้งาน</span>' : '<span class="pill off">ระงับ</span>') + '</td>' +
+        '<td class="acts"><button class="icon-btn" data-uedit="' + esc(u.id) + '">✎</button> ' + (u.id !== USER.id ? '<button class="icon-btn del" data-udel="' + esc(u.id) + '">🗑</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+      '<div class="box"><h3>🕘 ประวัติการใช้งาน (200 รายการล่าสุด)</h3><div class="tbl-wrap" style="border:0;max-height:480px"><table class="tbl"><thead><tr><th>เวลา</th><th>ผู้ใช้</th><th>การกระทำ</th><th>รายละเอียด</th></tr></thead><tbody>' +
+      (DB.tables.Logs || []).map(function (l) { return '<tr><td class="sub" style="white-space:nowrap">' + thDate(l.time, true) + '</td><td>' + esc(l.user) + '</td><td>' + esc(l.action) + '</td><td class="sub">' + esc(l.detail) + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+  };
+  BIND.users = function (el) {
+    var form = function (u) {
+      u = u || { active: 'TRUE', role: 'editor' };
+      openDrawer(u.id ? 'แก้ไขผู้ใช้' : 'เพิ่มผู้ใช้', '<form id="uForm" onsubmit="return false">' +
+        '<label class="field"><span class="lb">ชื่อผู้ใช้ (a-z, 0-9)</span><input name="username" value="' + esc(u.username || '') + '"></label>' +
+        '<label class="field"><span class="lb">ชื่อที่แสดง</span><input name="name" value="' + esc(u.name || '') + '"></label>' +
+        '<label class="field"><span class="lb">สิทธิ์</span><select name="role"><option value="editor"' + (u.role !== 'admin' ? ' selected' : '') + '>editor — แก้ไขเนื้อหา</option><option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>admin — ผู้ดูแลระบบ</option></select></label>' +
+        '<label class="field"><span class="lb">' + (u.id ? 'ตั้งรหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)' : 'รหัสผ่าน (อย่างน้อย 8 ตัว)') + '</span><input name="password" type="password" autocomplete="new-password"></label>' +
+        '<div class="field"><label class="switch"><input type="checkbox" name="active"' + (truthy(u.active) ? ' checked' : '') + '> เปิดใช้งานบัญชี</label></div></form>',
+        '<button class="btn ghost" data-close-drawer>ยกเลิก</button><button class="btn" id="uSave">💾 บันทึก</button>');
+      $('#uSave').onclick = function () {
+        var f = $('#uForm'); busy(true);
+        api('saveUser', { id: u.id, username: f.username.value, name: f.name.value, role: f.role.value, password: f.password.value, active: f.active.checked }).then(function (saved) {
+          busy(false); upsertLocal('Users', saved); closeDrawer(); toast('บันทึกผู้ใช้แล้ว', 'ok'); show('users', null, true);
+        }).catch(fail);
+      };
+    };
+    $('#addUser').onclick = function () { form(); };
+    el.onclick = function (e) {
+      var ed = e.target.closest('[data-uedit]'); if (ed) form(findRec('Users', ed.getAttribute('data-uedit')));
+      var dl = e.target.closest('[data-udel]');
+      if (dl) confirmBox('ลบผู้ใช้นี้?', 'ลบ').then(function (r) { if (!r) return; busy(true); api('deleteUser', dl.getAttribute('data-udel')).then(function () { busy(false); DB.tables.Users = DB.tables.Users.filter(function (x) { return x.id !== dl.getAttribute('data-udel'); }); show('users', null, true); }).catch(fail); });
+    };
+  };
+
+  /* ============================================================
+   *  START
+   * ============================================================ */
+  if (TOKEN) boot(); else showLogin();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SRA YALA — กองทุนออมทรัพย์และบัญชีฮัจย์-อุมเราะห์</title>
+<meta name="description" content="แอปสมาชิกกองทุนออมทรัพย์และบัญชีฮัจย์-อุมเราะห์ และข่าวสารโครงการ SRA YALA">
+<meta name="theme-color" content="#0f5e4b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SRA YALA">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://script.google.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+  :root {
+    --brand: #0f5e4b; --brand-ink: #0a3f33; --brand-soft: #e3efe9; --accent: #c79a2b; --gold: #f3cf74;
+    --bg: #f7f5ef; --ink: #1d2a25; --muted: #6a7a73; --line: #e2e6e1;
+    --tb-h: 64px; --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+    --font: 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif; --font-head: 'Prompt', 'Sarabun', sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--brand-ink); overscroll-behavior: none; }
+  body { font-family: var(--font); color: var(--ink); }
+  [hidden] { display: none !important; }
+  button { font: inherit; }
+
+  /* ---------- พื้นที่แสดงระบบ ---------- */
+  .app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); padding-top: var(--safe-t); }
+  .stage { position: relative; flex: 1; min-height: 0; }
+  #frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
+  .bar { position: absolute; left: 0; top: 0; height: 3px; width: 0; background: linear-gradient(90deg, var(--accent), var(--gold)); z-index: 5; transition: width .4s ease, opacity .3s; opacity: 0; }
+  .bar.on { opacity: 1; width: 75%; transition: width 6s cubic-bezier(.1,.7,.3,1), opacity .2s; }
+  .bar.done { opacity: 0; width: 100%; transition: width .25s, opacity .4s .2s; }
+
+  /* ---------- แถบเมนูล่าง ---------- */
+  .tb { order: 2; flex: none; display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-top: 1px solid var(--line);
+    height: calc(var(--tb-h) + var(--safe-b)); padding-bottom: var(--safe-b); box-shadow: 0 -4px 18px rgba(0,0,0,.05); z-index: 10; }
+  .tb button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted);
+    font-family: var(--font-head); font-size: 12.5px; cursor: pointer; position: relative; }
+  .tb button svg { width: 24px; height: 24px; }
+  .tb button.on { color: var(--brand); }
+  .tb button.on::before { content: ''; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; border-radius: 0 0 4px 4px; background: var(--brand); }
+  .tb button:active { background: var(--brand-soft); }
+
+  /* ---------- หน้าเปิดแอป ---------- */
+  .splash { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #fff; text-align: center; padding: 30px;
+    background: radial-gradient(circle at 85% 0, rgba(243,207,116,.28), transparent 45%), linear-gradient(160deg, var(--brand) 0%, var(--brand-ink) 100%); transition: opacity .35s; }
+  .splash.out { opacity: 0; pointer-events: none; }
+  .splash img { width: 108px; height: 108px; border-radius: 26px; box-shadow: 0 12px 34px rgba(0,0,0,.3); }
+  .splash h1 { margin: 0; font-family: var(--font-head); font-size: 26px; font-weight: 600; letter-spacing: .3px; }
+  .splash p { margin: 0; opacity: .85; font-size: 15.5px; max-width: 30ch; line-height: 1.5; }
+  .dots { display: flex; gap: 7px; margin-top: 6px; }
+  .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); animation: d 1.1s infinite ease-in-out; }
+  .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes d { 0%, 80%, 100% { transform: scale(.5); opacity: .4; } 40% { transform: scale(1); opacity: 1; } }
+  .slow { font-size: 14px; opacity: .9; }
+  .slow button { margin-top: 10px; }
+
+  /* ---------- ปุ่ม / แผ่นเมนู ---------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 999px; padding: 11px 22px; background: var(--brand); color: #fff;
+    font-family: var(--font-head); font-size: 15.5px; cursor: pointer; text-decoration: none; }
+  .btn.gold { background: var(--accent); color: #241903; }
+  .btn.ghost { background: transparent; color: var(--brand); border: 1.5px solid var(--line); }
+  .btn.light { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.3); }
+  .btn.block { width: 100%; }
+  .scrim { position: fixed; inset: 0; background: rgba(10,30,24,.45); z-index: 30; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 31; background: #fff; border-radius: 22px 22px 0 0; padding: 10px 18px calc(18px + var(--safe-b));
+    transform: translateY(105%); transition: transform .28s cubic-bezier(.2,.8,.2,1); max-height: 86vh; overflow-y: auto; box-shadow: 0 -10px 40px rgba(0,0,0,.18); }
+  .sheet.on { transform: none; }
+  .sheet .grab { width: 42px; height: 5px; border-radius: 9px; background: #d6dbd7; margin: 2px auto 14px; }
+  .sheet h2 { font-family: var(--font-head); font-size: 19px; margin: 0 0 4px; }
+  .sheet .sub { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+  .mi { display: flex; align-items: center; gap: 14px; width: 100%; padding: 13px 6px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer; color: var(--ink); text-decoration: none; }
+  .mi:last-child { border-bottom: 0; }
+  .mi .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--brand-soft); display: flex; align-items: center; justify-content: center; font-size: 19px; flex: none; }
+  .mi b { display: block; font-family: var(--font-head); font-weight: 500; font-size: 15.5px; }
+  .mi small { color: var(--muted); font-size: 13.5px; }
+  .ver { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 12px; }
+
+  /* ---------- แจ้งติดตั้ง ---------- */
+  .install { position: fixed; left: 12px; right: 12px; bottom: calc(var(--tb-h) + var(--safe-b) + 12px); z-index: 20; background: var(--brand-ink); color: #fff; border-radius: 16px; padding: 14px 16px;
+    display: flex; gap: 12px; align-items: center; box-shadow: 0 12px 30px rgba(0,0,0,.28); animation: up .35s ease; }
+  .install img { width: 44px; height: 44px; border-radius: 11px; flex: none; }
+  .install div { flex: 1; font-size: 14px; line-height: 1.45; }
+  .install b { font-family: var(--font-head); font-weight: 500; font-size: 15px; }
+  .install .x { background: none; border: 0; color: #fff; opacity: .7; font-size: 20px; padding: 4px 6px; cursor: pointer; }
+  @keyframes up { from { transform: translateY(20px); opacity: 0; } }
+  .ios-steps { display: grid; gap: 12px; margin: 6px 0 16px; }
+  .ios-steps div { display: flex; gap: 12px; align-items: center; font-size: 15px; }
+  .ios-steps span { width: 32px; height: 32px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-weight: 600; flex: none; }
+
+  /* ---------- ออฟไลน์ / ตั้งค่าครั้งแรก ---------- */
+  .full { position: fixed; inset: 0; z-index: 40; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 28px 22px calc(28px + var(--safe-b)); text-align: center; }
+  .full .card { max-width: 420px; width: 100%; }
+  .full .em { font-size: 54px; margin-bottom: 8px; }
+  .full h2 { font-family: var(--font-head); margin: 0 0 8px; font-size: 22px; }
+  .full p { color: var(--muted); margin: 0 0 18px; line-height: 1.55; }
+  .full input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line); font-size: 15px; margin-bottom: 12px; font-family: inherit; }
+  .full input:focus { outline: none; border-color: var(--brand); }
+  .full .gap { display: grid; gap: 10px; }
+  .toast { position: fixed; left: 50%; bottom: calc(var(--tb-h) + var(--safe-b) + 16px); transform: translateX(-50%); background: #1d2a25; color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 14.5px; z-index: 60; box-shadow: 0 8px 24px rgba(0,0,0,.25); white-space: nowrap; }
+  @media (min-width: 900px) {
+    /* บนคอมพิวเตอร์: แถบเมนูไปอยู่ด้านซ้าย */
+    .app { flex-direction: row-reverse; }
+    .tb { grid-template-columns: 1fr; grid-auto-rows: 76px; align-content: start; width: 92px; height: auto; border-top: 0; border-right: 1px solid var(--line); padding: 10px 0; }
+    .tb button.on::before { top: 18%; bottom: 18%; left: 0; right: auto; width: 3px; height: auto; border-radius: 0 4px 4px 0; }
+    .install, .toast { bottom: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="tb" id="tb" aria-label="เมนูแอป">
+    <button data-go="site" aria-label="หน้าแรก"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg>หน้าแรก</button>
+    <button data-go="member" aria-label="สมาชิก"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M7 15h4"/></svg>บัญชีของฉัน</button>
+    <button data-go="forms" aria-label="แบบฟอร์ม"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>แบบฟอร์ม</button>
+    <button data-more aria-label="เพิ่มเติม"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>เพิ่มเติม</button>
+  </nav>
+  <main class="stage">
+    <div class="bar" id="bar"></div>
+    <iframe id="frame" title="SRA YALA" allow="clipboard-write; web-share" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  </main>
+</div>
+
+<div class="splash" id="splash">
+  <img src="icons/icon-512.png" alt="">
+  <h1 id="spName">SRA YALA</h1>
+  <p id="spFund">กองทุนออมทรัพย์และบัญชีฮัจย์-อุมเราะห์</p>
+  <div class="dots" aria-label="กำลังโหลด"><i></i><i></i><i></i></div>
+  <div class="slow" id="slow" hidden>ใช้เวลานานกว่าปกติ — ตรวจสอบสัญญาณอินเทอร์เน็ต<br><button class="btn light" data-reload>ลองใหม่</button></div>
+</div>
+
+<div class="full" id="offline" hidden>
+  <div class="card"><div class="em">📡</div><h2>ไม่มีการเชื่อมต่ออินเทอร์เน็ต</h2><p>ยอดเงินและข้อมูลสมาชิกต้องโหลดจากระบบออนไลน์ กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่</p><button class="btn" data-reload>ลองใหม่</button></div>
+</div>
+
+<div class="full" id="setup" hidden>
+  <div class="card">
+    <img src="icons/icon-192.png" alt="" style="width:84px;height:84px;border-radius:20px;margin-bottom:10px">
+    <h2>ตั้งค่าแอปครั้งแรก</h2>
+    <p>ใส่ลิงก์ Web App ของระบบ (ลงท้ายด้วย <b>/exec</b>) — ผู้ดูแลควรใส่ไว้ในไฟล์ <b>config.js</b> ก่อนเผยแพร่ เพื่อให้สมาชิกไม่ต้องตั้งค่าเอง</p>
+    <input id="urlIn" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+    <div class="gap"><button class="btn block" id="urlSave">เชื่อมต่อระบบ</button><button class="btn ghost block" id="demoBtn" hidden>ทดลองด้วยข้อมูลตัวอย่าง</button></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+  <div class="grab"></div>
+  <div id="sheetBody"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var C = window.SRA_APP || {};
+  var $ = function (s) { return document.querySelector(s); };
+  var frame = $('#frame'), bar = $('#bar'), splash = $('#splash');
+  var LS = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { } }, del: function (k) { try { localStorage.removeItem(k); } catch (e) { } } };
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var deferredPrompt = null, loadTimer = null, slowTimer = null, current = '', ready = false;
+
+  $('#spName').textContent = C.NAME || 'SRA YALA';
+  $('#spFund').textContent = C.FUND_NAME || '';
+
+  /* ---------- ลิงก์ระบบ ---------- */
+  var qs = new URLSearchParams(location.search);
+  var APP_URL = String(C.APP_URL || LS.get('sra_app_url') || '').trim();
+  if (qs.get('url')) { APP_URL = qs.get('url'); LS.set('sra_app_url', APP_URL); }
+  function normalize(u) {
+    u = String(u || '').trim().split('#')[0].split('?')[0];
+    // ใช้ลิงก์รูปแบบสากล (ไม่บังคับล็อกอินบัญชีมหาวิทยาลัย)
+    u = u.replace(/^https:\/\/script\.google\.com\/a\/(macros\/)?[^/]+\/macros\/s\//, 'https://script.google.com/macros/s/')
+         .replace(/^https:\/\/script\.google\.com\/a\/macros\/[^/]+\/s\//, 'https://script.google.com/macros/s/');
+    return u;
+  }
+  APP_URL = normalize(APP_URL);
+  var DEPLOY_ID = (/\/s\/([\w-]{20,})\//.exec(APP_URL) || [])[1] || '';
+  var IS_DEMO = /\/demo\/preview\.html$/.test(APP_URL);
+
+  function build(query) {
+    var q = new URLSearchParams(query || '');
+    q.set('app', '1');
+    return APP_URL + '?' + q.toString();
+  }
+  var ROUTES = { site: '', member: 'mode=member', forms: 'page=forms', admin: 'mode=admin' };
+  function tabOf(query) {
+    var q = new URLSearchParams(query || '');
+    if (q.get('mode') === 'member') return 'member';
+    if (q.get('mode') === 'admin') return 'admin';
+    if (q.get('page') === 'forms' || q.get('page') === 'form') return 'forms';
+    return 'site';
+  }
+  function setTab(t) { document.querySelectorAll('#tb [data-go]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-go') === t); }); }
+
+  /* ---------- เปิดหน้า ---------- */
+  function open(query, push) {
+    query = (query || '').replace(/^\?/, '');
+    var url = build(query);
+    if (push !== false && url !== current) { try { history.pushState({ q: query }, '', location.pathname + (query ? '?v=' + encodeURIComponent(query) : '')); } catch (e) { } }
+    current = url;
+    setTab(tabOf(query));
+    LS.set('sra_last', query);
+    bar.className = 'bar'; void bar.offsetWidth; bar.className = 'bar on';
+    clearTimeout(loadTimer); loadTimer = setTimeout(doneLoading, 25000);
+    // replace = ไม่เพิ่มประวัติซ้ำ (ปุ่มย้อนกลับของมือถือจะย้อนทีละหน้าอย่างถูกต้อง)
+    try { frame.contentWindow.location.replace(url); } catch (e) { frame.src = url; }
+  }
+  function doneLoading() {
+    clearTimeout(loadTimer); clearTimeout(slowTimer);
+    bar.className = 'bar done';
+    if (!ready) { ready = true; splash.classList.add('out'); setTimeout(function () { splash.hidden = true; }, 400); maybeInstallHint(); }
+  }
+  frame.addEventListener('load', function () { if (current) doneLoading(); });
+  window.addEventListener('popstate', function (e) { var q = (e.state && e.state.q) || ''; open(q, false); });
+
+  /* ---------- รับคำสั่งจากระบบ (ลิงก์สลับหน้า) ---------- */
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || typeof d !== 'object' || !d.sra) return;
+    var okOrigin = /(^https:\/\/[\w.-]+\.googleusercontent\.com$)|(^https:\/\/script\.google\.com$)/.test(e.origin) || (IS_DEMO && e.origin === location.origin);
+    if (!okOrigin) return;
+    if (d.sra === 'page') { doneLoading(); if (d.mode === 'admin') setTab('admin'); return; }
+    if (d.sra === 'nav' && typeof d.url === 'string') {
+      var u = d.url, base = u.split('#')[0].split('?')[0], q = (u.split('#')[0].split('?')[1] || '');
+      var same = (DEPLOY_ID && base.indexOf(DEPLOY_ID) !== -1) || (IS_DEMO && /preview\.html$/.test(base));
+      if (same) open(q);
+      else window.open(u, '_blank', 'noopener');
+    }
+  });
+
+  /* ---------- เมนูล่าง ---------- */
+  document.getElementById('tb').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-more')) { moreSheet(); return; }
+    open(ROUTES[b.getAttribute('data-go')] || '');
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-reload]')) { location.reload(); }
+  });
+
+  /* ---------- แผ่นเมนู ---------- */
+  function sheet(html) {
+    $('#sheetBody').innerHTML = html;
+    $('#scrim').classList.add('on'); $('#sheet').classList.add('on');
+  }
+  function closeSheet() { $('#scrim').classList.remove('on'); $('#sheet').classList.remove('on'); }
+  $('#scrim').addEventListener('click', closeSheet);
+  function toast(t) { var el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el); setTimeout(function () { el.remove(); }, 2600); }
+
+  function moreSheet() {
+    var items = [
+      ['🔄', 'รีเฟรชหน้านี้', 'โหลดข้อมูลล่าสุด', 'reload'],
+      ['🌐', 'เปิดในเบราว์เซอร์', 'เปิดหน้าปัจจุบันในเบราว์เซอร์ของเครื่อง', 'browser'],
+      ['🔐', 'หลังบ้าน (เจ้าหน้าที่)', 'จัดการสมาชิก บันทึกเงินออม และเนื้อหาเว็บไซต์', 'admin']
+    ];
+    if (!isStandalone) items.unshift(['📲', 'ติดตั้งแอปลงเครื่อง', isIOS ? 'เพิ่มไอคอนไว้บนหน้าจอโฮม' : 'ติดตั้งเป็นแอปบนมือถือ', 'install']);
+    if (navigator.share) items.push(['📤', 'แชร์แอปนี้', 'ส่งลิงก์ให้สมาชิกคนอื่น', 'share']);
+    if (!C.APP_URL) items.push(['⚙️', 'เปลี่ยนลิงก์ระบบ', 'ตั้งค่าลิงก์ Web App ใหม่', 'seturl']);
+    sheet('<h2 id="shTitle">' + esc(C.NAME || 'SRA YALA') + '</h2><p class="sub">' + esc(C.FUND_NAME || '') + (C.ORG ? ' · ' + esc(C.ORG) : '') + '</p>' +
+      items.map(function (i) { return '<button class="mi" data-act="' + i[3] + '"><span class="ic">' + i[0] + '</span><span><b>' + i[1] + '</b><small>' + i[2] + '</small></span></button>'; }).join('') +
+      '<div class="ver">เวอร์ชัน ' + esc(C.VERSION || '1.0.0') + (IS_DEMO ? ' · โหมดทดลอง' : '') + '</div>');
+  }
+  $('#sheet').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    var a = b.getAttribute('data-act');
+    if (a === 'reload') { closeSheet(); open(currentQuery(), false); }
+    else if (a === 'browser') { closeSheet(); var cq = currentQuery(); window.open(APP_URL + (cq ? '?' + cq : ''), '_blank', 'noopener'); }
+    else if (a === 'admin') { closeSheet(); open(ROUTES.admin); }
+    else if (a === 'install') { doInstall(); }
+    else if (a === 'share') { closeSheet(); navigator.share({ title: C.NAME || 'SRA YALA', text: (C.FUND_NAME || '') + ' — แอปสมาชิก', url: location.origin + location.pathname }).catch(function () { }); }
+    else if (a === 'seturl') { closeSheet(); LS.del('sra_app_url'); showSetup(); }
+    else if (a === 'ios-ok') { closeSheet(); }
+  });
+  function currentQuery() { var q = new URLSearchParams(current.split('?')[1] || ''); q.delete('app'); return q.toString(); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  /* ---------- ติดตั้งแอป ---------- */
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredPrompt = e; });
+  window.addEventListener('appinstalled', function () { deferredPrompt = null; LS.set('sra_installed', '1'); toast('ติดตั้งแอปเรียบร้อย'); var h = $('.install'); if (h) h.remove(); });
+  function doInstall() {
+    if (deferredPrompt) { closeSheet(); deferredPrompt.prompt(); deferredPrompt.userChoice.finally(function () { deferredPrompt = null; }); return; }
+    sheet('<h2 id="shTitle">ติดตั้งแอปลงเครื่อง</h2>' + (isIOS
+      ? '<p class="sub">บน iPhone / iPad (ใช้ Safari)</p><div class="ios-steps"><div><span>1</span>แตะปุ่ม <b>แชร์</b> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f5e4b" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> ด้านล่างของ Safari</div><div><span>2</span>เลื่อนลง แตะ <b>“เพิ่มไปยังหน้าจอโฮม”</b></div><div><span>3</span>แตะ <b>“เพิ่ม”</b> — ไอคอน SRA YALA จะอยู่บนหน้าจอ</div></div>'
+      : '<p class="sub">บน Android (ใช้ Chrome)</p><div class="ios-steps"><div><span>1</span>แตะเมนู <b>⋮</b> มุมขวาบนของ Chrome</div><div><span>2</span>แตะ <b>“ติดตั้งแอป”</b> หรือ <b>“เพิ่มลงในหน้าจอหลัก”</b></div><div><span>3</span>แตะ <b>“ติดตั้ง”</b></div></div>') +
+      '<button class="btn block" data-act="ios-ok">เข้าใจแล้ว</button>');
+  }
+  function maybeInstallHint() {
+    if (isStandalone || LS.get('sra_installed') || Number(LS.get('sra_hint_off') || 0) > Date.now()) return;
+    setTimeout(function () {
+      if (!deferredPrompt && !isIOS) return;
+      var el = document.createElement('div'); el.className = 'install';
+      el.innerHTML = '<img src="icons/icon-192.png" alt=""><div><b>ติดตั้งแอป SRA YALA</b><br>เปิดดูยอดเงินออมได้เร็วขึ้นจากหน้าจอมือถือ</div><button class="btn gold" style="padding:9px 16px">ติดตั้ง</button><button class="x" aria-label="ปิด">✕</button>';
+      el.querySelector('.btn').onclick = function () { el.remove(); doInstall(); };
+      el.querySelector('.x').onclick = function () { el.remove(); LS.set('sra_hint_off', String(Date.now() + 7 * 864e5)); };
+      document.body.appendChild(el);
+    }, 4000);
+  }
+
+  /* ---------- ออฟไลน์ ---------- */
+  function net() { $('#offline').hidden = navigator.onLine; }
+  window.addEventListener('online', function () { net(); if (current) open(currentQuery(), false); });
+  window.addEventListener('offline', net);
+
+  /* ---------- ตั้งค่าครั้งแรก ---------- */
+  function showSetup() {
+    splash.hidden = true; $('#setup').hidden = false;
+    fetch('demo/preview.html', { method: 'HEAD' }).then(function (r) { if (r.ok) $('#demoBtn').hidden = false; }).catch(function () { });
+  }
+  $('#urlSave').onclick = function () {
+    var u = normalize($('#urlIn').value);
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]{20,}\/exec$/.test(u)) { toast('ลิงก์ไม่ถูกต้อง — ต้องลงท้ายด้วย /exec'); return; }
+    LS.set('sra_app_url', u); location.href = location.pathname;
+  };
+  $('#demoBtn').onclick = function () { LS.set('sra_app_url', new URL('demo/preview.html', location.href).href); location.href = location.pathname; };
+
+  /* ---------- เริ่มทำงาน ---------- */
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    try { navigator.serviceWorker.register('sw.js'); } catch (e) { }
+  }
+  net();
+  if (!APP_URL) { showSetup(); return; }
+  slowTimer = setTimeout(function () { if (!ready) $('#slow').hidden = false; }, 15000);
+  var tab = qs.get('tab'), v = qs.get('v');
+  var startQ = v != null ? v : tab ? (ROUTES[tab] || '') : (ROUTES[C.START] || '');
+  try { history.replaceState({ q: startQ }, '', location.pathname); } catch (e) { }
+  open(startQ, false);
+})();
+</script>
+</body>
+</html>

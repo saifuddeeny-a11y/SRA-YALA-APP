@@ -1,0 +1,105 @@
+<style>
+  /* ---------- แบบฟอร์มออนไลน์ (ใช้ร่วมกันระหว่างหน้าเว็บและหน้าสมาชิก) ---------- */
+  .sf { display: grid; gap: 16px; }
+  .sf .sf-f { display: grid; gap: 6px; }
+  .sf .sf-l { font-family: var(--font-head); font-size: 15px; color: var(--ink-2); }
+  .sf .sf-l .req { color: var(--danger); }
+  .sf .sf-h { font-size: 13.5px; color: var(--muted); }
+  .sf input[type=text], .sf input[type=tel], .sf input[type=email], .sf input[type=number], .sf input[type=date], .sf select, .sf textarea {
+    width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font-size: 16px;
+  }
+  .sf input:focus, .sf select:focus, .sf textarea:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 3px var(--brand-soft); }
+  .sf .sf-sec { margin: 10px 0 -4px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 18px; color: var(--brand-ink); }
+  .sf .sf-sec:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+  .sf .sf-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sf .sf-opts label { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: #fff; cursor: pointer; font-size: 15.5px; }
+  .sf .sf-opts label:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
+  .sf .sf-opts input { width: 17px; height: 17px; accent-color: var(--brand); margin: 0; }
+  .sf .sf-bad input, .sf .sf-bad select, .sf .sf-bad textarea, .sf .sf-bad .sf-opts label { border-color: var(--danger); }
+  .sf .sf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .sf .sf-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .sf-done { text-align: center; padding: 34px 20px; }
+  .sf-done .ic { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 30px; background: var(--brand-soft); color: var(--brand); }
+</style>
+<script>
+/** ตัวสร้างแบบฟอร์มจากนิยามฟิลด์ที่ตั้งในหลังบ้าน */
+window.SRAForm = (function () {
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+
+  function field(f, idx, prefix) {
+    var id = (prefix || 'sf') + '_' + idx;
+    var name = esc(f.k);
+    var req = f.req ? ' required' : '';
+    var label = '<span class="sf-l" id="' + id + '_l">' + esc(f.l) + (f.req ? ' <span class="req">*</span>' : '') + '</span>';
+    var hint = f.hint ? '<span class="sf-h">' + esc(f.hint) + '</span>' : '';
+    var ph = f.ph ? ' placeholder="' + esc(f.ph) + '"' : '';
+    var opts = Array.isArray(f.opts) ? f.opts : [];
+    switch (f.t) {
+      case 'section':
+        return '<h3 class="sf-sec">' + esc(f.l) + '</h3>' + (f.hint ? '<p class="sf-h" style="margin:-8px 0 0">' + esc(f.hint) + '</p>' : '');
+      case 'textarea':
+        return '<label class="sf-f" data-sf="' + name + '">' + label + '<textarea id="' + id + '" name="' + name + '" rows="4" maxlength="3000"' + req + ph + '></textarea>' + hint + '</label>';
+      case 'select':
+        return '<label class="sf-f" data-sf="' + name + '">' + label + '<select id="' + id + '" name="' + name + '"' + req + '><option value="">— เลือก —</option>' +
+          opts.map(function (o) { return '<option>' + esc(o) + '</option>'; }).join('') + '</select>' + hint + '</label>';
+      case 'radio':
+      case 'checkbox':
+        return '<div class="sf-f" data-sf="' + name + '" role="group" aria-labelledby="' + id + '_l">' + label + '<div class="sf-opts">' +
+          opts.map(function (o, j) { return '<label><input type="' + f.t + '" name="' + name + '" value="' + esc(o) + '" id="' + id + '_' + j + '">' + esc(o) + '</label>'; }).join('') + '</div>' + hint + '</div>';
+      case 'number':
+        return '<label class="sf-f" data-sf="' + name + '">' + label + '<input id="' + id + '" name="' + name + '" type="number" inputmode="decimal" step="any" min="0"' + req + ph + '>' + hint + '</label>';
+      case 'date':
+        return '<label class="sf-f" data-sf="' + name + '">' + label + '<input id="' + id + '" name="' + name + '" type="date" value="' + (f.req ? today() : '') + '"' + req + '>' + hint + '</label>';
+      case 'tel':
+        return '<label class="sf-f" data-sf="' + name + '">' + label + '<input id="' + id + '" name="' + name + '" type="tel" inputmode="tel" maxlength="20" autocomplete="tel"' + req + ph + '>' + hint + '</label>';
+      case 'email':
+        return '<label class="sf-f" data-sf="' + name + '">' + label + '<input id="' + id + '" name="' + name + '" type="email" maxlength="160" autocomplete="email"' + req + ph + '>' + hint + '</label>';
+      default:
+        return '<label class="sf-f" data-sf="' + name + '">' + label + '<input id="' + id + '" name="' + name + '" type="text" maxlength="300"' + req + ph + '>' + hint + '</label>';
+    }
+  }
+
+  /** สร้าง HTML ของแบบฟอร์ม */
+  function render(form, opts) {
+    opts = opts || {};
+    var fields = Array.isArray(form.fields) ? form.fields : [];
+    return '<form class="sf" data-sf-form="' + esc(form.id) + '" novalidate>' +
+      fields.map(function (f, i) { return field(f, i, 'sf' + String(form.id).replace(/[^a-z0-9]/gi, '')); }).join('') +
+      '<div class="sf-hp" aria-hidden="true"><input name="__hp" tabindex="-1" autocomplete="off"></div>' +
+      '<div class="sf-actions"><button class="btn" type="submit">' + esc(opts.submitLabel || 'ส่งข้อมูล') + '</button>' + (opts.extra || '') + '</div></form>';
+  }
+
+  /** อ่านค่าจากแบบฟอร์ม → { data, missing } */
+  function read(el, form) {
+    var data = {}, missing = [];
+    (form.fields || []).forEach(function (f) {
+      if (!f.k || f.t === 'section') return;
+      var box = el.querySelector('[data-sf="' + cssEsc(f.k) + '"]');
+      var v;
+      if (f.t === 'checkbox') {
+        v = Array.prototype.slice.call(el.querySelectorAll('input[type=checkbox][name="' + cssEsc(f.k) + '"]:checked')).map(function (x) { return x.value; });
+        if (f.req && !v.length) missing.push(f.l);
+      } else if (f.t === 'radio') {
+        var c = el.querySelector('input[type=radio][name="' + cssEsc(f.k) + '"]:checked'); v = c ? c.value : '';
+        if (f.req && !v) missing.push(f.l);
+      } else {
+        var inp = el.querySelector('[name="' + cssEsc(f.k) + '"]'); v = inp ? String(inp.value || '').trim() : '';
+        if (f.req && !v) missing.push(f.l);
+      }
+      if (box) box.classList.toggle('sf-bad', f.req && (Array.isArray(v) ? !v.length : !v));
+      data[f.k] = v;
+    });
+    var hp = el.querySelector('[name="__hp"]'); if (hp && hp.value) data.__hp = hp.value;
+    return { data: data, missing: missing };
+  }
+  function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+
+  function done(msg, again) {
+    return '<div class="sf-done"><div class="ic">✓</div><h3>' + esc(msg || 'บันทึกข้อมูลเรียบร้อย') + '</h3>' +
+      (again ? '<button class="btn ghost" type="button" data-sf-again>กรอกอีกครั้ง</button>' : '') + '</div>';
+  }
+
+  return { render: render, read: read, done: done, esc: esc };
+})();
+</script>

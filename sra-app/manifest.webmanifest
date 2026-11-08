@@ -1,0 +1,27 @@
+{
+  "id": "./",
+  "name": "SRA YALA — กองทุนออมทรัพย์และบัญชีฮัจย์-อุมเราะห์",
+  "short_name": "SRA YALA",
+  "description": "ตรวจสอบยอดเงินออม บัญชีฮัจย์-อุมเราะห์ แจ้งฝากเงิน และกรอกแบบฟอร์มของกองทุน พร้อมข่าวสารโครงการ SRA YALA มหาวิทยาลัยราชภัฏยะลา",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "theme_color": "#0f5e4b",
+  "background_color": "#0a3f33",
+  "categories": ["finance", "education", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "เข้าสู่ระบบสมาชิก", "short_name": "สมาชิก", "url": "./?tab=member", "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }] },
+    { "name": "หน้าแรกเว็บไซต์", "short_name": "หน้าแรก", "url": "./?tab=site", "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }] },
+    { "name": "แบบฟอร์มออนไลน์", "short_name": "แบบฟอร์ม", "url": "./?tab=forms", "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }] }
+  ]
+}
