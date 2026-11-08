@@ -90,11 +90,12 @@ function userContext_(s) {
   if (s.kind !== 'member') return 'ผู้ใช้เป็นเจ้าหน้าที่' + (s.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ประจำกลุ่ม') + ' อาจถามเพื่อนำไปให้คำปรึกษาสมาชิก';
   var m = getRow_('Members', s.id);
   if (!m) return '';
-  var bal = savingsBalance_(readTable_('Savings'), m.id, '');
+  var sv = readTable_('Savings'), labels = accountLabels_();
+  var bal = savingsBalance_(sv, m.id, '', 'savings'), hajj = savingsBalance_(sv, m.id, '', 'hajj');
   var debts = readTable_('Debts').filter(function (d) { return d.memberId === m.id && d.status !== 'closed'; });
   var st = debtStatus_(debts, readTable_('DebtPayments').filter(function (p) { return p.memberId === m.id; }));
   var g = getRow_('Groups', m.groupId);
-  var parts = ['กลุ่มอาชีพ: ' + (g ? g.name : '-'), 'อาชีพ: ' + (m.occupation || '-'), 'เงินออมในกลุ่ม ' + money_(bal) + ' บาท'];
+  var parts = ['กลุ่มอาชีพ: ' + (g ? g.name : '-'), 'อาชีพ: ' + (m.occupation || '-'), labels.savings + ' ' + money_(bal) + ' บาท', labels.hajj + ' ' + money_(hajj) + ' บาท'];
   if (m.income) parts.push('รายได้ครัวเรือนต่อเดือนประมาณ ' + money_(m.income) + ' บาท');
   if (m.expense) parts.push('รายจ่ายต่อเดือนประมาณ ' + money_(m.expense) + ' บาท');
   if (debts.length) {

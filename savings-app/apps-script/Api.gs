@@ -42,9 +42,9 @@ function byOrder_(a, b) {
 /* ------------------------------------------------------------
  *  การคำนวณ
  * ------------------------------------------------------------ */
-function savingsBalance_(rows, memberId, excludeId) {
+function savingsBalance_(rows, memberId, excludeId, account) {
   return rows.reduce(function (s, t) {
-    if (t.memberId !== memberId || t.id === excludeId) return s;
+    if (t.memberId !== memberId || t.id === excludeId || (account && accountOf_(t) !== account)) return s;
     var a = num_(t.amount) || 0;
     return s + (t.type === 'withdraw' ? -a : a);
   }, 0);
@@ -89,7 +89,7 @@ function dashboard_(groupIds) {
   groups.forEach(function (g) {
     byGroup[g.id] = blank();
     stat[g.id] = { id: g.id, name: g.name, icon: g.icon, active: isTrue_(g.active) || g.active === '', monthlyShare: num_(g.monthlyShare) || 0, goal: num_(g.savingsGoal) || 0,
-      members: 0, savings: 0, depMonth: 0, wdMonth: 0, income: 0, expense: 0, fund: 0, debt: 0, debtors: 0, counsel: 0 };
+      members: 0, savings: 0, monthly: 0, hajj: 0, depMonth: 0, wdMonth: 0, income: 0, expense: 0, fund: 0, debt: 0, debtors: 0, counsel: 0 };
   });
   members.forEach(function (m) { if (stat[m.groupId] && isTrue_(m.active)) stat[m.groupId].members++; });
   var put = function (gid, key, date, amt) {
@@ -102,6 +102,7 @@ function dashboard_(groupIds) {
     var gid = memberGroup[t.memberId], st = stat[gid], a = num_(t.amount) || 0, w = t.type === 'withdraw';
     if (!st) return;
     st.savings += w ? -a : a;
+    st[accountOf_(t) === 'hajj' ? 'hajj' : 'monthly'] += w ? -a : a;
     if (String(t.date).substr(0, 7) === ym) { if (w) st.wdMonth += a; else st.depMonth += a; }
     put(gid, w ? 'wd' : 'dep', t.date, a);
   });
@@ -125,10 +126,10 @@ function dashboard_(groupIds) {
   var list = groups.map(function (g) {
     var s = stat[g.id];
     s.fund = r2(s.income - s.expense);
-    ['savings', 'depMonth', 'wdMonth', 'income', 'expense', 'debt'].forEach(function (k) { s[k] = r2(s[k]); });
+    ['savings', 'monthly', 'hajj', 'depMonth', 'wdMonth', 'income', 'expense', 'debt'].forEach(function (k) { s[k] = r2(s[k]); });
     return s;
   });
-  var tot = { groups: list.length, members: 0, savings: 0, depMonth: 0, wdMonth: 0, fund: 0, income: 0, expense: 0, debt: 0, debtors: 0 };
+  var tot = { groups: list.length, members: 0, savings: 0, monthly: 0, hajj: 0, depMonth: 0, wdMonth: 0, fund: 0, income: 0, expense: 0, debt: 0, debtors: 0 };
   list.forEach(function (s) { Object.keys(tot).forEach(function (k) { if (k !== 'groups') tot[k] = r2(tot[k] + s[k]); }); });
   return { months: months, groups: list, totals: tot, trend: all, trendByGroup: byGroup };
 }
@@ -138,7 +139,7 @@ function dashboard_(groupIds) {
  * ------------------------------------------------------------ */
 function getAll(token) {
   var s = requireSession_(token);
-  var out = { user: s, config: publicConfig_(), cats: LEDGER_CATS, debtKinds: DEBT_KINDS, today: todayIso_() };
+  var out = { user: s, config: publicConfig_(), cats: LEDGER_CATS, debtKinds: DEBT_KINDS, accounts: accountLabels_(), today: todayIso_() };
   var groups = readTable_('Groups').sort(byOrder_);
   var members = readTable_('Members');
   var inGroup = function (gid) { return s.role === 'admin' || gid === s.groupId; };
@@ -236,6 +237,7 @@ var SAVE_ = {
     var m = memberFor_(s, r.memberId);
     var type = r.type === 'withdraw' ? 'withdraw' : r.type === 'deposit' ? 'deposit' : '';
     if (!type) throw new Error('กรุณาเลือก ฝาก หรือ ถอน');
+    var account = ACCOUNTS[r.account] ? r.account : 'savings';
     var amount = num_(r.amount);
     if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
     var date = normDate_(r.date);
@@ -243,11 +245,11 @@ var SAVE_ = {
     var old = r.id ? getRow_('Savings', r.id) : null;
     if (old) memberFor_(s, old.memberId);
     if (type === 'withdraw') {
-      var bal = savingsBalance_(readTable_('Savings'), m.id, old ? old.id : '');
-      if (amount > bal + 0.001) throw new Error('ยอดถอนเกินเงินออมคงเหลือ (คงเหลือ ' + money_(bal) + ' บาท)');
+      var bal = savingsBalance_(readTable_('Savings'), m.id, old ? old.id : '', account);
+      if (amount > bal + 0.001) throw new Error('ยอดถอนเกินยอดคงเหลือของ' + accountLabels_()[account] + ' (คงเหลือ ' + money_(bal) + ' บาท)');
     }
     var now = nowIso_();
-    var rec = { memberId: m.id, groupId: m.groupId, date: date, type: type, amount: String(amount), note: text_(r.note), updatedAt: now };
+    var rec = { memberId: m.id, groupId: m.groupId, account: account, date: date, type: type, amount: String(amount), note: text_(r.note), updatedAt: now };
     if (old) { rec.id = old.id; updateRow_('Savings', rec); }
     else { rec.id = newId_(); rec.recordedBy = stamp_(s); rec.createdAt = now; insertRow_('Savings', rec); }
   },
@@ -420,7 +422,7 @@ function changeSecret(token, oldValue, newValue) {
 function saveSettings(token, obj) {
   requireSession_(token, ['admin']);
   obj = obj || {};
-  var allowed = ['appName', 'org', 'phone', 'botName', 'aiEnabled', 'aiModel', 'chatDailyLimit', 'botExtra', 'themeColor'];
+  var allowed = ['appName', 'org', 'phone', 'botName', 'aiEnabled', 'aiModel', 'chatDailyLimit', 'botExtra', 'themeColor', 'acc_savings', 'acc_hajj'];
   withLock_(function () {
     allowed.forEach(function (k) { if (obj[k] !== undefined) setSetting_(k, text_(obj[k], k === 'botExtra' ? 3000 : 200)); });
     if (obj.openaiKey) {

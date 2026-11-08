@@ -28,7 +28,7 @@ var SCHEMA = {
   Users:        ['id', 'username', 'name', 'role', 'groupId', 'passwordHash', 'salt', 'active', 'lastLogin', 'createdAt'],
   Groups:       ['id', 'name', 'icon', 'location', 'description', 'monthlyShare', 'savingsGoal', 'active', 'order', 'createdAt', 'updatedAt'],
   Members:      ['id', 'memberNo', 'name', 'phone', 'groupId', 'joinDate', 'occupation', 'income', 'expense', 'savingsGoal', 'note', 'pinHash', 'salt', 'active', 'lastLogin', 'createdAt', 'updatedAt'],
-  Savings:      ['id', 'memberId', 'groupId', 'date', 'type', 'amount', 'note', 'recordedBy', 'createdAt', 'updatedAt'],
+  Savings:      ['id', 'memberId', 'groupId', 'date', 'type', 'amount', 'note', 'recordedBy', 'createdAt', 'updatedAt', 'account', 'ref'],
   Ledger:       ['id', 'groupId', 'date', 'type', 'category', 'amount', 'note', 'recordedBy', 'createdAt', 'updatedAt'],
   Debts:        ['id', 'memberId', 'groupId', 'creditor', 'kind', 'principal', 'rate', 'monthlyPayment', 'startDate', 'status', 'note', 'createdBy', 'createdAt', 'updatedAt'],
   DebtPayments: ['id', 'debtId', 'memberId', 'groupId', 'date', 'amount', 'note', 'recordedBy', 'createdAt'],
@@ -36,6 +36,12 @@ var SCHEMA = {
   FAQ:          ['id', 'keywords', 'question', 'answer', 'order', 'active'],
   ChatLog:      ['id', 'time', 'who', 'role', 'question', 'source']
 };
+
+/** เวอร์ชันโครงสร้างตาราง — เพิ่มเลขเมื่อเพิ่มคอลัมน์ ระบบจะเติมคอลัมน์ที่ขาดให้เองตอนเปิดแอป */
+var SCHEMA_VERSION = '2';
+
+/** บัญชีเงินออมของสมาชิก (ชื่อแสดงผลเปลี่ยนได้ที่ ตั้งค่า) */
+var ACCOUNTS = { savings: 'เงินออมรายเดือน', hajj: 'บัญชีอัลฮัจย์-อุมเราะห์' };
 
 /** หมวดรายรับ-รายจ่ายของกลุ่ม */
 var LEDGER_CATS = {
@@ -66,6 +72,7 @@ function doGet(e) {
         String((err && err.message) || err).replace(/[<>&]/g, '') + '</p></div>').setTitle(APP_NAME).addMetaTag('viewport', 'width=device-width, initial-scale=1');
     }
   }
+  try { ensureSchema_(); } catch (err) { }
   var tpl = HtmlService.createTemplateFromFile('App');
   tpl.cfg = safeJson_(publicConfig_());
   return tpl.evaluate()
@@ -85,8 +92,27 @@ function publicConfig_() {
     botName: s.botName || 'น้องออม',
     phone: s.phone || '',
     themeColor: s.themeColor || '',
+    accounts: accountLabels_(s),
     baseUrl: base
   };
+}
+
+function accountLabels_(s) {
+  s = s || getSettings_();
+  return { savings: s.acc_savings || ACCOUNTS.savings, hajj: s.acc_hajj || ACCOUNTS.hajj };
+}
+
+/** บัญชีของรายการเงินออม (รายการเก่าที่ไม่มีค่า = เงินออมรายเดือน) */
+function accountOf_(t) { return ACCOUNTS[t.account] ? t.account : 'savings'; }
+
+/** เติมคอลัมน์ใหม่ให้ฐานข้อมูลเดิมเมื่ออัปเดตโค้ด (ทำครั้งเดียวต่อเวอร์ชัน) */
+function ensureSchema_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('SCHEMA_VER') === SCHEMA_VERSION) return;
+  var ss = db_();
+  Object.keys(SCHEMA).forEach(function (name) { ensureSheet_(ss, name); });
+  _tableCache = {};
+  props.setProperty('SCHEMA_VER', SCHEMA_VERSION);
 }
 
 function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
@@ -124,6 +150,7 @@ function setup() {
       .forEach(function (kv) { setSetting_(kv[0], kv[1]); });
   }
   seedFaq_();
+  props.setProperty('SCHEMA_VER', SCHEMA_VERSION);
   props.setProperty('SETUP_DONE', nowIso_());
   Logger.log('ติดตั้งเสร็จ ฐานข้อมูล: ' + ss.getUrl());
   Logger.log('ผู้ดูแลเริ่มต้น: ' + INITIAL_ADMIN_USERNAME + ' (รหัสผ่านตามที่ตั้งใน Code.gs — เปลี่ยนทันทีหลังเข้าสู่ระบบ)');
@@ -228,6 +255,16 @@ function insertRow_(name, obj) {
   sh.getRange(target, 1, 1, head.length).setNumberFormat('@').setValues([toRow_(head, obj)]);
   delete _tableCache[name];
   return fill_(name, obj);
+}
+
+/** เพิ่มหลายแถวในครั้งเดียว (เร็วกว่าเพิ่มทีละแถวมาก) */
+function appendRows_(name, objs) {
+  if (!objs || !objs.length) return;
+  var sh = sheet_(name), head = headers_(sh), start = sh.getLastRow() + 1;
+  var need = start + objs.length - 1 - sh.getMaxRows();
+  if (need > 0) sh.insertRowsAfter(sh.getMaxRows(), need + 200);
+  sh.getRange(start, 1, objs.length, head.length).setNumberFormat('@').setValues(objs.map(function (o) { return toRow_(head, o); }));
+  delete _tableCache[name];
 }
 
 function updateRow_(name, obj) {

@@ -16,7 +16,7 @@ REPO = os.path.dirname(APP)
 SRC = os.path.join(APP, 'apps-script')
 OUT = os.path.join(APP, 'demo', 'index.html')
 MOCK_FROM = os.path.join(REPO, 'srayala-website', 'preview', 'preview.html')
-GS_FILES = ['Code.gs', 'Api.gs', 'Chat.gs']
+GS_FILES = ['Code.gs', 'Api.gs', 'Chat.gs', 'Import.gs']
 
 
 def read(p):

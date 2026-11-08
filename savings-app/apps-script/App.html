@@ -250,7 +250,13 @@ var CFG = <?!= cfg ?>;
   const memberOf = id => (D.members || []).find(m => m.id === id) || {};
   const groupName = id => groupOf(id).name || '-';
   const activeMembers = () => D.members.filter(m => truthy(m.active)).sort((a, b) => String(a.memberNo).localeCompare(String(b.memberNo), 'th', { numeric: true }));
-  function balanceOf(memberId) { return D.savings.reduce((s, t) => t.memberId === memberId ? s + (t.type === 'withdraw' ? -num(t.amount) : num(t.amount)) : s, 0); }
+  const ACCS = ['savings', 'hajj'];
+  const ACC_E = { savings: '💰', hajj: '🕋' };
+  const accOf = t => t.account === 'hajj' ? 'hajj' : 'savings';
+  const accName = a => ((D && D.accounts) || CFG.accounts || {})[a] || (a === 'hajj' ? 'บัญชีอัลฮัจย์-อุมเราะห์' : 'เงินออมรายเดือน');
+  /** ยอดคงเหลือ — acc เว้นว่าง = รวมทุกบัญชี */
+  function balanceOf(memberId, acc) { return D.savings.reduce((s, t) => t.memberId === memberId && (!acc || accOf(t) === acc) ? s + (t.type === 'withdraw' ? -num(t.amount) : num(t.amount)) : s, 0); }
+  const accLine = memberId => ACCS.map(a => ACC_E[a] + ' ' + esc(accName(a)) + ' ' + money(balanceOf(memberId, a))).join(' · ');
   function debtInfo(memberId) {
     const paid = {};
     D.payments.forEach(p => { paid[p.debtId] = (paid[p.debtId] || 0) + num(p.amount); });
@@ -377,8 +383,8 @@ var CFG = <?!= cfg ?>;
   const NAV_STAFF = [['dash', '📊', 'ภาพรวม'], ['entry', '✍️', 'บันทึก'], ['members', '👥', 'สมาชิก'], ['clinic', '🩺', 'คลินิกหนี้'], ['more', '☰', 'เพิ่มเติม']];
   const NAV_MEMBER = [['home', '🏠', 'หน้าแรก'], ['mysav', '💰', 'เงินออม'], ['clinic', '🩺', 'คลินิกหนี้'], ['chat', '💬', 'ผู้ช่วย'], ['me', '👤', 'ฉัน']];
   const TITLES = { dash: 'ภาพรวมกลุ่มอาชีพ', entry: 'บันทึกรายการ', members: 'สมาชิก', member: 'ข้อมูลสมาชิก', clinic: 'คลินิกแก้หนี้', cmember: 'คลินิกแก้หนี้', more: 'เพิ่มเติม', groups: 'กลุ่มอาชีพ',
-    settings: 'ตั้งค่า', users: 'ผู้ใช้งาน', faq: 'คลังคำตอบแชตบอต', chatlog: 'คำถามที่ถามแชตบอต', chat: 'ผู้ช่วยการเงิน', home: 'หน้าแรก', mysav: 'เงินออมของฉัน', me: 'ข้อมูลของฉัน', ledger: 'รายรับ-รายจ่ายกลุ่ม' };
-  const PARENT = { member: 'members', cmember: 'clinic', groups: 'more', settings: 'more', users: 'more', faq: 'more', chatlog: 'more', ledger: 'more' };
+    settings: 'ตั้งค่า', users: 'ผู้ใช้งาน', faq: 'คลังคำตอบแชตบอต', chatlog: 'คำถามที่ถามแชตบอต', chat: 'ผู้ช่วยการเงิน', home: 'หน้าแรก', mysav: 'เงินออมของฉัน', me: 'ข้อมูลของฉัน', ledger: 'รายรับ-รายจ่ายกลุ่ม', import: 'นำเข้า / อัปเดตข้อมูล' };
+  const PARENT = { member: 'members', cmember: 'clinic', groups: 'more', settings: 'more', users: 'more', faq: 'more', chatlog: 'more', ledger: 'more', import: 'more' };
   function shell() {
     const nav = isStaff() ? NAV_STAFF : NAV_MEMBER;
     root.innerHTML = '<header class="top"><div class="in"><button class="back" id="backBtn" hidden aria-label="ย้อนกลับ">←</button><div class="ttl"><b id="vt"></b><small>' + esc(CFG.appName) + ' · ' + esc(D.user.name) +
@@ -443,46 +449,49 @@ var CFG = <?!= cfg ?>;
   let dashG = '';
   VIEWS.dash = function () {
     const db = D.dashboard, gs = db.groups.filter(g => !dashG || g.id === dashG);
-    const T = gs.reduce((t, g) => { ['members', 'savings', 'depMonth', 'wdMonth', 'fund', 'income', 'expense', 'debt', 'debtors'].forEach(k => t[k] = (t[k] || 0) + g[k]); return t; }, { members: 0, savings: 0, depMonth: 0, wdMonth: 0, fund: 0, income: 0, expense: 0, debt: 0, debtors: 0 });
+    const T = gs.reduce((t, g) => { ['members', 'savings', 'monthly', 'hajj', 'depMonth', 'wdMonth', 'fund', 'income', 'expense', 'debt', 'debtors'].forEach(k => t[k] = (t[k] || 0) + (g[k] || 0)); return t; }, { members: 0, savings: 0, monthly: 0, hajj: 0, depMonth: 0, wdMonth: 0, fund: 0, income: 0, expense: 0, debt: 0, debtors: 0 });
     const tr = dashG ? db.trendByGroup[dashG] : db.trend;
     let h = '<div class="filters"><select id="dg" aria-label="เลือกกลุ่ม">' + opt(db.groups.map(g => [g.id, (g.icon ? g.icon + ' ' : '') + g.name]), dashG, 'ทุกกลุ่มอาชีพ (' + db.groups.length + ')') + '</select></div>';
     if (!db.groups.length) return h + '<div class="card empty">ยังไม่มีกลุ่มอาชีพ' + (isAdmin() ? ' — <a href="#" data-go="groups">เพิ่มกลุ่มอาชีพ</a>' : '') + '</div>';
-    h += '<div class="hero"><div class="k">เงินออมสมาชิกรวม' + (dashG ? ' · ' + esc(groupName(dashG)) : '') + '</div><div class="v">' + money(T.savings) + '<small>บาท</small></div>' +
+    h += '<div class="hero"><div class="k">เงินออมสมาชิกรวมทุกบัญชี' + (dashG ? ' · ' + esc(groupName(dashG)) : '') + '</div><div class="v">' + money(T.savings) + '<small>บาท</small></div>' +
+      '<div class="n">' + ACC_E.savings + ' ' + esc(accName('savings')) + ' ' + money(T.monthly) + ' · ' + ACC_E.hajj + ' ' + esc(accName('hajj')) + ' ' + money(T.hajj) + '</div>' +
       '<div class="n">เดือนนี้ ฝาก +' + money(T.depMonth) + ' · ถอน −' + money(T.wdMonth) + ' บาท</div></div>' +
       '<div class="tiles"><div class="tile"><div class="l">สมาชิก</div><div class="n">' + T.members + '<small>คน</small></div><div class="s">' + gs.length + ' กลุ่มอาชีพ</div></div>' +
       '<div class="tile"><div class="l">กองทุนกลุ่ม (รับ−จ่าย)</div><div class="n">' + money(T.fund) + '<small>บาท</small></div><div class="s">รับ ' + short(T.income) + ' · จ่าย ' + short(T.expense) + '</div></div>' +
       '<div class="tile"><div class="l">หนี้คงค้าง (คลินิก)</div><div class="n">' + money(T.debt) + '<small>บาท</small></div><div class="s">' + T.debtors + ' คนที่มีหนี้</div></div>' +
-      '<div class="tile"><div class="l">เงินออมเฉลี่ย/คน</div><div class="n">' + money(T.members ? Math.round(T.savings / T.members) : 0) + '<small>บาท</small></div><div class="s">เฉพาะสมาชิกที่ใช้งาน</div></div></div>';
+      '<div class="tile"><div class="l">เงินออมเฉลี่ย/คน</div><div class="n">' + money(T.members ? Math.round(T.savings / T.members) : 0) + '<small>บาท</small></div><div class="s">ทุกบัญชี · สมาชิกที่ใช้งาน</div></div></div>';
     h += '<div class="card"><h3>💰 ฝาก-ถอนเงินออมรายเดือน</h3>' + colChart(db.months, [{ name: 'ฝาก', color: 'var(--s1)', values: tr.dep }, { name: 'ถอน', color: 'var(--s2)', values: tr.wd }]) + '</div>';
     h += '<div class="card"><h3>🧺 รายรับ-รายจ่ายกองทุนกลุ่มรายเดือน</h3>' + colChart(db.months, [{ name: 'รายรับ', color: 'var(--s1)', values: tr.inc }, { name: 'รายจ่าย', color: 'var(--s2)', values: tr.exp }]) + '</div>';
     if (!dashG && db.groups.length > 1) h += '<div class="card"><h3>🏆 เงินออมสมาชิกแยกตามกลุ่ม</h3>' + hBars(db.groups.slice().sort((a, b) => b.savings - a.savings).map(g => ({ l: g.name, v: g.savings }))) + '</div>';
-    h += '<div class="card"><div class="row between" style="margin-bottom:8px"><h3 style="margin:0">📋 สรุปรายกลุ่ม</h3><button class="btn sm ghost" id="dcsv">⬇ CSV</button></div><div class="tbl-wrap"><table class="tb"><thead><tr><th>กลุ่มอาชีพ</th><th>สมาชิก</th><th>เงินออม</th><th>กองทุนกลุ่ม</th><th>หนี้คงค้าง</th><th>มีหนี้</th><th>เป้าหมายออม</th></tr></thead><tbody>' +
-      gs.map(g => '<tr><td>' + esc((g.icon ? g.icon + ' ' : '') + g.name) + '</td><td>' + g.members + '</td><td>' + money(g.savings) + '</td><td>' + money(g.fund) + '</td><td>' + money(g.debt) + '</td><td>' + g.debtors + '</td><td>' + (g.goal ? Math.round(g.savings / g.goal * 100) + '%' : '-') + '</td></tr>').join('') +
+    h += '<div class="card"><div class="row between" style="margin-bottom:8px"><h3 style="margin:0">📋 สรุปรายกลุ่ม</h3><button class="btn sm ghost" id="dcsv">⬇ CSV</button></div><div class="tbl-wrap"><table class="tb"><thead><tr><th>กลุ่มอาชีพ</th><th>สมาชิก</th><th>' + esc(accName('savings')) + '</th><th>' + esc(accName('hajj')) + '</th><th>รวมเงินออม</th><th>กองทุนกลุ่ม</th><th>หนี้คงค้าง</th><th>มีหนี้</th><th>เป้าหมายออม</th></tr></thead><tbody>' +
+      gs.map(g => '<tr><td>' + esc((g.icon ? g.icon + ' ' : '') + g.name) + '</td><td>' + g.members + '</td><td>' + money(g.monthly) + '</td><td>' + money(g.hajj) + '</td><td>' + money(g.savings) + '</td><td>' + money(g.fund) + '</td><td>' + money(g.debt) + '</td><td>' + g.debtors + '</td><td>' + (g.goal ? Math.round(g.savings / g.goal * 100) + '%' : '-') + '</td></tr>').join('') +
       '</tbody></table></div></div>';
     return h;
   };
   BIND.dash = function () {
     const s = $('#dg'); if (s) s.onchange = function () { dashG = this.value; render(); };
-    const c = $('#dcsv'); if (c) c.onclick = () => dlCsv('สรุปกลุ่มอาชีพ', [['name', 'กลุ่มอาชีพ'], ['members', 'สมาชิก'], ['savings', 'เงินออมสมาชิก'], ['income', 'รายรับกลุ่ม'], ['expense', 'รายจ่ายกลุ่ม'], ['fund', 'กองทุนกลุ่ม'], ['debt', 'หนี้คงค้าง'], ['debtors', 'จำนวนผู้มีหนี้']], D.dashboard.groups);
+    const c = $('#dcsv'); if (c) c.onclick = () => dlCsv('สรุปกลุ่มอาชีพ', [['name', 'กลุ่มอาชีพ'], ['members', 'สมาชิก'], ['monthly', accName('savings')], ['hajj', accName('hajj')], ['savings', 'รวมเงินออม'], ['income', 'รายรับกลุ่ม'], ['expense', 'รายจ่ายกลุ่ม'], ['fund', 'กองทุนกลุ่ม'], ['debt', 'หนี้คงค้าง'], ['debtors', 'จำนวนผู้มีหนี้']], D.dashboard.groups);
   };
 
   /* ================= เจ้าหน้าที่: บันทึกรายการ ================= */
-  let entryTab = 'sav', entF = { month: '', g: '' };
+  let entryTab = 'sav', entF = { month: '', g: '', acc: '' };
   VIEWS.entry = function () {
     const sav = entryTab === 'sav';
     return '<div class="seg" id="etab"><button data-t="sav" class="' + (sav ? 'on' : '') + '">💰 ฝาก / ถอน สมาชิก</button><button data-t="led" class="' + (!sav ? 'on' : '') + '">🧺 รายรับ-รายจ่ายกลุ่ม</button></div>' +
       '<div class="row" style="margin-bottom:12px"><button class="btn" id="eNew1">' + (sav ? '➕ ฝากเงิน' : '➕ รายรับ') + '</button><button class="btn gold" id="eNew2">' + (sav ? '➖ ถอนเงิน' : '➖ รายจ่าย') + '</button></div>' +
       '<div class="filters">' + (isAdmin() || !sav ? '<select id="eg">' + opt(D.groups.map(g => [g.id, g.name]), entF.g, 'ทุกกลุ่ม') + '</select>' : '') +
+      (sav ? '<select id="ea">' + opt(ACCS.map(a => [a, ACC_E[a] + ' ' + accName(a)]), entF.acc, 'ทุกบัญชี') + '</select>' : '') +
       '<input type="month" id="em" value="' + esc(entF.month) + '" aria-label="เดือน"><button class="btn sm ghost" id="ecsv">⬇ CSV</button></div><p class="small muted" id="esum"></p><div id="elist"></div>';
   };
   function entryRows() {
-    if (entryTab === 'sav') return sortDate(D.savings.filter(t => (!entF.g || memberOf(t.memberId).groupId === entF.g) && (!entF.month || String(t.date).substr(0, 7) === entF.month)));
+    if (entryTab === 'sav') return sortDate(D.savings.filter(t => (!entF.g || memberOf(t.memberId).groupId === entF.g) && (!entF.acc || accOf(t) === entF.acc) && (!entF.month || String(t.date).substr(0, 7) === entF.month)));
     return sortDate(D.ledger.filter(t => (!entF.g || t.groupId === entF.g) && (!entF.month || String(t.date).substr(0, 7) === entF.month)));
   }
   function savRow(t, showName) {
     const w = t.type === 'withdraw', m = memberOf(t.memberId);
-    return '<div class="li tap" data-sav="' + esc(t.id) + '"><div class="ic' + (w ? ' w' : '') + '">' + (w ? '➖' : '➕') + '</div><div style="min-width:0"><div class="t">' + (showName ? esc(m.name || '(ลบแล้ว)') : (w ? 'ถอนเงินออม' : 'ฝากเงินออม')) + '</div>' +
-      '<div class="s">' + thDate(t.date) + (showName ? ' · ' + esc(m.memberNo || '') + ' · ' + (w ? 'ถอน' : 'ฝาก') : '') + (t.note ? ' · ' + esc(t.note) : '') + '</div></div><div class="a ' + (w ? 'm' : 'p') + '">' + (w ? '−' : '+') + money(t.amount) + '</div></div>';
+    const a = accOf(t);
+    return '<div class="li tap" data-sav="' + esc(t.id) + '"><div class="ic' + (w ? ' w' : '') + '">' + ACC_E[a] + '</div><div style="min-width:0"><div class="t">' + (showName ? esc(m.name || '(ลบแล้ว)') : (w ? 'ถอน · ' : 'ฝาก · ') + esc(accName(a))) + '</div>' +
+      '<div class="s">' + thDate(t.date) + (showName ? ' · ' + esc(m.memberNo || '') + ' · ' + (w ? 'ถอน' : 'ฝาก') + ' ' + esc(accName(a)) : '') + (t.note ? ' · ' + esc(t.note) : '') + '</div></div><div class="a ' + (w ? 'm' : 'p') + '">' + (w ? '−' : '+') + money(t.amount) + '</div></div>';
   }
   function ledRow(t) {
     const e = t.type === 'expense';
@@ -501,9 +510,10 @@ var CFG = <?!= cfg ?>;
     $('#eNew1').onclick = () => entryTab === 'sav' ? savingForm(null, { type: 'deposit' }) : ledgerForm(null, { type: 'income' });
     $('#eNew2').onclick = () => entryTab === 'sav' ? savingForm(null, { type: 'withdraw' }) : ledgerForm(null, { type: 'expense' });
     const eg = $('#eg'); if (eg) eg.onchange = function () { entF.g = this.value; draw(); };
+    const ea = $('#ea'); if (ea) ea.onchange = function () { entF.acc = this.value; draw(); };
     $('#em').onchange = function () { entF.month = this.value; draw(); };
     $('#ecsv').onclick = () => entryTab === 'sav'
-      ? dlCsv('เงินออมสมาชิก' + (entF.month ? '-' + entF.month : ''), [['date', 'วันที่'], [t => memberOf(t.memberId).memberNo, 'รหัสสมาชิก'], [t => memberOf(t.memberId).name, 'ชื่อ'], [t => groupName(memberOf(t.memberId).groupId), 'กลุ่ม'], [t => t.type === 'withdraw' ? 'ถอน' : 'ฝาก', 'ประเภท'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'], ['recordedBy', 'ผู้บันทึก']], entryRows())
+      ? dlCsv('เงินออมสมาชิก' + (entF.month ? '-' + entF.month : ''), [['date', 'วันที่'], [t => memberOf(t.memberId).memberNo, 'รหัสสมาชิก'], [t => memberOf(t.memberId).name, 'ชื่อ'], [t => groupName(memberOf(t.memberId).groupId), 'กลุ่ม'], [t => accName(accOf(t)), 'บัญชี'], [t => t.type === 'withdraw' ? 'ถอน' : 'ฝาก', 'ประเภท'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'], ['recordedBy', 'ผู้บันทึก']], entryRows())
       : dlCsv('รายรับรายจ่ายกลุ่ม' + (entF.month ? '-' + entF.month : ''), [['date', 'วันที่'], [t => groupName(t.groupId), 'กลุ่ม'], [t => t.type === 'expense' ? 'รายจ่าย' : 'รายรับ', 'ประเภท'], [t => catName(t.type, t.category), 'หมวด'], ['amount', 'จำนวนเงิน'], ['note', 'หมายเหตุ'], ['recordedBy', 'ผู้บันทึก']], entryRows());
     v.addEventListener('click', e => {
       const a = e.target.closest('[data-sav]'); if (a) return savingForm(a.getAttribute('data-sav'));
@@ -513,10 +523,12 @@ var CFG = <?!= cfg ?>;
 
   /** ฟอร์มฝาก/ถอนเงินออมสมาชิก */
   function savingForm(id, preset) {
-    const r = id ? Object.assign({}, D.savings.find(t => t.id === id)) : Object.assign({ type: 'deposit', date: today() }, preset || {});
+    const r = id ? Object.assign({}, D.savings.find(t => t.id === id)) : Object.assign({ type: 'deposit', date: today(), account: entF.acc || 'savings' }, preset || {});
+    r.account = accOf(r);
     const ms = activeMembers().filter(m => !entF.g || !isAdmin() || m.groupId === entF.g || m.id === r.memberId);
     const sh = openSheet(id ? 'แก้ไขรายการเงินออม' : (r.type === 'withdraw' ? '➖ ถอนเงินออม' : '➕ ฝากเงินออม'),
       segHtml('type', r.type, [['deposit', '➕ ฝาก', 'dep'], ['withdraw', '➖ ถอน', 'wd']]) +
+      segHtml('account', r.account, ACCS.map(a => [a, ACC_E[a] + ' ' + esc(accName(a))])) +
       (r.memberId && preset && preset.memberId ? '<input type="hidden" name="memberId" value="' + esc(r.memberId) + '"><p><b>' + esc(memberOf(r.memberId).name) + '</b> <span class="muted">' + esc(memberOf(r.memberId).memberNo) + '</span></p>'
         : '<label class="fld"><span>สมาชิก *</span><input class="inp" id="msq" placeholder="🔍 พิมพ์ชื่อหรือรหัสเพื่อค้นหา" style="margin-bottom:6px"><select name="memberId">' + opt(ms.map(m => [m.id, m.memberNo + ' · ' + m.name + (isAdmin() ? ' (' + groupName(m.groupId) + ')' : '')]), r.memberId, '— เลือกสมาชิก —') + '</select></label>') +
       '<p class="small muted" id="mbal" style="margin:-6px 0 10px"></p>' +
@@ -524,8 +536,8 @@ var CFG = <?!= cfg ?>;
       '<label class="fld"><span>วันที่ *</span><input name="date" type="date" value="' + esc(r.date) + '" max="' + today() + '"></label></div>' +
       '<label class="fld"><span>หมายเหตุ</span><input name="note" maxlength="300" value="' + esc(r.note || '') + '" placeholder="เช่น เงินสัจจะประจำเดือน"></label>',
       (id ? '<button class="btn ghost" id="sDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="sOk">💾 บันทึก</button>');
-    bindSeg(sh);
-    const showBal = () => { const mid = formVal(sh, 'memberId'); $('#mbal').textContent = mid ? 'เงินออมคงเหลือ ' + money(balanceOf(mid)) + ' บาท' : ''; };
+    const showBal = () => { const mid = formVal(sh, 'memberId'), a = formVal(sh, 'account'); $('#mbal').textContent = mid ? accName(a) + ' คงเหลือ ' + money(balanceOf(mid, a)) + ' บาท' : ''; };
+    bindSeg(sh, () => showBal());
     const sel = sh.querySelector('select[name=memberId]');
     if (sel) {
       sel.onchange = showBal;
@@ -538,11 +550,11 @@ var CFG = <?!= cfg ?>;
     }
     showBal();
     $('#sOk').onclick = function () {
-      const d = formData(sh, ['type', 'memberId', 'amount', 'date', 'note']);
+      const d = formData(sh, ['type', 'account', 'memberId', 'amount', 'date', 'note']);
       if (!d.memberId) return toast('กรุณาเลือกสมาชิก', 'err');
       if (!(num(d.amount) > 0)) return toast('กรุณากรอกจำนวนเงิน', 'err');
       if (id) d.id = id;
-      saveBtn(this, mutate('saveRecord', 'Savings', d), () => toast((d.type === 'withdraw' ? 'บันทึกการถอน ' : 'บันทึกการฝาก ') + money(d.amount) + ' บาท เรียบร้อย', 'ok'));
+      saveBtn(this, mutate('saveRecord', 'Savings', d), () => toast((d.type === 'withdraw' ? 'บันทึกการถอน ' : 'บันทึกการฝาก ') + accName(d.account) + ' ' + money(d.amount) + ' บาท เรียบร้อย', 'ok'));
     };
     if (id) $('#sDel').onclick = () => confirmBox('ลบรายการ ' + money(r.amount) + ' บาท ของ ' + esc(memberOf(r.memberId).name) + ' ใช่หรือไม่?').then(ok => ok && mutate('deleteRecord', 'Savings', id).then(() => { toast('ลบแล้ว', 'ok'); render(); }));
   }
@@ -572,7 +584,7 @@ var CFG = <?!= cfg ?>;
   /* ================= เจ้าหน้าที่: สมาชิก ================= */
   let memQ = '', memG = '';
   VIEWS.members = function () {
-    return '<div class="row" style="margin-bottom:12px"><input class="search grow" id="mq" placeholder="🔍 ค้นหาชื่อ รหัส เบอร์โทร" value="' + esc(memQ) + '"><button class="btn" id="mAdd">＋ เพิ่ม</button></div>' +
+    return '<div class="row" style="margin-bottom:12px"><input class="search grow" id="mq" placeholder="🔍 ค้นหาชื่อ รหัส เบอร์โทร" value="' + esc(memQ) + '"><button class="btn" id="mAdd">＋ เพิ่ม</button><button class="btn ghost" data-go="import">⬆ นำเข้า</button></div>' +
       (isAdmin() ? '<div class="filters"><select id="mg">' + opt(D.groups.map(g => [g.id, g.name]), memG, 'ทุกกลุ่ม') + '</select><button class="btn sm ghost" id="mcsv">⬇ CSV</button></div>' : '<div class="filters"><button class="btn sm ghost" id="mcsv">⬇ CSV</button></div>') +
       '<p class="small muted" id="mcount"></p><div id="mlist"></div>';
   };
@@ -583,7 +595,7 @@ var CFG = <?!= cfg ?>;
       $('#mcount').textContent = list.length + ' คน';
       $('#mlist').innerHTML = list.length ? '<div class="list">' + list.map(m => {
         const di = debtInfo(m.id);
-        return '<div class="li tap" data-go="member" data-arg="' + esc(m.id) + '"><div class="ic">' + (truthy(m.active) ? '👤' : '🚫') + '</div><div style="min-width:0"><div class="t">' + esc(m.name) + '</div><div class="s">' + esc(m.memberNo) + (isAdmin() ? ' · ' + esc(groupName(m.groupId)) : '') + (di.total ? ' · 🩺 หนี้ ' + short(di.total) : '') + (truthy(m.active) ? '' : ' · ระงับ') + '</div></div>' +
+        return '<div class="li tap" data-go="member" data-arg="' + esc(m.id) + '"><div class="ic">' + (truthy(m.active) ? '👤' : '🚫') + '</div><div style="min-width:0"><div class="t">' + esc(m.name) + '</div><div class="s">' + esc(m.memberNo) + (isAdmin() ? ' · ' + esc(groupName(m.groupId)) : '') + (di.total ? ' · 🩺 หนี้ ' + short(di.total) : '') + (m.hasPin ? '' : ' · 🔑 ยังไม่ตั้ง PIN') + (truthy(m.active) ? '' : ' · ระงับ') + '</div></div>' +
           '<div class="a">' + money(balanceOf(m.id)) + '<small>เงินออม</small></div></div>';
       }).join('') + '</div>' : '<div class="card empty">' + (D.members.length ? 'ไม่พบสมาชิก' : 'ยังไม่มีสมาชิก — กด “＋ เพิ่ม”') + '</div>';
     };
@@ -607,7 +619,7 @@ var CFG = <?!= cfg ?>;
       '<div class="grid2"><label class="fld"><span>อาชีพ</span><input name="occupation" value="' + esc(r.occupation || '') + '"></label><label class="fld"><span>วันที่เป็นสมาชิก</span><input name="joinDate" type="date" value="' + esc(r.joinDate || '') + '"></label></div>' +
       '<div class="grid2"><label class="fld"><span>รายได้ครัวเรือน/เดือน</span><input name="income" type="number" inputmode="decimal" value="' + esc(r.income || '') + '"></label><label class="fld"><span>รายจ่าย/เดือน</span><input name="expense" type="number" inputmode="decimal" value="' + esc(r.expense || '') + '"></label></div>' +
       '<label class="fld"><span>เป้าหมายเงินออม (บาท)</span><input name="savingsGoal" type="number" inputmode="decimal" value="' + esc(r.savingsGoal || '') + '"></label>' +
-      '<label class="fld"><span>' + (id ? 'ตั้ง PIN ใหม่ (เว้นว่าง = ไม่เปลี่ยน)' : 'PIN เริ่มต้น * (อย่างน้อย 4 ตัว)') + '</span><input name="pin" inputmode="numeric" autocomplete="off" placeholder="เช่น 4 หลักท้ายเบอร์โทร"><span class="hint">สมาชิกใช้รหัสสมาชิก + PIN เข้าแอป และเปลี่ยน PIN เองได้</span></label>' +
+      '<label class="fld"><span>' + (id ? (r.hasPin ? 'ตั้ง PIN ใหม่ (เว้นว่าง = ไม่เปลี่ยน)' : '🔑 ตั้ง PIN ให้สมาชิก (ยังไม่มี PIN — เข้าแอปไม่ได้)') : 'PIN เริ่มต้น * (อย่างน้อย 4 ตัว)') + '</span><input name="pin" inputmode="numeric" autocomplete="off" placeholder="เช่น 4 หลักท้ายเบอร์โทร"><span class="hint">สมาชิกใช้รหัสสมาชิก + PIN เข้าแอป และเปลี่ยน PIN เองได้</span></label>' +
       '<label class="fld"><span>หมายเหตุ (เห็นเฉพาะเจ้าหน้าที่)</span><input name="note" value="' + esc(r.note || '') + '"></label>' +
       '<label class="switch"><input type="checkbox" name="active"' + (truthy(r.active) ? ' checked' : '') + '> เปิดใช้งาน</label>',
       (id && isAdmin() ? '<button class="btn ghost" id="mDel" style="flex:0 0 auto">🗑</button>' : '<button class="btn ghost" data-close>ยกเลิก</button>') + '<button class="btn" id="mOk">💾 บันทึก</button>');
@@ -627,7 +639,7 @@ var CFG = <?!= cfg ?>;
     const bal = balanceOf(id), di = debtInfo(id), txs = sortDate(D.savings.filter(t => t.memberId === id));
     const dep = txs.filter(t => t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0), wd = txs.filter(t => t.type === 'withdraw').reduce((s, t) => s + num(t.amount), 0);
     return '<div class="card"><div class="row between"><div class="grow"><h3 style="margin:0">' + esc(m.name) + ' ' + (truthy(m.active) ? '' : '<span class="pill bad">ระงับ</span>') + '</h3><div class="small muted">' + esc(m.memberNo) + ' · ' + esc(groupName(m.groupId)) + (m.phone ? ' · ☎ <a href="tel:' + esc(m.phone) + '">' + esc(m.phone) + '</a>' : '') + (m.occupation ? ' · ' + esc(m.occupation) : '') + '</div></div><button class="btn sm ghost" id="mdEdit">✎ แก้ไข</button></div></div>' +
-      '<div class="hero"><div class="k">เงินออมคงเหลือ</div><div class="v">' + money(bal) + '<small>บาท</small></div><div class="n">ฝากรวม ' + money(dep) + ' · ถอนรวม ' + money(wd) + '</div>' + goalHtml(bal, m.savingsGoal) + '</div>' +
+      '<div class="hero"><div class="k">เงินออมคงเหลือรวมทุกบัญชี</div><div class="v">' + money(bal) + '<small>บาท</small></div><div class="n">' + accLine(id) + '</div><div class="n">ฝากรวม ' + money(dep) + ' · ถอนรวม ' + money(wd) + '</div>' + goalHtml(bal, m.savingsGoal) + '</div>' +
       '<div class="row" style="margin-bottom:14px"><button class="btn" id="mdDep">➕ ฝาก</button><button class="btn gold" id="mdWd">➖ ถอน</button><button class="btn ghost" data-go="cmember" data-arg="' + esc(id) + '">🩺 คลินิกหนี้' + (di.total ? ' (' + short(di.total) + ')' : '') + '</button></div>' +
       '<h3>รายการเงินออม</h3>' + (txs.length ? '<div class="list">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class="card empty">ยังไม่มีรายการ</div>');
   };
@@ -848,7 +860,7 @@ var CFG = <?!= cfg ?>;
     const thisMonth = D.savings.filter(t => String(t.date).substr(0, 7) === ym && t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0);
     const hr = new Date().getHours();
     return '<h2 style="margin-bottom:2px">' + (hr < 12 ? 'อรุณสวัสดิ์' : hr < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น') + ' ' + esc(m.name) + '</h2><p class="muted small" style="margin:0 0 12px">' + esc(m.memberNo) + ' · ' + esc((g.icon ? g.icon + ' ' : '') + (g.name || '')) + '</p>' +
-      '<div class="hero"><div class="k">เงินออมของฉัน</div><div class="v">' + money(bal) + '<small>บาท</small></div><div class="n">เดือนนี้ฝากแล้ว ' + money(thisMonth) + ' บาท' + (num(g.monthlyShare) ? ' · กลุ่มกำหนด ' + money(g.monthlyShare) + '/เดือน' : '') + '</div>' + goalHtml(bal, m.savingsGoal, 'เป้าหมายของฉัน') + '</div>' +
+      '<div class="hero"><div class="k">เงินออมของฉัน (รวมทุกบัญชี)</div><div class="v">' + money(bal) + '<small>บาท</small></div><div class="n">' + accLine(m.id) + '</div><div class="n">เดือนนี้ฝากแล้ว ' + money(thisMonth) + ' บาท' + (num(g.monthlyShare) ? ' · กลุ่มกำหนด ' + money(g.monthlyShare) + '/เดือน' : '') + '</div>' + goalHtml(bal, m.savingsGoal, 'เป้าหมายของฉัน') + '</div>' +
       '<div class="tiles"><div class="tile" data-go="clinic" style="cursor:pointer"><div class="l">🩺 หนี้คงเหลือ</div><div class="n">' + money(di.total) + '</div><div class="s">' + (di.active.length ? di.active.length + ' รายการ · ' : '') + 'แตะเพื่อวางแผน</div></div>' +
       '<div class="tile"><div class="l">หนี้ต่อรายได้</div><div style="margin-top:4px">' + dtiPill(di.dti) + '</div></div>' +
       (gs ? '<div class="tile"><div class="l">🧺 เงินออมทั้งกลุ่ม</div><div class="n">' + short(gs.savings) + '</div><div class="s">' + gs.members + ' สมาชิก</div></div><div class="tile"><div class="l">กองทุนกลุ่ม</div><div class="n">' + short(gs.fund) + '</div><div class="s">รายรับ − รายจ่ายของกลุ่ม</div></div>' : '') + '</div>' +
@@ -856,16 +868,17 @@ var CFG = <?!= cfg ?>;
       '<div class="row between"><h3 style="margin:0 0 8px">รายการล่าสุด</h3>' + (D.savings.length ? '<a href="#" data-go="mysav">ดูทั้งหมด →</a>' : '') + '</div>' +
       (txs.length ? '<div class="list">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class="card empty">ยังไม่มีรายการ — นำเงินไปฝากกับเจ้าหน้าที่กลุ่ม</div>');
   };
-  let myYear = '';
+  let myYear = '', myAcc = '';
   VIEWS.mysav = function () {
     const years = [...new Set(D.savings.map(t => String(t.date).substr(0, 4)).filter(Boolean))].sort().reverse();
-    const txs = sortDate(D.savings.filter(t => !myYear || String(t.date).substr(0, 4) === myYear));
+    const txs = sortDate(D.savings.filter(t => (!myYear || String(t.date).substr(0, 4) === myYear) && (!myAcc || accOf(t) === myAcc)));
     const dep = txs.filter(t => t.type !== 'withdraw').reduce((s, t) => s + num(t.amount), 0), wd = txs.filter(t => t.type === 'withdraw').reduce((s, t) => s + num(t.amount), 0);
-    return '<div class="filters"><select id="my">' + opt(years.map(y => [y, 'ปี ' + (Number(y) + 543)]), myYear, 'ทุกปี') + '</select></div>' +
-      '<div class="tiles" style="grid-template-columns:repeat(3,1fr)"><div class="tile"><div class="l">ฝาก</div><div class="n" style="color:var(--ok)">' + short(dep) + '</div></div><div class="tile"><div class="l">ถอน</div><div class="n" style="color:var(--danger)">' + short(wd) + '</div></div><div class="tile"><div class="l">คงเหลือ</div><div class="n">' + short(balanceOf(D.user.id)) + '</div></div></div>' +
+    return '<div class="filters"><select id="ma">' + opt(ACCS.map(a => [a, ACC_E[a] + ' ' + accName(a)]), myAcc, 'ทุกบัญชี') + '</select><select id="my">' + opt(years.map(y => [y, 'ปี ' + (Number(y) + 543)]), myYear, 'ทุกปี') + '</select></div>' +
+      '<p class="small muted" style="margin:-4px 0 10px">' + accLine(D.user.id) + '</p>' +
+      '<div class="tiles" style="grid-template-columns:repeat(3,1fr)"><div class="tile"><div class="l">ฝาก</div><div class="n" style="color:var(--ok)">' + short(dep) + '</div></div><div class="tile"><div class="l">ถอน</div><div class="n" style="color:var(--danger)">' + short(wd) + '</div></div><div class="tile"><div class="l">คงเหลือ</div><div class="n">' + short(balanceOf(D.user.id, myAcc)) + '</div></div></div>' +
       (txs.length ? '<div class="list">' + txs.map(t => savRow(t, false)).join('') + '</div>' : '<div class="card empty">ไม่มีรายการ</div>');
   };
-  BIND.mysav = function () { $('#my').onchange = function () { myYear = this.value; render(); }; };
+  BIND.mysav = function () { $('#my').onchange = function () { myYear = this.value; render(); }; $('#ma').onchange = function () { myAcc = this.value; render(); }; };
   VIEWS.me = function () {
     const m = memberOf(D.user.id);
     return '<div class="card"><h3>👤 ข้อมูลของฉัน</h3><p style="margin:0">' + esc(m.name) + '<br><span class="muted small">' + esc(m.memberNo) + ' · ' + esc(groupName(m.groupId)) + (m.phone ? ' · ' + esc(m.phone) : '') + (m.joinDate ? ' · สมาชิกตั้งแต่ ' + thDate(m.joinDate) : '') + '</span></p></div>' +
@@ -889,6 +902,7 @@ var CFG = <?!= cfg ?>;
   VIEWS.more = function () {
     const item = (go, e, t, s) => '<div class="li tap" data-go="' + go + '"><div class="ic">' + e + '</div><div><div class="t">' + t + '</div><div class="s">' + s + '</div></div><div class="a">›</div></div>';
     return '<div class="list">' + item('chat', '💬', 'ผู้ช่วยการเงิน (แชตบอต)', 'ตอบคำถามการออมและการแก้หนี้อัตโนมัติ') + item('groups', '🧺', 'กลุ่มอาชีพ', isAdmin() ? 'เพิ่ม/แก้ไขกลุ่ม เงินสัจจะ เป้าหมาย' : 'ข้อมูลกลุ่มอาชีพ') +
+      item('import', '⬆', 'นำเข้า / อัปเดตข้อมูลจากไฟล์', 'Excel, CSV หรือลิงก์ Google Sheet — สร้างกลุ่ม สมาชิก และยอดออมให้อัตโนมัติ') +
       (isAdmin() ? item('users', '🧑‍💼', 'ผู้ใช้งาน (เจ้าหน้าที่)', 'เพิ่มเจ้าหน้าที่ประจำกลุ่ม / ผู้ดูแล') + item('faq', '📚', 'คลังคำตอบแชตบอต', 'คำถาม-คำตอบที่ใช้เมื่อไม่มี AI') + item('chatlog', '🗂️', 'คำถามที่ถามแชตบอต', 'ดูว่าสมาชิกสงสัยเรื่องอะไร') + item('settings', '⚙️', 'ตั้งค่าแอป & AI', 'ชื่อแอป ชื่อแชตบอต คีย์ OpenAI') : '') + '</div>' +
       (isAdmin() && D.dbUrl ? '<p><a href="' + esc(D.dbUrl) + '" target="_blank" rel="noopener">📗 เปิดฐานข้อมูล (Google Sheets) ↗</a></p>' : '') +
       '<form class="card" id="pw"><h3>🔒 เปลี่ยนรหัสผ่าน</h3><label class="fld"><span>รหัสผ่านเดิม</span><input name="o" type="password" autocomplete="current-password"></label><label class="fld"><span>รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)</span><input name="n" type="password" autocomplete="new-password"></label><button class="btn" type="submit">เปลี่ยนรหัสผ่าน</button></form>' +
@@ -986,6 +1000,7 @@ var CFG = <?!= cfg ?>;
     return '<form class="card" id="sf"><h3>⚙️ ข้อมูลแอป</h3>' +
       '<label class="fld"><span>ชื่อแอป</span><input name="appName" value="' + esc(s.appName || '') + '"></label><label class="fld"><span>หน่วยงาน / โครงการ</span><input name="org" value="' + esc(s.org || '') + '"></label>' +
       '<label class="fld"><span>เบอร์ติดต่อเจ้าหน้าที่</span><input name="phone" value="' + esc(s.phone || '') + '"></label>' +
+      '<div class="grid2"><label class="fld"><span>ชื่อบัญชีที่ 1</span><input name="acc_savings" value="' + esc(s.acc_savings || '') + '" placeholder="เงินออมรายเดือน"></label><label class="fld"><span>ชื่อบัญชีที่ 2</span><input name="acc_hajj" value="' + esc(s.acc_hajj || '') + '" placeholder="บัญชีอัลฮัจย์-อุมเราะห์"></label></div>' +
       '<h3 style="margin-top:18px">🤖 แชตบอต</h3><label class="fld"><span>ชื่อแชตบอต</span><input name="botName" value="' + esc(s.botName || '') + '"></label>' +
       '<label class="switch"><input type="checkbox" name="aiEnabled"' + (s.aiEnabled !== 'FALSE' ? ' checked' : '') + '> ใช้ AI ตอบ (ถ้าไม่มีคีย์ หรือปิด จะตอบจากคลังคำตอบ)</label>' +
       '<div class="msg ' + (D.aiKeySet ? 'ok' : 'info') + '">' + (D.aiKeySet ? '✓ ตั้งคีย์ OpenAI แล้ว (เก็บใน Script Properties ไม่แสดงที่หน้าเว็บ)' : 'ยังไม่ได้ตั้งคีย์ OpenAI — แชตบอตจะตอบจากคลังคำตอบ') + '</div>' +
@@ -996,9 +1011,192 @@ var CFG = <?!= cfg ?>;
   };
   BIND.settings = function () {
     $('#sf').addEventListener('submit', e => { e.preventDefault(); const f = e.target, b = f.querySelector('button[type=submit]');
-      const d = formData(f, ['appName', 'org', 'phone', 'botName', 'aiEnabled', 'openaiKey', 'aiModel', 'chatDailyLimit', 'botExtra']);
+      const d = formData(f, ['appName', 'org', 'phone', 'acc_savings', 'acc_hajj', 'botName', 'aiEnabled', 'openaiKey', 'aiModel', 'chatDailyLimit', 'botExtra']);
       saveBtn(b, mutate('saveSettings', d), () => toast('บันทึกการตั้งค่าแล้ว', 'ok')); });
     const t = $('#aiTest'); if (t) t.onclick = function () { const b = this; b.disabled = true; b.innerHTML = '<span class="spin"></span>'; api('chatTestAI').then(r => toast(r, 'ok')).catch(e => toast(e.message, 'err')).then(() => { b.disabled = false; b.textContent = 'ทดสอบ AI'; }); };
+  };
+
+  /* ================= นำเข้าข้อมูลจากไฟล์ / Google Sheet ================= */
+  const MON_SHORT = ['มค', 'กพ', 'มีค', 'เมย', 'พค', 'มิย', 'กค', 'สค', 'กย', 'ตค', 'พย', 'ธค'];
+  const MON_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+  const normCell = v => String(v == null ? '' : v).replace(/[\s​ .]/g, '');
+  function monthIdx(v) { const n = normCell(v); let i = MON_SHORT.indexOf(n); if (i < 0) i = MON_FULL.indexOf(n); return i; }
+  function parseLoc(t) { const a = /ตำบล\s*(\S+)/.exec(t), b = /อำเภอ\s*(\S+)/.exec(t), c = /จังหวัด\s*(\S+)/.exec(t); const o = {}; if (a) o.tambon = a[1]; if (b) o.amphoe = b[1]; if (c) o.province = c[1]; return o; }
+  function parseNum(v) { const t = String(v == null ? '' : v).replace(/[,\s฿บาท]/g, ''); if (t === '' || t === '-') return null; const n = Number(t); return isNaN(n) ? null : n; }
+  /** แปลง CSV เป็นตาราง (รองรับเครื่องหมายคำพูดและขึ้นบรรทัดในช่อง) */
+  function parseCsv(text) {
+    const rows = []; let row = [], cell = '', q = false;
+    text = text.replace(/^﻿/, '');
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+      else if (c === '"') q = true;
+      else if (c === ',' || c === '\t') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += c;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows;
+  }
+  /**
+   * หาตาราง "ติดตามการออมรายเดือน" ในแผ่นงาน
+   * หัวตาราง = แถวที่มีคำว่า “ชื่อ” และชื่อเดือน · แถวป้ายกำกับ “ตำบล… อำเภอ…” และ “กลุ่ม…” ใช้เติมข้อมูลที่เว้นว่าง
+   */
+  function parseGrid(rows, sheetName) {
+    const tables = []; let cur = null, ctx = {}, label = '', yearText = '';
+    for (let i = 0; i < rows.length; i++) {
+      const r = (rows[i] || []).map(v => String(v == null ? '' : v).trim());
+      const nz = r.filter(Boolean);
+      if (!nz.length) continue;
+      const nameCol = r.findIndex(c => /ชื่อ/.test(c) && c.length < 30);
+      const mcols = r.map(monthIdx);
+      if (nameCol !== -1 && mcols.some(x => x >= 0)) {
+        const col = k => r.findIndex(c => normCell(c).indexOf(k) === 0 && c.length < 24);
+        const months = new Array(12).fill(-1);
+        mcols.forEach((m, j) => { if (m >= 0 && months[m] < 0) months[m] = j; });
+        const f = months.findIndex(x => x >= 0), base = months[f] - f;
+        for (let k = 0; k < 12; k++) if (months[k] < 0) months[k] = base + k;
+        yearText += ' ' + r.join(' ');
+        const ym = /(25\d\d|20\d\d)/.exec(label + ' ' + yearText);
+        const idx = tables.length;
+        cur = { sheet: sheetName, row: i + 1, label: label, cols: { name: nameCol, tambon: col('ตำบล'), amphoe: col('อำเภอ'), province: col('จังหวัด'), group: col('กลุ่ม') }, months: months,
+          account: /ฮัจย์|ฮัจญ์|อุมเราะห์|hajj/i.test(label) ? 'hajj' : (label ? 'savings' : (idx === 1 ? 'hajj' : 'savings')),
+          yearBE: ym ? (Number(ym[1]) > 2400 ? Number(ym[1]) : Number(ym[1]) + 543) : (tables.length ? tables[tables.length - 1].yearBE : new Date().getFullYear() + 543), rows: [] };
+        tables.push(cur); ctx = {}; label = ''; continue;
+      }
+      if (!cur) { label = nz.join(' '); yearText += ' ' + label; continue; }
+      const C = cur.cols, name = C.name >= 0 ? r[C.name] : '', first = nz[0];
+      if (/^รวม/.test(first) || /^รวม/.test(name)) { if (/^รวม\s*กลุ่ม/.test(first) || /^รวม\s*กลุ่ม/.test(name)) ctx.group = ''; continue; }
+      const gcell = C.group >= 0 ? r[C.group] : '';
+      const isData = !!name || (!!gcell && /^\d+$/.test(r[0] || ''));
+      if (!isData) {
+        if (nz.length <= 2) {
+          if (/^กลุ่ม/.test(first)) ctx.group = first;
+          else if (/ตำบล|อำเภอ|จังหวัด/.test(first)) Object.assign(ctx, parseLoc(first));
+          else label = nz.join(' ');
+        }
+        continue;
+      }
+      if (gcell) ctx.group = gcell;
+      const pick = (k, d) => (C[k] >= 0 && r[C[k]]) ? r[C[k]] : d;
+      cur.rows.push({ name: name, group: gcell || ctx.group || '', tambon: pick('tambon', ctx.tambon || ''), amphoe: pick('amphoe', ctx.amphoe || ''), province: pick('province', ctx.province || ''),
+        months: cur.months.map(j => parseNum(r[j])) });
+    }
+    return tables.filter(t => t.rows.length);
+  }
+  let XLSX_P = null;
+  function loadXlsx() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (!XLSX_P) XLSX_P = new Promise((res, rej) => {
+      const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      sc.onload = () => res(window.XLSX); sc.onerror = () => { XLSX_P = null; rej(new Error('โหลดตัวอ่านไฟล์ Excel ไม่สำเร็จ — ตรวจอินเทอร์เน็ต หรือบันทึกไฟล์เป็น CSV แล้วลองใหม่')); };
+      document.head.appendChild(sc);
+    });
+    return XLSX_P;
+  }
+  function readFile(file) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (ext === 'csv' || ext === 'txt' || ext === 'tsv') return file.text().then(t => [{ name: file.name, rows: parseCsv(t) }]);
+    if (!/^xls[xmb]?$|^ods$/.test(ext)) return Promise.reject(new Error('รองรับไฟล์ .xlsx .xls .csv เท่านั้น'));
+    return Promise.all([loadXlsx(), file.arrayBuffer()]).then(([X, buf]) => {
+      const wb = X.read(buf, { type: 'array' });
+      return wb.SheetNames.map(n => ({ name: n, rows: X.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '', blankrows: true }) }));
+    });
+  }
+
+  let IMP = null; // { source, tables, check }
+  VIEWS.import = function () {
+    const last = (D.settings || {}).lastImport;
+    let h = '<div class="card"><h3>⬆ นำเข้า / อัปเดตข้อมูลการออม</h3><p class="small muted" style="margin-top:-4px">ใช้ไฟล์ตาราง “ติดตามการออมรายเดือน” แบบเดียวกับ Google Sheet ของโครงการ (ชื่อ-นามสกุล · ตำบล · อำเภอ · จังหวัด · กลุ่ม · ม.ค. … ธ.ค.) ระบบจะสร้างกลุ่ม สมาชิก และยอดออมรายเดือนให้อัตโนมัติ — เดือนหน้าเติมยอดในไฟล์แล้วนำเข้าซ้ำได้ ระบบอัปเดตเฉพาะส่วนที่เปลี่ยน</p>' +
+      segHtml('src', (IMP && IMP.mode) || 'file', [['file', '📄 อัปโหลดไฟล์'], ['link', '🔗 ลิงก์ Google Sheet']]) +
+      '<div id="srcFile"><label class="fld"><span>ไฟล์ Excel (.xlsx) หรือ CSV</span><input type="file" id="impFile" accept=".xlsx,.xls,.csv,.ods,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>' +
+      '<p class="hint" style="margin-top:-6px">Google Sheet: เมนู ไฟล์ › ดาวน์โหลด › Microsoft Excel (.xlsx)</p></div>' +
+      '<div id="srcLink" hidden><label class="fld"><span>ลิงก์ Google Sheet</span><input id="impUrl" placeholder="https://docs.google.com/spreadsheets/d/..." value="' + esc((IMP && IMP.url) || '') + '"></label>' +
+      '<p class="hint" style="margin-top:-6px">ชีตต้องแชร์เป็น “ทุกคนที่มีลิงก์ดูได้” หรือแชร์ให้บัญชี Google ที่ติดตั้งแอป</p><button class="btn" id="impRead">อ่านข้อมูลจากลิงก์</button></div>' +
+      '<p style="margin:12px 0 0"><a href="#" id="impTpl">⬇ ดาวน์โหลดแบบฟอร์มตัวอย่าง (CSV)</a></p>' + (last ? '<p class="hint">นำเข้าครั้งล่าสุด: ' + esc(last) + '</p>' : '') + '</div><div id="impOut"></div>';
+    return h;
+  };
+  function impPreview() {
+    if (!IMP || !IMP.tables.length) return IMP ? '<div class="card msg err">ไม่พบตารางการออมในไฟล์นี้ — ต้องมีแถวหัวตารางที่มีคำว่า “ชื่อ-นามสกุล” และชื่อเดือน (ม.ค. ก.พ. …)</div>' : '';
+    let h = '<div class="card"><h3>👀 ตรวจสอบก่อนนำเข้า</h3><p class="small muted" style="margin-top:-4px">' + esc(IMP.source) + ' · พบ ' + IMP.tables.length + ' ตาราง</p>';
+    IMP.tables.forEach((t, i) => {
+      const groups = {}; let cells = 0, total = 0;
+      t.rows.forEach(r => { const g = r.group || '(ไม่ทราบกลุ่ม)'; groups[g] = groups[g] || { n: 0, amt: 0 }; if (r.name) groups[g].n++; r.months.forEach(v => { if (v) { cells++; total += v; groups[g].amt += v; } }); });
+      const named = t.rows.filter(r => r.name).length;
+      h += '<div style="border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px"><div class="row between"><b style="font-family:var(--font-head)">ตารางที่ ' + (i + 1) + (t.label ? ': ' + esc(t.label) : '') + '</b><span class="small muted">แผ่นงาน ' + esc(t.sheet) + ' · แถว ' + t.row + '</span></div>' +
+        '<div class="grid2" style="margin-top:8px"><label class="fld"><span>นำเข้าเป็นบัญชี</span><select data-tacc="' + i + '">' + opt(ACCS.map(a => [a, ACC_E[a] + ' ' + accName(a)]).concat([['skip', '— ไม่นำเข้าตารางนี้ —']]), t.account) + '</select></label>' +
+        '<label class="fld"><span>ปี (พ.ศ.)</span><input type="number" data-tyear="' + i + '" value="' + t.yearBE + '"></label></div>' +
+        '<p class="small" style="margin:0">สมาชิก ' + named + ' คน · ' + Object.keys(groups).length + ' กลุ่ม · ยอดรายเดือน ' + cells + ' ช่อง รวม <b>' + money(total) + '</b> บาท</p>' +
+        '<div class="tbl-wrap" style="margin-top:6px"><table class="tb"><thead><tr><th>กลุ่ม</th><th>สมาชิก</th><th>ยอดรวม</th></tr></thead><tbody>' +
+        Object.keys(groups).map(g => '<tr><td>' + esc(g) + '</td><td>' + groups[g].n + '</td><td>' + money(groups[g].amt) + '</td></tr>').join('') + '</tbody></table></div></div>';
+    });
+    h += '<label class="fld"><span>PIN เริ่มต้นสำหรับสมาชิกใหม่ (ไม่บังคับ)</span><input id="impPin" inputmode="numeric" autocomplete="off" placeholder="เว้นว่าง = ตั้ง PIN ทีหลังที่หน้าสมาชิก" value="' + esc(IMP.pin || '') + '"><span class="hint">ถ้าใส่ สมาชิกใหม่ทุกคนเข้าแอปด้วย PIN นี้ได้ทันที แล้วให้แต่ละคนเปลี่ยน PIN เอง</span></label>' +
+      '<div id="impCheck">' + (IMP.check ? impCheckHtml(IMP.check, true) : '') + '</div>' +
+      '<div class="row"><button class="btn ghost" id="impDry">🔍 ตรวจสอบกับข้อมูลในระบบ</button><button class="btn" id="impGo"' + (IMP.check ? '' : ' disabled title="กดตรวจสอบก่อน"') + '>⬆ นำเข้าข้อมูล</button></div></div>';
+    return h;
+  }
+  function impCheckHtml(s, dry) {
+    return '<div class="msg ' + (dry ? 'info' : 'ok') + '">' + (dry ? '<b>ผลการตรวจสอบ (ยังไม่บันทึก)</b><br>' : '<b>✓ นำเข้าเรียบร้อย</b><br>') +
+      (s.groupsNew.length ? 'กลุ่มใหม่ ' + s.groupsNew.length + ': ' + esc(s.groupsNew.join(', ')) + '<br>' : '') +
+      'สมาชิกใหม่ ' + s.membersNew + ' คน · ตรงกับสมาชิกเดิม ' + s.membersMatched + ' คน<br>' +
+      'รายการเงินออม: เพิ่ม ' + s.inserted + ' · แก้ยอด ' + s.updated + ' · ลบ ' + s.deleted + ' · ไม่เปลี่ยน ' + s.unchanged + '<br>' +
+      ACC_E.savings + ' ' + esc(accName('savings')) + ' ' + money(s.amount.savings) + ' บาท · ' + ACC_E.hajj + ' ' + esc(accName('hajj')) + ' ' + money(s.amount.hajj) + ' บาท' +
+      (s.skipped.length ? '<br><span style="color:var(--danger)">ข้าม ' + s.skipped.length + ' แถว: ' + esc(s.skipped.slice(0, 8).join(', ')) + (s.skipped.length > 8 ? ' …' : '') + '</span>' : '') + '</div>';
+  }
+  function impPayload(dry) {
+    return { dryRun: dry, defaultPin: IMP.pin || '', tables: IMP.tables.filter(t => t.account !== 'skip').map(t => ({ account: t.account, year: Number(t.yearBE) - 543, rows: t.rows })) };
+  }
+  BIND.import = function (v) {
+    const syncSrc = m => { $('#srcFile').hidden = m !== 'file'; $('#srcLink').hidden = m !== 'link'; IMP = IMP || { tables: null }; IMP.mode = m; };
+    bindSeg(v, (k, m) => syncSrc(m)); syncSrc((IMP && IMP.mode) || 'file');
+    const out = $('#impOut');
+    const show = () => { out.innerHTML = impPreview(); bindPreview(); };
+    const got = (sheets, source) => {
+      const tables = []; sheets.forEach(sh => parseGrid(sh.rows, sh.name).forEach(t => tables.push(t)));
+      IMP = Object.assign(IMP || {}, { tables: tables, source: source, check: null });
+      show();
+    };
+    $('#impFile').onchange = function () {
+      const f = this.files[0]; if (!f) return;
+      if (f.size > 15 * 1048576) return toast('ไฟล์ใหญ่เกิน 15 MB', 'err');
+      out.innerHTML = '<div class="card"><span class="spin"></span> กำลังอ่านไฟล์...</div>';
+      readFile(f).then(sheets => got(sheets, 'ไฟล์ ' + f.name)).catch(e => { out.innerHTML = ''; toast(e.message, 'err'); });
+    };
+    $('#impRead').onclick = function () {
+      const url = $('#impUrl').value.trim(); if (!url) return toast('กรุณาวางลิงก์ Google Sheet', 'err');
+      const b = this; b.disabled = true; b.innerHTML = '<span class="spin"></span> กำลังอ่าน';
+      IMP = Object.assign(IMP || {}, { url: url });
+      api('importReadSheet', url).then(r => got(r.sheets, 'Google Sheet “' + r.title + '”')).catch(e => toast(e.message, 'err')).then(() => { b.disabled = false; b.textContent = 'อ่านข้อมูลจากลิงก์'; });
+    };
+    $('#impTpl').onclick = e => {
+      e.preventDefault();
+      const head = ['ลำดับ', 'ชื่อ-นามสกุล', 'ตำบล', 'อำเภอ', 'จังหวัด', 'กลุ่ม'].concat(TM).concat(['รวม']);
+      const ex = ['1', 'นางสาวตัวอย่าง ใจดี', 'กายูบอเกาะ', 'รามัน', 'ยะลา', 'กลุ่มเชือกกล้วย', '', '30', '30', '', '', '', '', '', '', '', '', '', '60'];
+      const csv = '﻿' + [['การออมรายเดือน ปี ' + (new Date().getFullYear() + 543)], head, ex, [], ['การออมบัญชีฮัจย์และอุมเราะห์'], head, ex.map((c, k) => k === 7 ? '500' : k === 8 ? '100' : k === 18 ? '600' : c)].map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'แบบฟอร์มนำเข้าการออม.csv'; document.body.appendChild(a); a.click(); a.remove();
+    };
+    function bindPreview() {
+      $$('[data-tacc]', out).forEach(s => s.onchange = function () { IMP.tables[+this.getAttribute('data-tacc')].account = this.value; IMP.check = null; show(); });
+      $$('[data-tyear]', out).forEach(s => s.onchange = function () { IMP.tables[+this.getAttribute('data-tyear')].yearBE = this.value; IMP.check = null; show(); });
+      const pin = $('#impPin'); if (pin) pin.onchange = function () { IMP.pin = this.value.trim(); };
+      const dry = $('#impDry'); if (!dry) return;
+      dry.onclick = function () {
+        IMP.pin = $('#impPin').value.trim();
+        const b = this; b.disabled = true; b.innerHTML = '<span class="spin"></span> กำลังตรวจสอบ';
+        api('importData', impPayload(true)).then(r => { IMP.check = r.summary; show(); }).catch(e => { toast(e.message, 'err'); b.disabled = false; b.textContent = '🔍 ตรวจสอบกับข้อมูลในระบบ'; });
+      };
+      $('#impGo').onclick = function () {
+        IMP.pin = $('#impPin').value.trim();
+        const b = this; b.disabled = true; b.innerHTML = '<span class="spin"></span> กำลังนำเข้า';
+        busy(true);
+        api('importData', impPayload(false)).then(r => {
+          busy(false); D = r.data; const s = r.summary; IMP = null; render();
+          $('#impOut').innerHTML = '<div class="card">' + impCheckHtml(s, false) + '<div class="row"><button class="btn" data-go="dash">📊 ดูแดชบอร์ด</button><button class="btn ghost" data-go="members">👥 ดูสมาชิก</button></div></div>';
+          toast('นำเข้าข้อมูลเรียบร้อย', 'ok');
+        }).catch(e => { busy(false); toast(e.message, 'err'); b.disabled = false; b.textContent = '⬆ นำเข้าข้อมูล'; });
+      };
+    }
+    if (IMP && IMP.tables) show();
   };
 
   /* ================= start ================= */
