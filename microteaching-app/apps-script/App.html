@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f1f26">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #c2185b; --brand-2: #e0457b; --brand-ink: #8c0f42; --brand-soft: #fde7ef;
+    --head: #1f1f26; --head-ink: #ffffff; --sky: #4f8fc0; --sun: #f2b230; --leaf: #6aa84f;
+    --bg: #ffffff; --bg-2: #f8f6f8; --surface: #ffffff; --ink: #1f1d22; --ink-2: #45414b; --muted: #75707c; --line: #e8e4ea;
+    --ok: #1e7d4f; --ok-soft: #e0f3e8; --warn: #a96800; --warn-soft: #fdf0d5; --danger: #b3382c; --danger-soft: #fbe6e3; --info: #2563a8; --info-soft: #e5effa;
+    --radius: 14px; --shadow: 0 6px 24px rgba(40, 20, 40, .08);
+    --font: 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif; --font-head: 'Prompt', 'Sarabun', sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.6; }
+  [hidden] { display: none !important; }
+  h1, h2, h3, h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.3; margin: 0 0 10px; }
+  h1 { font-size: 26px; } h2 { font-size: 22px; } h3 { font-size: 18px; } h4 { font-size: 16px; }
+  a { color: var(--brand); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .muted { color: var(--muted); } .small { font-size: 14px; } .xs { font-size: 12.5px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; } .between { justify-content: space-between; } .grow { flex: 1; min-width: 0; }
+  .center { text-align: center; } .right { text-align: right; } .nowrap { white-space: nowrap; }
+  .mt { margin-top: 14px; } .mb { margin-bottom: 14px; } .mt0 { margin-top: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+
+  /* ---------- header ---------- */
+  header.top { background: var(--head); color: var(--head-ink); position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+  header.top .wrap { display: flex; align-items: center; gap: 14px; min-height: 64px; max-width: 1440px; }
+  .brand { font-family: 'Prompt', serif; font-size: 21px; font-weight: 600; color: #fff; text-decoration: none; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  .brand small { display: block; font: 400 11.5px/1.2 var(--font); opacity: .7; }
+  nav.menu { display: flex; gap: 2px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+  nav.menu::-webkit-scrollbar { display: none; }
+  nav.menu a { color: #fff; text-decoration: none; padding: 8px 9px; border-radius: 8px; font-family: var(--font-head); font-weight: 500; font-size: 14.5px; white-space: nowrap; }
+  nav.menu a:hover { background: rgba(255,255,255,.08); }
+  nav.menu a.on { color: #ff6fa3; }
+  nav.menu a.cta { background: var(--brand); margin-left: 6px; } nav.menu a.cta.on { color: #fff; background: var(--brand-ink); }
+  .burger { display: none; margin-left: auto; background: none; border: 0; color: #fff; font-size: 26px; cursor: pointer; padding: 6px 8px; }
+  @media (max-width: 1300px) {
+    .burger { display: block; }
+    nav.menu { display: none; position: absolute; left: 0; right: 0; top: 64px; background: var(--head); flex-direction: column; padding: 8px 16px 16px; margin: 0; }
+    nav.menu.open { display: flex; }
+    nav.menu a { padding: 11px 12px; } nav.menu a.cta { margin: 6px 0 0; text-align: center; }
+  }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; overflow: hidden; background: linear-gradient(180deg, #fffaf0 0%, #fff 70%); border-bottom: 1px solid var(--line); }
+  .hero .inner { position: relative; text-align: center; padding: 38px 16px 30px; z-index: 1; }
+  .hero .w { font-family: 'Fredoka', 'Prompt', sans-serif; font-weight: 700; font-size: clamp(54px, 12vw, 132px); line-height: .95; color: var(--sky); letter-spacing: 2px;
+    text-shadow: 0 4px 0 #3a6f99, 0 10px 18px rgba(40, 80, 120, .18); }
+  .hero .s { font-family: 'Fredoka', 'Prompt', sans-serif; font-weight: 700; font-size: clamp(30px, 6vw, 62px); color: var(--sun); text-shadow: 0 3px 0 #c98a12; margin-top: 4px; }
+  .hero .deco { position: absolute; border-radius: 50%; opacity: .9; }
+  .hero .d1 { width: 120px; height: 120px; background: #ffd6e5; left: -30px; top: 20px; }
+  .hero .d2 { width: 70px; height: 70px; background: #d7ecff; right: 8%; top: 18px; }
+  .hero .d3 { width: 180px; height: 180px; background: #e6f4dc; right: -60px; bottom: -80px; }
+  .hero .d4 { width: 60px; height: 60px; background: #fff0c7; left: 12%; bottom: 10px; }
+  .hero .emoji { position: absolute; font-size: clamp(30px, 5vw, 56px); z-index: 0; }
+  .welcome { color: #e0115f; font-family: var(--font-head); font-weight: 700; font-size: clamp(22px, 3.2vw, 32px); text-align: center; margin: 28px 0 8px; }
+
+  /* ---------- sections / cards ---------- */
+  main { min-height: 60vh; padding-bottom: 40px; }
+  .page { padding-top: 22px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+  .card + .card { margin-top: 14px; }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 700px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .sec-title { font-family: var(--font-head); color: var(--brand); font-size: 22px; margin: 26px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .chalk { background: #2f5b3e; color: #f7f3e8; border-radius: var(--radius); padding: 22px; border: 6px solid #8a5a2b; box-shadow: inset 0 0 40px rgba(0,0,0,.25), var(--shadow); }
+  .chalk h3 { color: #ffb3c9; font-family: 'Fredoka', var(--font-head); font-size: 28px; letter-spacing: 1px; margin-bottom: 6px; }
+  .chalk p { margin: 0; line-height: 1.85; }
+  .bigbtn { display: flex; align-items: center; justify-content: center; gap: 10px; background: #b9246f; color: #fff; text-decoration: none; border-radius: 8px; padding: 14px 18px;
+    font-family: var(--font-head); font-weight: 600; font-size: 17px; border: 0; width: 100%; cursor: pointer; box-shadow: 0 3px 0 #87124d; }
+  .bigbtn:hover { background: #a01d5f; } .bigbtn .e { font-size: 22px; }
+  .bigbtn.alt { background: #fff; color: #b9246f; border: 2px solid #b9246f; box-shadow: none; }
+  .roomcard { border-top: 5px solid var(--c, var(--brand)); }
+  .roomcard .ph { height: 120px; border-radius: 10px; background: linear-gradient(135deg, var(--c, var(--brand)), #2b2b38); color: #fff; display: flex; align-items: flex-end; padding: 12px; margin-bottom: 12px;
+    font-family: var(--font-head); font-size: 15px; background-size: cover; background-position: center; position: relative; }
+  .roomcard .ph span { background: rgba(0,0,0,.4); padding: 2px 10px; border-radius: 999px; }
+  .feat { margin: 8px 0 0; padding-left: 18px; font-size: 14.5px; color: var(--ink-2); }
+  .newsitem { border-left: 4px solid var(--sun); padding: 6px 0 6px 12px; }
+  .newsitem + .newsitem { margin-top: 12px; }
+  .announce { background: var(--warn-soft); border: 1px solid #f3d38f; color: #6b4300; border-radius: 12px; padding: 10px 14px; margin-top: 16px; }
+
+  /* ---------- buttons / forms ---------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 10px; padding: 9px 16px; background: var(--brand); color: #fff;
+    font-family: var(--font-head); font-size: 15px; font-weight: 500; cursor: pointer; text-decoration: none; white-space: nowrap; min-height: 40px; }
+  .btn:hover { filter: brightness(.94); } .btn:disabled { opacity: .5; cursor: default; }
+  .btn.sm { padding: 5px 11px; font-size: 13.5px; min-height: 32px; border-radius: 8px; }
+  .btn.ghost { background: #fff; color: var(--ink-2); border: 1.5px solid var(--line); }
+  .btn.ok { background: var(--ok); } .btn.red { background: var(--danger); } .btn.warn { background: #d08a00; } .btn.info { background: var(--info); } .btn.dark { background: var(--head); }
+  .btn.block { width: 100%; }
+  label.f { display: block; margin-bottom: 12px; }
+  label.f > span { display: block; font-size: 14px; font-weight: 600; color: var(--ink-2); margin-bottom: 4px; }
+  label.f > span i { color: var(--danger); font-style: normal; }
+  input[type=text], input[type=tel], input[type=email], input[type=password], input[type=number], input[type=date], input[type=time], input[type=url], input[type=search], select, textarea {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 12px; background: #fff; min-height: 42px; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--brand-2); box-shadow: 0 0 0 3px var(--brand-soft); }
+  textarea { min-height: 90px; resize: vertical; }
+  .fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 14px; }
+  .check { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; cursor: pointer; }
+  .check input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--brand); flex: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1.5px solid var(--line); border-radius: 999px; padding: 5px 12px; background: #fff; cursor: pointer; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
+  .chip input { accent-color: var(--brand); }
+  .chip.on, .chip:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
+  .seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; background: #fff; padding: 7px 13px; cursor: pointer; font-size: 14px; }
+  .seg button.on { background: var(--head); color: #fff; }
+  .step { display: flex; gap: 10px; align-items: center; font-family: var(--font-head); font-size: 17px; margin: 4px 0 12px; }
+  .step b { width: 30px; height: 30px; border-radius: 50%; background: var(--brand); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; flex: none; }
+  .roompick { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+  .roompick label { border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; display: block; border-left: 6px solid var(--c); }
+  .roompick label:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); border-left-color: var(--c); }
+  .roompick input { display: none; }
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
+  .slot { border: 1.5px solid #cfe8d8; background: #f1faf4; color: #1c5b38; border-radius: 8px; padding: 7px 4px; text-align: center; cursor: pointer; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .slot.busy { background: #f4f2f5; color: #aaa3ae; border-color: #ece8ee; cursor: not-allowed; text-decoration: line-through; }
+  .slot.past { background: #f7f7f7; color: #c3c3c3; border-color: #eee; cursor: not-allowed; }
+  .slot.sel { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+
+  /* ---------- status / badges ---------- */
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; background: #eee; color: #555; }
+  .b-pending { background: var(--warn-soft); color: var(--warn); } .b-approved { background: var(--ok-soft); color: var(--ok); }
+  .b-checkedin { background: var(--info-soft); color: var(--info); } .b-completed { background: #ece9f6; color: #4b3d8f; }
+  .b-rejected, .b-noshow { background: var(--danger-soft); color: var(--danger); } .b-cancelled { background: #f0eef1; color: #7c7680; }
+  .b-new { background: var(--warn-soft); color: var(--warn); } .b-progress { background: var(--info-soft); color: var(--info); } .b-done { background: var(--ok-soft); color: var(--ok); }
+  .b-ready { background: var(--ok-soft); color: var(--ok); } .b-inuse { background: var(--info-soft); color: var(--info); } .b-repair { background: var(--warn-soft); color: var(--warn); }
+  .b-broken { background: var(--danger-soft); color: var(--danger); } .b-retired { background: #f0eef1; color: #7c7680; }
+  .codebox { font-family: 'Fredoka', monospace; font-size: 34px; letter-spacing: 3px; color: var(--brand); background: var(--brand-soft); border: 2px dashed var(--brand-2); border-radius: 14px; padding: 10px 18px; display: inline-block; }
+  .timeline { display: flex; gap: 0; margin: 14px 0; }
+  .timeline div { flex: 1; text-align: center; font-size: 13px; color: var(--muted); position: relative; padding-top: 30px; }
+  .timeline div::before { content: ''; position: absolute; top: 9px; left: 50%; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: #e5e0e8; z-index: 1; }
+  .timeline div::after { content: ''; position: absolute; top: 16px; left: -50%; width: 100%; height: 4px; background: #e5e0e8; }
+  .timeline div:first-child::after { display: none; }
+  .timeline div.on { color: var(--ok); font-weight: 600; } .timeline div.on::before, .timeline div.on::after { background: var(--ok); }
+  .timeline div.bad { color: var(--danger); } .timeline div.bad::before { background: var(--danger); }
+  dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+  dl.kv dt { color: var(--muted); font-size: 14px; } dl.kv dd { margin: 0; }
+  .stars { display: inline-flex; gap: 4px; flex-direction: row-reverse; }
+  .stars input { display: none; }
+  .stars label { font-size: 28px; color: #ddd; cursor: pointer; line-height: 1; }
+  .stars input:checked ~ label, .stars label:hover, .stars label:hover ~ label { color: #f5b301; }
+  .scale { display: inline-flex; gap: 4px; }
+  .scale label { width: 34px; height: 34px; border: 1.5px solid var(--line); border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 600; font-size: 14px; }
+  .scale input { display: none; }
+  .scale label:has(input:checked) { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .bar { height: 10px; border-radius: 999px; background: #eee; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--brand-2), var(--brand)); border-radius: 999px; }
+
+  /* ---------- content (markdown) ---------- */
+  .md h1 { color: var(--brand); font-size: 26px; border-bottom: 3px solid var(--brand-soft); padding-bottom: 8px; margin-bottom: 14px; }
+  .md h2 { color: var(--head); font-size: 20px; margin-top: 24px; } .md h3 { font-size: 17px; margin-top: 18px; color: var(--brand-ink); }
+  .md p { margin: 0 0 12px; } .md ul, .md ol { margin: 0 0 12px; padding-left: 24px; } .md li { margin: 3px 0; }
+  .md blockquote { margin: 12px 0; padding: 10px 14px; background: var(--info-soft); border-left: 4px solid var(--info); border-radius: 8px; color: #1d3f66; }
+  .md table, table.t { border-collapse: collapse; width: 100%; margin: 6px 0 14px; font-size: 15px; }
+  .md th, .md td, table.t th, table.t td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .md th, table.t th { background: var(--bg-2); font-family: var(--font-head); font-weight: 500; font-size: 14px; color: var(--ink-2); }
+  .md hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+  .tscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: #fcf7fa; }
+  .doclist a { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+  .doclist .ic { width: 40px; height: 40px; border-radius: 10px; background: var(--brand-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; flex: none; }
+
+  /* ---------- schedule ---------- */
+  .cal-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .cal-title { font-family: var(--font-head); font-size: 18px; font-weight: 600; margin: 0 6px; }
+  .cal { border: 1px solid var(--line); border-radius: 12px; overflow: auto; background: #fff; max-height: 74vh; }
+  .cal-grid { display: grid; position: relative; min-width: 100%; }
+  .cal-head { position: sticky; top: 0; z-index: 3; background: #fff; border-bottom: 1px solid var(--line); text-align: center; font-size: 13.5px; padding: 6px 4px; font-weight: 600; }
+  .cal-head.today { color: var(--brand); background: var(--brand-soft); }
+  .cal-head.corner { left: 0; z-index: 4; }
+  .cal-times { position: sticky; left: 0; z-index: 2; background: #fff; border-right: 1px solid var(--line); }
+  .cal-times div { font-size: 11.5px; color: var(--muted); text-align: right; padding-right: 6px; transform: translateY(-7px); font-variant-numeric: tabular-nums; }
+  .cal-col { position: relative; border-right: 1px solid #f1eef2; cursor: copy; }
+  .cal-col.closed { background: repeating-linear-gradient(45deg, #faf8fa, #faf8fa 8px, #f2eef3 8px, #f2eef3 16px); cursor: not-allowed; }
+  .cal-col .ln { position: absolute; left: 0; right: 0; border-top: 1px solid #f3f0f4; pointer-events: none; }
+  .cal-col .ln.h { border-top-color: #e6e1e8; }
+  .ev { position: absolute; border-radius: 7px; padding: 3px 6px; font-size: 12px; line-height: 1.3; overflow: hidden; color: #fff; background: var(--c, var(--brand)); cursor: pointer;
+    border: 1px solid rgba(255,255,255,.6); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .ev.pending { background: repeating-linear-gradient(135deg, var(--c), var(--c) 6px, rgba(255,255,255,.25) 6px, rgba(255,255,255,.25) 10px), var(--c); opacity: .85; }
+  .ev b { display: block; font-size: 11.5px; } .ev.closure { background: #9e9aa3; cursor: default; }
+  .nowline { position: absolute; left: 0; right: 0; border-top: 2px solid #e53935; z-index: 2; pointer-events: none; }
+  .month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+  .month > div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-height: 96px; padding: 4px; font-size: 12px; background: #fff; cursor: pointer; overflow: hidden; }
+  .month .mh { min-height: 0; background: var(--bg-2); text-align: center; font-weight: 600; cursor: default; padding: 6px 2px; }
+  .month .out { background: #fbfafb; color: #bbb; } .month .td { background: var(--brand-soft); }
+  .month .dn { font-weight: 700; font-size: 13px; } .month .cls { background: repeating-linear-gradient(45deg, #fff, #fff 8px, #f4f1f5 8px, #f4f1f5 16px); }
+  .mchip { display: block; border-radius: 5px; padding: 1px 5px; margin-top: 2px; color: #fff; background: var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agenda .ag { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+  .agenda .tm { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 96px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+
+  /* ---------- admin ---------- */
+  .adm { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding-top: 18px; }
+  .side { position: sticky; top: 80px; align-self: start; }
+  .side a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; text-decoration: none; color: var(--ink-2); font-family: var(--font-head); font-size: 15px; }
+  .side a:hover { background: var(--bg-2); } .side a.on { background: var(--head); color: #fff; }
+  .side a .n { margin-left: auto; background: var(--brand); color: #fff; border-radius: 999px; font-size: 12px; padding: 0 8px; }
+  @media (max-width: 860px) {
+    .adm { grid-template-columns: 1fr; }
+    .side { position: static; display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
+    .side a { white-space: nowrap; } .side .sep { display: none; }
+  }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .kpi .v { font-family: var(--font-head); font-size: 28px; font-weight: 600; line-height: 1.2; }
+  .kpi .l { font-size: 13.5px; color: var(--muted); }
+  .kpi.hl { background: linear-gradient(135deg, #2a2a35, #1f1f26); color: #fff; border: 0; } .kpi.hl .l { color: #c9c4cf; }
+  .hbar { display: grid; grid-template-columns: minmax(120px, 34%) 1fr 48px; gap: 8px; align-items: center; font-size: 14px; margin: 6px 0; }
+  .vbars { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding-top: 10px; }
+  .vbars div { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; font-size: 11.5px; color: var(--muted); }
+  .vbars i { display: block; width: 100%; max-width: 34px; background: linear-gradient(180deg, var(--brand-2), var(--brand)); border-radius: 6px 6px 0 0; min-height: 2px; }
+  .vbars em { font-style: normal; font-weight: 600; color: var(--ink-2); font-size: 12px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .filters > * { width: auto; min-width: 140px; flex: 1 1 140px; }
+  .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
+  .tabs { display: flex; gap: 6px; border-bottom: 2px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
+  .tabs button { border: 0; background: none; padding: 9px 14px; cursor: pointer; font-family: var(--font-head); font-size: 15px; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+  .tabs button.on { color: var(--brand); border-bottom-color: var(--brand); }
+
+  /* ---------- modal / toast ---------- */
+  .modal-bg { position: fixed; inset: 0; background: rgba(20, 15, 25, .5); z-index: 90; display: flex; align-items: flex-start; justify-content: center; padding: 30px 12px; overflow-y: auto; }
+  .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 620px; box-shadow: 0 20px 60px rgba(0,0,0,.3); animation: pop .15s ease-out; }
+  .modal.wide { max-width: 900px; }
+  .modal .mh { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .modal .mh h3 { margin: 0; } .modal .mb { padding: 18px; } .modal .mf { padding: 12px 18px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .x { background: none; border: 0; font-size: 24px; cursor: pointer; color: var(--muted); line-height: 1; }
+  @keyframes pop { from { transform: translateY(10px); opacity: 0; } }
+  .toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 99; display: flex; flex-direction: column; gap: 8px; align-items: center; width: calc(100% - 32px); max-width: 480px; }
+  .toast { background: #26232b; color: #fff; padding: 10px 16px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25); font-size: 15px; }
+  .toast.err { background: var(--danger); } .toast.ok { background: var(--ok); }
+  .busy { position: fixed; top: 0; left: 0; height: 3px; width: 100%; z-index: 100; background: linear-gradient(90deg, transparent, var(--brand), transparent); background-size: 50% 100%; animation: busy 1s linear infinite; }
+  @keyframes busy { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+  .spinner { text-align: center; padding: 60px 0; color: var(--muted); }
+
+  footer.foot { background: var(--head); color: #cfcad4; padding: 26px 0 18px; font-size: 14px; }
+  footer.foot a { color: #fff; } footer.foot .grid { gap: 20px; }
+  footer.foot h4 { color: #fff; }
+
+  /* ---------- door display ---------- */
+  .display { min-height: 100vh; background: #15151b; color: #fff; padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+  .display .big { font-family: var(--font-head); font-size: clamp(30px, 5vw, 56px); font-weight: 700; }
+  .display .clock { font-family: 'Fredoka', sans-serif; font-size: clamp(40px, 7vw, 86px); }
+  .display .state { border-radius: 20px; padding: 24px; font-family: var(--font-head); }
+  .display .free { background: #1e7d4f; } .display .busyst { background: #b3203f; } .display .closedst { background: #555; }
+  .display .nx { background: #22222b; border-radius: 16px; padding: 16px 20px; font-size: 20px; }
+
+  @media print {
+    header.top, footer.foot, .side, .noprint, .toasts { display: none !important; }
+    .adm { display: block; } .card { box-shadow: none; break-inside: avoid; } body { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"><div class="spinner">กำลังโหลด…</div></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+var CFG = <?!= cfg ?>;
+(function () {
+  'use strict';
+  const hasGas = typeof google !== 'undefined' && google.script && google.script.run;
+  let P = null;          // ข้อมูลสาธารณะ
+  let A = null;          // ข้อมูลหลังบ้าน
+  let TOKEN = null;
+  try { TOKEN = sessionStorage.getItem('mt_token'); } catch (e) { }
+  const SCHED = {};      // แคชตารางห้อง { 'from|to': data }
+  const ST = { cal: { mode: 'day', date: '', room: 'all' }, admTab: 'dash', bk: { status: 'active', room: '', q: '', from: '', to: '' }, rpt: {} };
+
+  /* ================= helpers ================= */
+  const $ = (s, c) => (c || document).querySelector(s);
+  const $$ = (s, c) => Array.prototype.slice.call((c || document).querySelectorAll(s));
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const truthy = v => v === true || String(v).toUpperCase() === 'TRUE';
+  const num = v => { const n = Number(v); return isNaN(n) ? 0 : n; };
+  const fmt = (n, d) => num(n).toLocaleString('th-TH', { maximumFractionDigits: d == null ? 1 : d });
+  const TM = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const TML = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+  const TD = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+  const TDL = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+  const D0 = s => new Date(s + 'T00:00:00Z');
+  const iso = d => d.toISOString().substr(0, 10);
+  const addDays = (s, n) => { const d = D0(s); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+  const dow = s => D0(s).getUTCDay();
+  const thD = s => { if (!s) return '-'; const d = D0(String(s).substr(0, 10)); return isNaN(d) ? esc(s) : TD[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + TM[d.getUTCMonth()] + ' ' + String(d.getUTCFullYear() + 543).substr(2); };
+  const thL = s => { if (!s) return '-'; const d = D0(s); return 'วัน' + TDL[d.getUTCDay()] + 'ที่ ' + d.getUTCDate() + ' ' + TML[d.getUTCMonth()] + ' ' + (d.getUTCFullYear() + 543); };
+  const thDT = s => { if (!s) return '-'; const d = new Date(s); if (isNaN(d)) return esc(s); const b = new Date(d.getTime() + 7 * 3600000); return thD(iso(b)) + ' ' + ('0' + b.getUTCHours()).slice(-2) + ':' + ('0' + b.getUTCMinutes()).slice(-2); };
+  const mins = t => { const p = String(t || '0:0').split(':'); return num(p[0]) * 60 + num(p[1]); };
+  const hhmm = m => ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2);
+  const today = () => (P && P.today) || iso(new Date(Date.now() + 7 * 3600000));
+  const nowLocal = () => { const b = new Date(Date.now() + 7 * 3600000); return iso(b) + ' ' + ('0' + b.getUTCHours()).slice(-2) + ':' + ('0' + b.getUTCMinutes()).slice(-2); };
+  const weekStart = s => addDays(s, -((dow(s) + 6) % 7));
+  const LS = { get(k) { try { return JSON.parse(localStorage.getItem('mt_' + k) || 'null'); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem('mt_' + k, JSON.stringify(v)); } catch (e) { } } };
+
+  function toast(msg, type) { const el = document.createElement('div'); el.className = 'toast ' + (type || ''); el.textContent = msg; $('#toasts').appendChild(el); setTimeout(() => el.remove(), 4200); }
+  let busyN = 0;
+  function busy(on) { busyN += on ? 1 : -1; let b = $('#busyBar'); if (busyN > 0 && !b) { b = document.createElement('div'); b.id = 'busyBar'; b.className = 'busy'; document.body.appendChild(b); } else if (busyN <= 0 && b) { busyN = 0; b.remove(); } }
+
+  function call(fn, ...args) {
+    return new Promise((resolve, reject) => {
+      if (!hasGas) { reject(new Error('ต้องเปิดผ่านเว็บแอป Google Apps Script')); return; }
+      busy(true);
+      const r = google.script.run.withSuccessHandler(v => { busy(false); resolve(v); }).withFailureHandler(err => {
+        busy(false);
+        let msg = (err && err.message) || String(err);
+        if (/AUTH:/.test(msg)) { msg = msg.replace(/.*AUTH:\s*/, ''); TOKEN = null; A = null; try { sessionStorage.removeItem('mt_token'); } catch (e) { } if (location.hash.indexOf('#admin') === 0) setTimeout(render, 10); }
+        reject(new Error(msg.replace(/^Error:\s*/, '').replace(/^Exception:\s*/, '')));
+      });
+      r[fn].apply(r, args);
+    });
+  }
+  const api = (fn, ...args) => call(fn, TOKEN, ...args);
+
+  /** อ่านค่าจากฟอร์ม: checkbox เดี่ยว → 'TRUE'/'FALSE', ชื่อที่ลงท้าย [] → array */
+  function formData(el) {
+    const o = {};
+    $$('input, select, textarea', el).forEach(i => {
+      if (!i.name) return;
+      if (i.name.slice(-2) === '[]') { const k = i.name.slice(0, -2); o[k] = o[k] || []; if (i.checked) o[k].push(i.value); return; }
+      if (i.type === 'checkbox') o[i.name] = i.checked ? 'TRUE' : 'FALSE';
+      else if (i.type === 'radio') { if (i.checked) o[i.name] = i.value; else if (!(i.name in o)) o[i.name] = ''; }
+      else o[i.name] = i.value;
+    });
+    return o;
+  }
+
+  function modal(title, body, foot, opts) {
+    opts = opts || {};
+    const bg = document.createElement('div');
+    bg.className = 'modal-bg';
+    bg.innerHTML = `<div class="modal ${opts.wide ? 'wide' : ''}"><div class="mh"><h3>${title}</h3><button class="x" data-x>×</button></div><div class="mb">${body}</div>${foot ? `<div class="mf">${foot}</div>` : ''}</div>`;
+    document.body.appendChild(bg);
+    const close = () => bg.remove();
+    bg.addEventListener('click', e => { if (e.target === bg || e.target.hasAttribute('data-x')) close(); });
+    bg.close = close;
+    return bg;
+  }
+  function confirmBox(msg, okText, cls) {
+    return new Promise(res => {
+      const m = modal('ยืนยัน', `<p class="mt0">${msg}</p>`, `<button class="btn ghost" data-x>ยกเลิก</button><button class="btn ${cls || 'red'}" id="cfOk">${okText || 'ยืนยัน'}</button>`);
+      $('#cfOk', m).onclick = () => { m.close(); res(true); };
+      m.addEventListener('click', e => { if (e.target.hasAttribute('data-x')) res(false); });
+    });
+  }
+  function promptBox(title, label, def, required) {
+    return new Promise(res => {
+      const m = modal(title, `<label class="f"><span>${label}</span><textarea id="pbV">${esc(def || '')}</textarea></label>`, `<button class="btn ghost" data-x>ยกเลิก</button><button class="btn" id="pbOk">ตกลง</button>`);
+      $('#pbOk', m).onclick = () => { const v = $('#pbV', m).value.trim(); if (required && !v) { toast('กรุณากรอกข้อมูล', 'err'); return; } m.close(); res(v); };
+      m.addEventListener('click', e => { if (e.target.hasAttribute('data-x')) res(null); });
+    });
+  }
+  function copy(text) {
+    const done = () => toast('คัดลอกแล้ว', 'ok');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => fallback());
+    else fallback();
+    function fallback() { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); done(); } catch (e) { prompt('คัดลอกข้อความนี้', text); } t.remove(); }
+  }
+  function download(name, text, type) {
+    const blob = new Blob(['﻿' + text], { type: type || 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function csv(rows, cols) {
+    const q = v => { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    return [cols.map(c => q(c[1])).join(',')].concat(rows.map(r => cols.map(c => q(typeof c[0] === 'function' ? c[0](r) : r[c[0]])).join(','))).join('\n');
+  }
+  const link = u => /^https:\/\//i.test(u || '') ? esc(u) : '#';
+
+  /** Markdown อย่างง่าย → HTML (escape ก่อนเสมอ) */
+  function md(src) {
+    const lines = String(src || '').replace(/\r/g, '').split('\n');
+    let out = '', list = null, table = null, para = [];
+    const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    const flushP = () => { if (para.length) { out += '<p>' + para.map(inline).join('<br>') + '</p>'; para = []; } };
+    const flushL = () => { if (list) { out += `<${list.t}>` + list.items.map(i => '<li>' + inline(i) + '</li>').join('') + `</${list.t}>`; list = null; } };
+    const flushT = () => {
+      if (table) {
+        const rows = table.filter(r => !/^[\s|:-]+$/.test(r));
+        const cells = r => r.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+        out += '<div class="tscroll"><table>' + rows.map((r, i) => '<tr>' + cells(r).map(c => i === 0 ? '<th>' + inline(c) + '</th>' : '<td>' + inline(c) + '</td>').join('') + '</tr>').join('') + '</table></div>';
+        table = null;
+      }
+    };
+    const flush = () => { flushP(); flushL(); flushT(); };
+    lines.forEach(raw => {
+      const l = raw.trim();
+      let m;
+      if (!l) { flush(); return; }
+      if (l.charAt(0) === '|') { flushP(); flushL(); (table = table || []).push(l); return; }
+      flushT();
+      if ((m = l.match(/^(#{1,3})\s+(.*)$/))) { flush(); out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; return; }
+      if (l === '---') { flush(); out += '<hr>'; return; }
+      if ((m = l.match(/^>\s?(.*)$/))) { flush(); out += '<blockquote>' + inline(m[1]) + '</blockquote>'; return; }
+      if ((m = l.match(/^[-*]\s+(.*)$/))) { flushP(); if (!list || list.t !== 'ul') { flushL(); list = { t: 'ul', items: [] }; } list.items.push(m[1]); return; }
+      if ((m = l.match(/^\d+[.)]\s+(.*)$/))) { flushP(); if (!list || list.t !== 'ol') { flushL(); list = { t: 'ol', items: [] }; } list.items.push(m[1]); return; }
+      flushL(); para.push(l);
+    });
+    flush();
+    return out;
+  }
+
+  /* ================= lookups ================= */
+  const rooms = () => (A ? A.rooms : P.rooms).filter(r => truthy(r.active === undefined ? 'TRUE' : r.active));
+  const roomOf = id => ((A && A.rooms) || P.rooms).find(r => r.id === id) || { name: '-', color: '#888' };
+  const page = key => P.pages.find(p => p.key === key);
+  const stBadge = s => `<span class="badge b-${esc(s)}">${esc(P.bookingStatus[s] || s)}</span>`;
+  const rqBadge = s => `<span class="badge b-${esc(s)}">${esc(P.requestStatus[s] || s)}</span>`;
+  const eqBadge = s => `<span class="badge b-${esc(s)}">${esc(P.equipStatus[s] || s)}</span>`;
+  const ACTIVE = ['pending', 'approved', 'checkedin', 'completed'];
+  const R = () => P.rules;
+
+  /* ================= router ================= */
+  const app = $('#app');
+  function go(h) { if (location.hash === h) render(); else location.hash = h; }
+  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+
+  function route() { const h = location.hash.replace(/^#/, ''); const i = h.indexOf('/'); return i === -1 ? { v: h || 'home', a: '' } : { v: h.slice(0, i), a: decodeURIComponent(h.slice(i + 1)) }; }
+
+  const MENU = () => {
+    const items = [['home', 'หน้าแรก'], ['forms', 'แบบฟอร์ม/คำร้อง']];
+    P.pages.filter(p => truthy(p.inMenu)).forEach(p => items.push(['page/' + p.key, p.title]));
+    items.splice(Math.min(items.length, 4), 0, ['schedule', 'ตารางการใช้ห้อง']);
+    items.push(['contact', 'ติดต่อ']);
+    return items;
+  };
+
+  function shell(inner, active) {
+    const s = P.site;
+    return `<header class="top"><div class="wrap">
+        <a class="brand" href="#home">${esc(s.appName)}</a>
+        <button class="burger" id="burger" aria-label="เมนู">☰</button>
+        <nav class="menu" id="menu">${MENU().map(m => `<a href="#${m[0]}" class="${active === m[0] ? 'on' : ''}">${esc(m[1])}</a>`).join('')}
+          <a href="#book" class="cta ${active === 'book' ? 'on' : ''}">📅 จองห้อง</a></nav>
+      </div></header>
+      <main>${inner}</main>
+      <footer class="foot"><div class="wrap">
+        <div class="grid g3">
+          <div><h4>${esc(s.appName)}</h4><div>${esc(s.org)}</div>${s.building ? `<div>${esc(s.building)}</div>` : ''}<div class="xs" style="opacity:.75">${esc(s.address)}</div></div>
+          <div><h4>บริการออนไลน์</h4><div><a href="#book">จองห้อง</a> · <a href="#schedule">ตารางการใช้ห้อง</a></div><div><a href="#status">ตรวจสอบสถานะ</a> · <a href="#evaluate">ประเมินการสอน</a></div>
+            <div><a href="#forms">แบบฟอร์ม/คำร้อง</a> · <a href="#page/rules">ระเบียบการใช้ห้อง</a></div><div><a href="#page/privacy">นโยบายข้อมูลส่วนบุคคล</a> · <a href="#page/faq">คำถามที่พบบ่อย</a></div></div>
+          <div><h4>ติดต่อ</h4>${s.phone ? `<div>☎ ${esc(s.phone)}</div>` : ''}${s.email ? `<div>✉ ${esc(s.email)}</div>` : ''}<div>🕘 ${esc(s.hoursText)}</div>
+            <div class="mt"><a href="#admin" style="opacity:.75">🔐 สำหรับเจ้าหน้าที่</a></div></div>
+        </div>
+        <div class="xs center mt" style="opacity:.6">© ${new Date().getFullYear() + 543} ${esc(s.org || s.appName)}</div>
+      </div></footer>`;
+  }
+  function bindShell() {
+    const b = $('#burger'); if (b) b.onclick = () => $('#menu').classList.toggle('open');
+  }
+
+  function render() {
+    if (!P) return;
+    const r = route();
+    if (r.v === 'display') return renderDisplay(r.a);
+    if (r.v === 'admin') return renderAdmin(r.a);
+    const views = { home: vHome, schedule: vSchedule, book: vBook, status: vStatus, forms: vForms, evaluate: vEvaluate, page: vPage, contact: vContact };
+    const fn = views[r.v] || vHome;
+    const act = r.v === 'page' ? 'page/' + r.a : (r.v === 'status' || r.v === 'evaluate' ? 'forms' : r.v);
+    app.innerHTML = shell('<div id="view"></div>', act);
+    bindShell();
+    fn($('#view'), r.a);
+    document.title = P.site.appName;
+  }
+
+  /* ================= หน้าแรก ================= */
+  function vHome(el) {
+    const s = P.site;
+    el.innerHTML = `
+      <section class="hero"><span class="deco d1"></span><span class="deco d2"></span><span class="deco d3"></span><span class="deco d4"></span>
+        <span class="emoji" style="left:4%;top:42%">📚</span><span class="emoji" style="left:18%;top:12%">✏️</span><span class="emoji" style="right:5%;top:40%">🧑‍🏫</span><span class="emoji" style="right:20%;bottom:8%">🎥</span>
+        <div class="inner"><div class="w">${esc(s.heroTitle || 'WELCOME')}</div><div class="s">${esc(s.heroText || 'Micro Teaching')}</div></div></section>
+      <div class="wrap">
+        <div class="welcome">${esc(s.welcome)}</div>
+        ${s.announce ? `<div class="announce">📢 ${esc(s.announce)}</div>` : ''}
+        <div class="chalk mt"><h3>MICRO TEACHING</h3><p>Micro Teaching เป็นวิธีสอนที่ยึดหลักการย่อส่วนทั้งขนาดของชั้นเรียน ระยะเวลาที่สอน และชนิดของทักษะ วิธีสอนแบบจุลภาคใช้เวลาประมาณ 10–15 นาที ในการฝึกทักษะแต่ละชนิด เมื่อสอนเสร็จจึงมีการวิเคราะห์และประเมินผลการสอนจากภาพและเสียงที่บันทึกไว้ในวิดีโอ แล้วนำผลไปปรับปรุงพัฒนาการสอน การสอนแบบจุลภาคจึงเป็นการฝึกทักษะการสอนในสถานการณ์ย่อส่วนจากสถานการณ์จริง เพื่อง่ายแก่การฝึกภายใต้การควบคุมอย่างมีประสิทธิภาพ ผู้ฝึกได้มีโอกาสตรวจสอบและปรับปรุงการสอนของตน</p></div>
+        <div class="grid g3 mt">
+          <a class="bigbtn" href="#book"><span class="e">📅</span>ระบบจองห้อง</a>
+          <a class="bigbtn" href="#schedule"><span class="e">🗓️</span>ตารางการใช้ห้อง</a>
+          <a class="bigbtn" href="#status"><span class="e">🔎</span>ตรวจสอบสถานะการจอง</a>
+          <a class="bigbtn" href="#evaluate"><span class="e">📝</span>ประเมินการสอน</a>
+          <a class="bigbtn" href="#forms"><span class="e">📄</span>แบบฟอร์ม/คำร้อง</a>
+          <a class="bigbtn" href="#contact"><span class="e">☎️</span>ช่องทางติดต่อ</a>
+        </div>
+        <div class="sec-title">🗓️ การใช้ห้องวันนี้ <span class="muted small" style="font-weight:400">${thL(today())}</span></div>
+        <div class="card" id="todayBox"><div class="muted">กำลังโหลด…</div></div>
+        <div class="sec-title">🏫 ห้องให้บริการ</div>
+        <div class="grid g2">${rooms().map(roomCard).join('')}</div>
+        ${P.news.length ? `<div class="sec-title">📰 ข่าวประชาสัมพันธ์</div><div class="card">${P.news.map(n => `<div class="newsitem">${truthy(n.pinned) ? '📌 ' : ''}<b>${esc(n.title)}</b> <span class="muted xs">${thD(n.date)}</span><div class="small">${esc(n.body).replace(/\n/g, '<br>')}</div></div>`).join('')}</div>` : ''}
+        <div class="sec-title">🔄 วงจรการสอนแบบจุลภาค</div>
+        <div class="grid g4">${[['📝', 'วางแผน', 'เลือกทักษะ เขียนแผน 1 หน้า'], ['🧑‍🏫', 'สอน', 'สอนจริง 5–15 นาที พร้อมบันทึกวิดีโอ'], ['🎥', 'สะท้อนผล', 'ดูวิดีโอ ประเมินตนเอง/เพื่อน/อาจารย์'], ['🔁', 'ปรับแผน & สอนซ้ำ', 'ปรับปรุงจนผ่านเกณฑ์']]
+          .map((x, i) => `<div class="card center"><div style="font-size:34px">${x[0]}</div><h4>${i + 1}. ${x[1]}</h4><div class="small muted">${x[2]}</div></div>`).join('')}</div>
+        <div class="center mt"><a class="btn ghost" href="#page/teaching">อ่านเพิ่มเติม: การจัดการเรียนการสอน →</a></div>
+      </div>`;
+    loadSchedule(today(), today()).then(d => {
+      const box = $('#todayBox'); if (!box) return;
+      const items = d.items, cl = d.closures;
+      box.innerHTML = (cl.length ? cl.map(c => `<div class="announce mt0 mb">⛔ ${c.roomId ? esc(roomOf(c.roomId).name) + ' ' : 'ทุกห้อง '}ปิด${c.start ? ' ' + c.start + '–' + c.end + ' น.' : 'ทั้งวัน'} — ${esc(c.reason)}</div>`).join('') : '') +
+        (items.length ? `<div class="agenda">${items.map(agendaRow).join('')}</div>` : '<div class="muted">ยังไม่มีการจองวันนี้ — <a href="#book">จองห้องได้เลย</a></div>');
+    }).catch(e => { const box = $('#todayBox'); if (box) box.innerHTML = `<div class="muted">${esc(e.message)}</div>`; });
+  }
+  function roomCard(r) {
+    const feats = String(r.features || '').split('\n').filter(Boolean);
+    return `<div class="card roomcard" style="--c:${esc(r.color)}"><div class="ph" style="${r.image ? `background-image:url('${link(r.image)}')` : ''}"><span>${esc(r.code)} · ${fmt(r.capacity, 0)} ที่นั่ง</span></div>
+      <h3>${esc(r.name)}</h3><div class="small muted">${esc(r.kind)}${r.building ? ' · ' + esc(r.building) : ''}${r.floor ? ' ชั้น ' + esc(r.floor) : ''}</div>
+      <p class="small">${esc(r.description)}</p>${feats.length ? `<ul class="feat">${feats.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
+      <div class="row mt">${truthy(r.bookable) ? `<a class="btn sm" href="#book/${esc(r.id)}">จองห้องนี้</a>` : '<span class="badge">ใช้งานผ่านเจ้าหน้าที่</span>'}<a class="btn sm ghost" href="#schedule/${esc(r.id)}">ดูตาราง</a></div></div>`;
+  }
+  function agendaRow(it) {
+    const r = roomOf(it.roomId);
+    return `<div class="ag" style="--c:${esc(r.color)}"><div class="tm">${it.start}–${it.end}</div><div class="grow"><div><span class="dot"></span><b>${esc(it.label)}</b> ${it.status === 'pending' ? '<span class="badge b-pending">รออนุมัติ</span>' : it.status === 'checkedin' ? '<span class="badge b-checkedin">กำลังใช้</span>' : ''}</div>
+      <div class="small muted">${esc(r.name)}${it.course ? ' · ' + esc(it.course) : ''}${it.who ? ' · ' + esc(it.who) : ''}</div></div></div>`;
+  }
+
+  /* ================= ตารางการใช้ห้อง ================= */
+  function loadSchedule(from, to, force) {
+    const k = from + '|' + to;
+    if (SCHED[k] && !force && Date.now() - SCHED[k].t < 60000) return Promise.resolve(SCHED[k].d);
+    return call('getSchedule', from, to).then(d => { SCHED[k] = { d: d, t: Date.now() }; return d; });
+  }
+  function clearSched() { Object.keys(SCHED).forEach(k => delete SCHED[k]); }
+
+  function calRange(c) {
+    if (c.mode === 'day') return [c.date, c.date];
+    if (c.mode === 'week') { const s = weekStart(c.date); return [s, addDays(s, 6)]; }
+    const first = c.date.substr(0, 8) + '01'; const gs = weekStart(first);
+    return [gs, addDays(gs, 41)];
+  }
+  function calTitle(c) {
+    if (c.mode === 'day') return thL(c.date);
+    if (c.mode === 'week') { const s = weekStart(c.date), e = addDays(s, 6); return thD(s) + ' – ' + thD(e); }
+    const d = D0(c.date); return TML[d.getUTCMonth()] + ' ' + (d.getUTCFullYear() + 543);
+  }
+  function vSchedule(el, arg) {
+    const c = ST.cal;
+    if (!c.date) c.date = today();
+    if (arg) { c.room = arg; if (c.mode === 'day') c.mode = 'week'; }
+    el.innerHTML = `<div class="wrap page"><h1>🗓️ ตารางการใช้ห้อง</h1><p class="muted mt0">แตะช่องว่างในตารางเพื่อจองช่วงเวลานั้น · แถบลายทาง = รออนุมัติ · พื้นลาย = ปิดให้บริการ</p>
+      <div id="calBox"></div></div>`;
+    calendar($('#calBox'), {
+      state: c, admin: false,
+      load: (f, t) => loadSchedule(f, t),
+      onSlot: (roomId, date, time) => { LS.set('prefill', { roomId: roomId, date: date, start: time }); go('#book'); },
+      onItem: it => { const r = roomOf(it.roomId); modal(esc(it.label), `<dl class="kv"><dt>ห้อง</dt><dd>${esc(r.name)}</dd><dt>วันที่</dt><dd>${thL(it.date)}</dd><dt>เวลา</dt><dd>${it.start}–${it.end} น.</dd><dt>สถานะ</dt><dd>${stBadge(it.status)}</dd>${it.course ? `<dt>รายวิชา</dt><dd>${esc(it.course)}</dd>` : ''}${it.who ? `<dt>ผู้จอง</dt><dd>${esc(it.who)}</dd>` : ''}<dt>วัตถุประสงค์</dt><dd>${esc(P.purposes[it.purpose] || '-')}</dd></dl>`); }
+    });
+  }
+
+  /**
+   * ปฏิทินแบบใช้ซ้ำ (หน้าบ้าน + หลังบ้าน)
+   * opts: { state:{mode,date,room}, admin, load(from,to)->Promise<{items,closures}>, onSlot(roomId,date,time), onItem(item) }
+   */
+  function calendar(box, opts) {
+    const c = opts.state;
+    const rs = rooms();
+    const draw = () => {
+      const [from, to] = calRange(c);
+      box.innerHTML = `<div class="cal-bar noprint">
+          <div class="seg">${[['day', 'วัน'], ['week', 'สัปดาห์'], ['month', 'เดือน'], ['list', 'รายการ']].map(m => `<button data-mode="${m[0]}" class="${c.mode === m[0] ? 'on' : ''}">${m[1]}</button>`).join('')}</div>
+          <button class="btn sm ghost" data-nav="-1">‹</button><button class="btn sm ghost" data-nav="0">วันนี้</button><button class="btn sm ghost" data-nav="1">›</button>
+          <input type="date" id="calDate" value="${c.date}" style="width:auto;min-height:34px;padding:4px 8px">
+          <select id="calRoom" style="width:auto;min-height:34px;padding:4px 8px"><option value="all">ทุกห้อง</option>${rs.map(r => `<option value="${esc(r.id)}" ${c.room === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select>
+          <span class="cal-title">${calTitle(c)}</span></div>
+        <div class="legend mb">${rs.map(r => `<span><i style="background:${esc(r.color)}"></i>${esc(r.code || r.name)}</span>`).join('')}</div>
+        <div id="calBody"><div class="spinner">กำลังโหลดตาราง…</div></div>`;
+      $$('[data-mode]', box).forEach(b => b.onclick = () => { c.mode = b.dataset.mode; draw(); });
+      $$('[data-nav]', box).forEach(b => b.onclick = () => {
+        const n = Number(b.dataset.nav);
+        if (!n) c.date = today();
+        else if (c.mode === 'day') c.date = addDays(c.date, n);
+        else if (c.mode === 'week' || c.mode === 'list') c.date = addDays(c.date, 7 * n);
+        else { const d = D0(c.date); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + n); c.date = iso(d); }
+        draw();
+      });
+      $('#calDate', box).onchange = e => { if (e.target.value) { c.date = e.target.value; draw(); } };
+      $('#calRoom', box).onchange = e => { c.room = e.target.value; draw(); };
+      const lf = c.mode === 'list' ? weekStart(c.date) : from, lt = c.mode === 'list' ? addDays(weekStart(c.date), 13) : to;
+      opts.load(lf, lt).then(d => {
+        const items = d.items.filter(it => c.room === 'all' || it.roomId === c.room);
+        const closures = d.closures;
+        const body = $('#calBody', box); if (!body) return;
+        if (c.mode === 'month') body.innerHTML = monthGrid(from, items, closures);
+        else if (c.mode === 'list') body.innerHTML = listView(lf, lt, items, closures);
+        else body.innerHTML = timeGrid(c, from, items, closures, rs);
+        $$('[data-item]', body).forEach(x => x.onclick = e => { e.stopPropagation(); const it = items[Number(x.dataset.item)]; if (it && opts.onItem) opts.onItem(it); });
+        $$('.cal-col', body).forEach(col => col.onclick = e => {
+          if (col.classList.contains('closed') || !opts.onSlot) return;
+          const r = R(), y = e.offsetY, step = r.slotMinutes || 30;
+          const m = mins(r.openTime) + Math.floor(y / PXM / step) * step;
+          if (m >= mins(r.closeTime)) return;
+          opts.onSlot(col.dataset.room || (c.room !== 'all' ? c.room : ''), col.dataset.date, hhmm(m));
+        });
+        $$('[data-day]', body).forEach(x => x.onclick = () => { c.date = x.dataset.day; c.mode = 'day'; draw(); });
+      }).catch(e => { const b = $('#calBody', box); if (b) b.innerHTML = `<div class="empty">${esc(e.message)}</div>`; });
+    };
+    draw();
+    return draw;
+  }
+  const PXM = 1.1; // พิกเซลต่อนาที
+  function closedInfo(date, roomId, closures) {
+    const r = R();
+    if (r.openDays.indexOf(dow(date)) === -1) return { all: true, reason: 'ไม่เปิดให้จอง' };
+    const c = closures.find(x => date >= x.date && date <= (x.endDate || x.date) && (!x.roomId || !roomId || x.roomId === roomId) && !x.start);
+    return c ? { all: true, reason: c.reason || 'ปิด' } : null;
+  }
+  function timeGrid(c, from, items, closures, rs) {
+    const r = R();
+    let o = mins(r.openTime), e = mins(r.closeTime);
+    items.forEach(it => { o = Math.min(o, mins(it.start)); e = Math.max(e, mins(it.end)); });
+    o = Math.floor(o / 60) * 60; e = Math.ceil(e / 60) * 60;
+    const H = (e - o) * PXM;
+    let cols;
+    if (c.mode === 'day') cols = (c.room === 'all' ? rs : rs.filter(x => x.id === c.room)).map(rm => ({ key: rm.id, label: `<span class="dot" style="--c:${esc(rm.color)}"></span>${esc(rm.code || rm.name)}`, date: c.date, room: rm.id }));
+    else cols = Array.from({ length: 7 }, (_, i) => { const d = addDays(from, i); return { key: d, label: `${TD[dow(d)]} ${D0(d).getUTCDate()}`, date: d, room: c.room === 'all' ? '' : c.room }; })
+      .filter(col => r.openDays.indexOf(dow(col.date)) !== -1 || items.some(it => it.date === col.date));
+    const laneRooms = c.mode === 'week' && c.room === 'all' ? rs.filter(x => truthy(x.bookable) || items.some(it => it.roomId === x.id)) : null;
+    const nowS = nowLocal(), nowD = nowS.substr(0, 10), nowM = mins(nowS.substr(11));
+    let html = `<div class="cal"><div class="cal-grid" style="grid-template-columns:52px repeat(${cols.length}, minmax(${c.mode === 'day' ? 150 : 110}px, 1fr))">`;
+    html += `<div class="cal-head corner"></div>` + cols.map(col => `<div class="cal-head ${col.date === today() && c.mode === 'week' ? 'today' : ''}">${col.label}</div>`).join('');
+    html += `<div class="cal-times" style="height:${H}px">` + Array.from({ length: (e - o) / 60 + 1 }, (_, i) => `<div style="height:${i === (e - o) / 60 ? 0 : 60 * PXM}px">${hhmm(o + i * 60)}</div>`).join('') + '</div>';
+    cols.forEach(col => {
+      const ci = closedInfo(col.date, col.room, closures);
+      html += `<div class="cal-col ${ci ? 'closed' : ''}" data-date="${col.date}" data-room="${esc(col.room)}" style="height:${H}px" title="${ci ? esc(ci.reason) : 'แตะเพื่อจอง'}">`;
+      for (let m = o; m < e; m += 30) html += `<div class="ln ${m % 60 === 0 ? 'h' : ''}" style="top:${(m - o) * PXM}px"></div>`;
+      closures.filter(x => x.start && col.date >= x.date && col.date <= (x.endDate || x.date) && (!x.roomId || !col.room || x.roomId === col.room))
+        .forEach(x => { html += `<div class="ev closure" style="top:${(mins(x.start) - o) * PXM}px;height:${(mins(x.end) - mins(x.start)) * PXM}px;left:2px;right:2px"><b>ปิด</b>${esc(x.reason)}</div>`; });
+      items.forEach((it, idx) => {
+        if (it.date !== col.date) return;
+        if (c.mode === 'day' && it.roomId !== col.room) return;
+        const rm = roomOf(it.roomId);
+        let left = 2, width = 'calc(100% - 4px)';
+        if (laneRooms) { const li = Math.max(0, laneRooms.findIndex(x => x.id === it.roomId)), n = laneRooms.length; left = `calc(${li * 100 / n}% + 1px)`; width = `calc(${100 / n}% - 2px)`; }
+        const top = (mins(it.start) - o) * PXM, h = Math.max(18, (mins(it.end) - mins(it.start)) * PXM - 2);
+        html += `<div class="ev ${it.status === 'pending' ? 'pending' : ''}" data-item="${idx}" style="--c:${esc(rm.color)};top:${top}px;height:${h}px;left:${typeof left === 'number' ? left + 'px' : left};width:${width}" title="${esc(it.start + '–' + it.end + ' ' + it.label)}">
+          <b>${it.start}–${it.end}</b>${esc(it.label)}${laneRooms ? '' : it.who ? '<br>' + esc(it.who) : ''}</div>`;
+      });
+      if (col.date === nowD && nowM >= o && nowM <= e) html += `<div class="nowline" style="top:${(nowM - o) * PXM}px"></div>`;
+      html += '</div>';
+    });
+    return html + '</div></div>';
+  }
+  function monthGrid(from, items, closures) {
+    const cur = ST.cal.date.substr(0, 7);
+    let h = '<div class="month">' + ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'].map(d => `<div class="mh">${d}</div>`).join('');
+    for (let i = 0; i < 42; i++) {
+      const d = addDays(from, i), its = items.map((x, k) => [x, k]).filter(p => p[0].date === d);
+      const ci = closedInfo(d, ST.cal.room === 'all' ? '' : ST.cal.room, closures);
+      h += `<div data-day="${d}" class="${d.substr(0, 7) !== cur ? 'out' : ''} ${d === today() ? 'td' : ''} ${ci ? 'cls' : ''}"><span class="dn">${D0(d).getUTCDate()}</span>${ci && d.substr(0, 7) === cur ? ` <span class="xs muted">${esc(ci.reason)}</span>` : ''}
+        ${its.slice(0, 4).map(p => `<span class="mchip" data-item="${p[1]}" style="--c:${esc(roomOf(p[0].roomId).color)}">${p[0].start} ${esc(p[0].label)}</span>`).join('')}${its.length > 4 ? `<span class="xs muted">+${its.length - 4} รายการ</span>` : ''}</div>`;
+    }
+    return h + '</div>';
+  }
+  function listView(from, to, items, closures) {
+    let h = '<div class="card agenda">', any = false;
+    for (let d = from; d <= to; d = addDays(d, 1)) {
+      const its = items.map((x, k) => [x, k]).filter(p => p[0].date === d);
+      const cl = closures.filter(x => d >= x.date && d <= (x.endDate || x.date));
+      if (!its.length && !cl.length) continue;
+      any = true;
+      h += `<h4 class="mt">${thL(d)}</h4>` + cl.map(x => `<div class="small" style="color:var(--danger)">⛔ ${x.roomId ? esc(roomOf(x.roomId).name) : 'ทุกห้อง'} ปิด${x.start ? ' ' + x.start + '–' + x.end : 'ทั้งวัน'} — ${esc(x.reason)}</div>`).join('') +
+        its.map(p => `<div data-item="${p[1]}" style="cursor:pointer">${agendaRow(p[0])}</div>`).join('');
+    }
+    return any ? h + '</div>' : '<div class="card empty">ไม่มีรายการในช่วง 2 สัปดาห์นี้</div>';
+  }
+
+  /* ================= จองห้อง ================= */
+  function vBook(el, arg) {
+    const r = R();
+    const pre = LS.get('prefill') || {};
+    LS.set('prefill', null);
+    const me = LS.get('me') || {};
+    const bookable = rooms().filter(x => truthy(x.bookable));
+    const roomId = arg || pre.roomId || (bookable[0] && bookable[0].id) || '';
+    const minDate = today(), maxDate = addDays(today(), r.maxAdvanceDays);
+    let date = pre.date && pre.date >= minDate ? pre.date : (function () { let d = addDays(today(), r.minLeadHours >= 24 ? Math.ceil(r.minLeadHours / 24) : 0); for (let i = 0; i < 14 && r.openDays.indexOf(dow(d)) === -1; i++) d = addDays(d, 1); return d; })();
+    const sel = { start: pre.start || '', end: '' };
+    if (sel.start) sel.end = hhmm(Math.min(mins(sel.start) + 60, mins(r.closeTime)));
+    el.innerHTML = `<div class="wrap page"><h1>📅 จองห้องทดลองสอน</h1>
+      <p class="muted mt0">ไม่ต้องเข้าสู่ระบบ · จองล่วงหน้า ${r.minLeadHours >= 24 ? Math.round(r.minLeadHours / 24) + ' วัน' : r.minLeadHours + ' ชม.'} – ${r.maxAdvanceDays} วัน · ครั้งละไม่เกิน ${r.maxHours} ชม. · เวลาให้บริการ ${r.openTime}–${r.closeTime} น. ${r.autoApprove ? '· ยืนยันอัตโนมัติ' : '· เจ้าหน้าที่อนุมัติภายใน 1 วันทำการ'}</p>
+      <form id="bf" autocomplete="on" novalidate>
+      <div class="card"><div class="step"><b>1</b>เลือกห้อง วันที่ และเวลา</div>
+        <div class="roompick">${bookable.map(x => `<label style="--c:${esc(x.color)}"><input type="radio" name="roomId" value="${esc(x.id)}" ${x.id === roomId ? 'checked' : ''}><b>${esc(x.name)}</b><div class="xs muted">${esc(x.kind)} · ${fmt(x.capacity, 0)} ที่นั่ง</div></label>`).join('') || '<div class="muted">ยังไม่มีห้องที่เปิดให้จองออนไลน์</div>'}</div>
+        <div class="fgrid mt"><label class="f"><span>วันที่ใช้ห้อง <i>*</i></span><input type="date" name="date" value="${date}" min="${minDate}" max="${maxDate}"></label>
+          <label class="f"><span>เวลาเริ่ม <i>*</i></span><select name="start"></select></label><label class="f"><span>เวลาสิ้นสุด <i>*</i></span><select name="end"></select></label></div>
+        <div class="small muted mb">แตะช่องเวลาว่าง (สีเขียว) เพื่อเลือกเวลาเริ่ม แล้วแตะอีกครั้งที่ช่องสุดท้ายเพื่อเลือกเวลาสิ้นสุด</div>
+        <div id="slots"></div>
+        <div class="legend"><span><i style="background:#f1faf4;border:1px solid #cfe8d8"></i>ว่าง</span><span><i style="background:#f4f2f5"></i>ไม่ว่าง</span><span><i style="background:var(--brand)"></i>เลือกแล้ว</span></div>
+      </div>
+      <div class="card"><div class="step"><b>2</b>ข้อมูลผู้จอง</div>
+        <div class="chips mb">${Object.keys(P.userTypes).map(k => `<label class="chip"><input type="radio" name="userType" value="${k}" ${(me.userType || 'student') === k ? 'checked' : ''}>${esc(P.userTypes[k])}</label>`).join('')}</div>
+        <div class="fgrid">
+          <label class="f"><span>ชื่อ-นามสกุล <i>*</i></span><input type="text" name="name" value="${esc(me.name || '')}" autocomplete="name"></label>
+          <label class="f" data-for="student"><span>รหัสนักศึกษา <i>*</i></span><input type="text" name="studentId" value="${esc(me.studentId || '')}" inputmode="numeric"></label>
+          <label class="f"><span>คณะ / หน่วยงาน</span><input type="text" name="faculty" value="${esc(me.faculty || 'คณะครุศาสตร์')}"></label>
+          <label class="f"><span>สาขาวิชา / ชั้นปี</span><input type="text" name="major" value="${esc(me.major || '')}"></label>
+          <label class="f"><span>เบอร์โทรศัพท์ <i>*</i></span><input type="tel" name="phone" value="${esc(me.phone || '')}" autocomplete="tel" inputmode="tel"></label>
+          <label class="f"><span>อีเมล (รับการแจ้งเตือน)</span><input type="email" name="email" value="${esc(me.email || '')}" autocomplete="email"></label>
+        </div>
+        <label class="check small"><input type="checkbox" id="remember" ${me.name ? 'checked' : ''}> จดจำข้อมูลผู้จองในเครื่องนี้</label>
+      </div>
+      <div class="card"><div class="step"><b>3</b>รายละเอียดการใช้ห้อง</div>
+        <div class="fgrid">
+          <label class="f"><span>วัตถุประสงค์ <i>*</i></span><select name="purpose">${Object.keys(P.purposes).map(k => `<option value="${k}">${esc(P.purposes[k])}</option>`).join('')}</select></label>
+          <label class="f"><span>หัวข้อ / เรื่องที่สอน <i>*</i></span><input type="text" name="title" placeholder="เช่น ฝึกทักษะการใช้คำถาม เรื่อง ระบบสุริยะ"></label>
+          <label class="f"><span>รหัส–ชื่อรายวิชา</span><input type="text" name="course" placeholder="เช่น 1061201 วิธีวิทยาการจัดการเรียนรู้"></label>
+          <label class="f"><span>อาจารย์ผู้สอน / ที่ปรึกษารายวิชา <i data-for="student">*</i></span><input type="text" name="advisor"></label>
+          <label class="f"><span>จำนวนผู้เข้าใช้ (คน) <i>*</i></span><input type="number" name="participants" min="1" value="10"></label>
+        </div>
+        <div class="f"><span class="small" style="font-weight:600;color:var(--ink-2)">อุปกรณ์ที่ต้องการใช้</span><div class="chips mt" id="eqChips"></div></div>
+        <label class="check mt"><input type="checkbox" name="record"> 🎥 ต้องการบันทึกวิดีโอการสอน (รับไฟล์ทาง Google Drive)</label>
+        <label class="check"><input type="checkbox" name="support"> 🙋 ต้องการเจ้าหน้าที่ช่วยควบคุมอุปกรณ์ / ถ่ายทำระหว่างใช้ห้อง</label>
+        <label class="f mt"><span>หมายเหตุเพิ่มเติม</span><textarea name="note" placeholder="เช่น ต้องการจัดโต๊ะเป็นกลุ่ม 5 กลุ่ม / มีผู้สังเกตการณ์จากภายนอก"></textarea></label>
+        <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+      </div>
+      <div class="card"><label class="check"><input type="checkbox" name="consent"> <span>ข้าพเจ้าได้อ่านและยอมรับ <a href="#" data-pg="rules">ระเบียบการใช้ห้อง</a> และ <a href="#" data-pg="privacy">นโยบายข้อมูลส่วนบุคคล</a> ยินยอมให้บันทึกภาพและเสียงเพื่อการเรียนการสอน (กรณีขอบันทึกวิดีโอ)</span></label>
+        <div id="sumBox" class="announce" hidden></div>
+        <button class="bigbtn mt" type="submit">ส่งคำขอจอง</button></div>
+      </form></div>`;
+    const f = $('#bf');
+    $$('[data-pg]', f).forEach(a => a.onclick = e => { e.preventDefault(); const p = page(a.dataset.pg); if (p) modal(esc(p.title), `<div class="md">${md(p.body)}</div>`, '', { wide: true }); });
+    const ut = () => (f.querySelector('[name=userType]:checked') || {}).value;
+    const syncUT = () => $$('[data-for=student]', f).forEach(x => x.hidden = ut() !== 'student');
+    $$('[name=userType]', f).forEach(x => x.onchange = syncUT); syncUT();
+    let busySlots = [];
+    const curRoom = () => (f.querySelector('[name=roomId]:checked') || {}).value;
+    const steps = () => { const a = []; for (let m = mins(r.openTime); m < mins(r.closeTime); m += r.slotMinutes) a.push(m); return a; };
+    const isBusy = m => busySlots.some(b => m < b[1] && m + r.slotMinutes > b[0]);
+    const isPast = m => { const at = new Date(f.date.value + 'T' + hhmm(m) + ':00Z'), nw = new Date(nowLocal().replace(' ', 'T') + ':00Z'); return (at - nw) / 3600000 < r.minLeadHours; };
+    function fillSelects() {
+      const st = steps();
+      f.start.innerHTML = '<option value="">-- เลือก --</option>' + st.map(m => `<option value="${hhmm(m)}" ${hhmm(m) === sel.start ? 'selected' : ''}>${hhmm(m)}</option>`).join('');
+      const ends = st.map(m => m + r.slotMinutes).filter(m => !sel.start || (m > mins(sel.start) && m - mins(sel.start) <= r.maxHours * 60));
+      f.end.innerHTML = '<option value="">-- เลือก --</option>' + ends.map(m => `<option value="${hhmm(m)}" ${hhmm(m) === sel.end ? 'selected' : ''}>${hhmm(m)}</option>`).join('');
+    }
+    function drawSlots() {
+      const box = $('#slots');
+      const d = f.date.value, rm = curRoom();
+      if (!d || !rm) { box.innerHTML = ''; return; }
+      if (r.openDays.indexOf(dow(d)) === -1) { box.innerHTML = `<div class="announce mt0">วัน${TDL[dow(d)]}ไม่เปิดให้จองออนไลน์ — หากจำเป็น <a href="#forms">ยื่นคำร้องขอใช้นอกเวลา</a></div>`; return; }
+      box.innerHTML = '<div class="muted small">กำลังตรวจสอบเวลาว่าง…</div>';
+      loadSchedule(d, d, true).then(data => {
+        const full = data.closures.find(c => (!c.roomId || c.roomId === rm) && !c.start);
+        if (full) { box.innerHTML = `<div class="announce mt0">⛔ ห้องปิดให้บริการวันนี้: ${esc(full.reason)}</div>`; busySlots = [[0, 1440]]; return; }
+        busySlots = data.items.filter(it => it.roomId === rm).map(it => [mins(it.start) - r.bufferMinutes, mins(it.end) + r.bufferMinutes])
+          .concat(data.closures.filter(c => (!c.roomId || c.roomId === rm) && c.start).map(c => [mins(c.start), mins(c.end)]));
+        if (sel.start && (isBusy(mins(sel.start)) || isPast(mins(sel.start)))) { sel.start = ''; sel.end = ''; }
+        paint();
+      }).catch(e => { box.innerHTML = `<div class="muted">${esc(e.message)}</div>`; });
+    }
+    function paint() {
+      const box = $('#slots'), s = sel.start ? mins(sel.start) : -1, e = sel.end ? mins(sel.end) : -1;
+      box.innerHTML = `<div class="slots">${steps().map(m => `<div class="slot ${isPast(m) ? 'past' : isBusy(m) ? 'busy' : ''} ${m >= s && m < e ? 'sel' : ''}" data-m="${m}">${hhmm(m)}</div>`).join('')}</div>`;
+      $$('.slot', box).forEach(x => x.onclick = () => {
+        if (x.classList.contains('busy') || x.classList.contains('past')) return;
+        const m = Number(x.dataset.m), cs = sel.start ? mins(sel.start) : -1;
+        if (cs >= 0 && m >= cs && (!sel.end || mins(sel.end) - cs === r.slotMinutes) && m + r.slotMinutes - cs <= r.maxHours * 60) {
+          let ok = true; for (let k = cs; k <= m; k += r.slotMinutes) if (isBusy(k)) ok = false;
+          if (ok) { sel.end = hhmm(m + r.slotMinutes); fillSelects(); paint(); summary(); return; }
+        }
+        sel.start = hhmm(m); sel.end = hhmm(m + r.slotMinutes); fillSelects(); paint(); summary();
+      });
+      fillSelects(); summary();
+    }
+    function summary() {
+      const b = $('#sumBox'); const rm = roomOf(curRoom());
+      if (sel.start && sel.end) { b.hidden = false; b.innerHTML = `📌 ${esc(rm.name)} · ${thL(f.date.value)} · <b>${sel.start}–${sel.end} น.</b> (${fmt((mins(sel.end) - mins(sel.start)) / 60)} ชม.)`; }
+      else b.hidden = true;
+    }
+    function drawEquip() {
+      const rm = curRoom();
+      const eq = P.equipment.filter(e => e.status === 'ready' && (e.roomId === rm || truthy(e.lendable)));
+      const names = Array.from(new Set(eq.map(e => e.name)));
+      $('#eqChips').innerHTML = names.map(n => `<label class="chip"><input type="checkbox" name="equipment[]" value="${esc(n)}">${esc(n)}</label>`).join('') || '<span class="muted small">-</span>';
+    }
+    f.start.onchange = () => { sel.start = f.start.value; if (!sel.end || mins(sel.end) <= mins(sel.start)) sel.end = sel.start ? hhmm(mins(sel.start) + r.slotMinutes) : ''; paint(); };
+    f.end.onchange = () => { sel.end = f.end.value; paint(); };
+    f.date.onchange = drawSlots;
+    $$('[name=roomId]', f).forEach(x => x.onchange = () => { drawSlots(); drawEquip(); });
+    drawEquip(); fillSelects(); drawSlots();
+    f.onsubmit = e => {
+      e.preventDefault();
+      const o = formData(f);
+      o.start = sel.start; o.end = sel.end;
+      if (!o.roomId) return toast('กรุณาเลือกห้อง', 'err');
+      if (!o.start || !o.end) return toast('กรุณาเลือกช่วงเวลา', 'err');
+      for (let k = mins(o.start); k < mins(o.end); k += r.slotMinutes) if (isBusy(k)) return toast('ช่วงเวลาที่เลือกมีบางช่วงไม่ว่าง', 'err');
+      if (!o.name.trim() || !o.phone.trim() || !o.title.trim()) return toast('กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบ', 'err');
+      if (o.consent !== 'TRUE') return toast('กรุณายอมรับระเบียบการใช้ห้อง', 'err');
+      if ($('#remember').checked) LS.set('me', { userType: o.userType, name: o.name, studentId: o.studentId, faculty: o.faculty, major: o.major, phone: o.phone, email: o.email });
+      else LS.set('me', null);
+      const btn = f.querySelector('[type=submit]'); btn.disabled = true; btn.textContent = 'กำลังส่ง…';
+      call('submitBooking', o).then(res => {
+        clearSched();
+        LS.set('last', { code: res.code, contact: o.phone });
+        const gcal = 'https://calendar.google.com/calendar/render?action=TEMPLATE&ctz=Asia/Bangkok&text=' + encodeURIComponent('ใช้ห้อง ' + res.roomName + ' (' + res.code + ')') +
+          '&dates=' + res.date.replace(/-/g, '') + 'T' + res.start.replace(':', '') + '00/' + res.date.replace(/-/g, '') + 'T' + res.end.replace(':', '') + '00&details=' + encodeURIComponent(o.title + '\nรหัสการจอง ' + res.code);
+        el.innerHTML = `<div class="wrap page"><div class="card center" style="max-width:640px;margin:auto">
+          <div style="font-size:54px">${res.status === 'approved' ? '✅' : '📨'}</div><h2>${res.status === 'approved' ? 'จองสำเร็จ' : 'ส่งคำขอจองเรียบร้อย'}</h2>
+          <p class="muted">${res.status === 'approved' ? 'การจองได้รับการยืนยันแล้ว' : 'สถานะ: <b>รออนุมัติ</b> — เจ้าหน้าที่จะพิจารณาภายใน 1 วันทำการ'}</p>
+          <p>รหัสการจองของคุณ</p><div class="codebox">${esc(res.code)}</div>
+          <p class="small muted mt">${esc(res.roomName)} · ${thL(res.date)} · ${res.start}–${res.end} น.</p>
+          <p class="small">โปรดจดรหัสนี้ไว้ ใช้คู่กับเบอร์โทร/อีเมลเพื่อตรวจสอบสถานะ ยกเลิก และให้เพื่อน/อาจารย์ประเมินการสอน${res.hasEmail ? ' · ระบบส่งอีเมลยืนยันให้แล้ว' : ''}</p>
+          <div class="row" style="justify-content:center"><button class="btn ghost" id="cpy">📋 คัดลอกรหัส</button><a class="btn ghost" href="${gcal}" target="_blank" rel="noopener">➕ Google Calendar</a><a class="btn" href="#status/${encodeURIComponent(res.code)}">ตรวจสอบสถานะ</a></div>
+        </div></div>`;
+        $('#cpy').onclick = () => copy(res.code);
+        window.scrollTo(0, 0);
+      }).catch(err => { toast(err.message, 'err'); btn.disabled = false; btn.textContent = 'ส่งคำขอจอง'; drawSlots(); });
+    };
+  }
+
+  /* ================= ตรวจสอบสถานะ ================= */
+  function vStatus(el, arg) {
+    const last = LS.get('last') || {};
+    const isReq = /^RQ/i.test(arg || '');
+    el.innerHTML = `<div class="wrap page" style="max-width:860px"><h1>🔎 ตรวจสอบสถานะ</h1>
+      <div class="card"><form id="sf" class="fgrid" style="align-items:end">
+        <label class="f"><span>ประเภท</span><select name="kind"><option value="b">การจองห้อง (MT…)</option><option value="r" ${isReq ? 'selected' : ''}>คำร้อง (RQ…)</option></select></label>
+        <label class="f"><span>รหัสอ้างอิง</span><input type="text" name="code" value="${esc(arg || last.code || '')}" placeholder="เช่น MT6911-K7Q2" style="text-transform:uppercase"></label>
+        <label class="f"><span>เบอร์โทร หรือ อีเมลที่ใช้ตอนส่ง</span><input type="text" name="contact" value="${esc(arg && arg !== last.code ? '' : last.contact || '')}"></label>
+        <label class="f"><button class="btn block" type="submit">ตรวจสอบ</button></label></form></div>
+      <div id="res"></div></div>`;
+    const f = $('#sf');
+    f.code.oninput = () => { if (/^RQ/i.test(f.code.value)) f.kind.value = 'r'; else if (/^MT/i.test(f.code.value)) f.kind.value = 'b'; };
+    f.onsubmit = e => {
+      e.preventDefault();
+      const o = formData(f);
+      if (!o.code || !o.contact) return toast('กรุณากรอกรหัสและเบอร์โทร/อีเมล', 'err');
+      if (o.kind === 'r') call('checkRequest', o.code, o.contact).then(showReq).catch(err => toast(err.message, 'err'));
+      else call('checkBooking', o.code, o.contact).then(v => { LS.set('last', { code: v.code, contact: o.contact }); showBk(v, o.contact); }).catch(err => toast(err.message, 'err'));
+    };
+    if ((arg || last.code) && f.contact.value) f.requestSubmit ? f.requestSubmit() : f.onsubmit(new Event('submit'));
+  }
+  function showReq(q) {
+    $('#res').innerHTML = `<div class="card mt"><div class="row between"><h3 class="mt0">${esc(q.code)} · ${esc(q.typeLabel)}</h3>${rqBadge(q.status)}</div>
+      <dl class="kv"><dt>เรื่อง</dt><dd>${esc(q.subject)}</dd><dt>รายละเอียด</dt><dd>${esc(q.detail).replace(/\n/g, '<br>')}</dd>${q.refCode ? `<dt>อ้างอิง</dt><dd>${esc(q.refCode)}</dd>` : ''}${q.needDate ? `<dt>วันที่ต้องการ</dt><dd>${thL(q.needDate)}</dd>` : ''}
+      <dt>ยื่นเมื่อ</dt><dd>${thDT(q.createdAt)}</dd><dt>อัปเดตล่าสุด</dt><dd>${thDT(q.updatedAt)}</dd></dl>
+      ${q.response ? `<div class="announce" style="background:var(--info-soft);border-color:#bcd4ef;color:#1d3f66"><b>คำตอบจากเจ้าหน้าที่:</b><br>${esc(q.response).replace(/\n/g, '<br>')}</div>` : ''}</div>`;
+  }
+  function showBk(v, contact) {
+    const stepIdx = { pending: 1, approved: 2, checkedin: 3, completed: 4 }[v.status] || 0;
+    const bad = ['rejected', 'cancelled', 'noshow'].indexOf(v.status) !== -1;
+    const evalUrl = (CFG.baseUrl || '') + '?view=evaluate&code=' + encodeURIComponent(v.code);
+    const ev = v.evaluations;
+    $('#res').innerHTML = `<div class="card mt"><div class="row between"><h3 class="mt0">รหัส ${esc(v.code)}</h3>${stBadge(v.status)}</div>
+      ${bad ? `<div class="timeline"><div class="on">ส่งคำขอ</div><div class="bad">${esc(v.statusLabel)}</div></div>` :
+        `<div class="timeline">${['ส่งคำขอ', 'อนุมัติ', 'เช็กอิน', 'เสร็จสิ้น'].map((t, i) => `<div class="${i < stepIdx ? 'on' : ''}">${t}</div>`).join('')}</div>`}
+      <dl class="kv"><dt>ห้อง</dt><dd>${esc(v.roomName)}</dd><dt>วันที่</dt><dd>${esc(v.dateText)}</dd><dt>เวลา</dt><dd>${v.start}–${v.end} น.</dd><dt>หัวข้อ</dt><dd>${esc(v.title)}</dd>
+        <dt>วัตถุประสงค์</dt><dd>${esc(v.purposeLabel)}</dd>${v.course ? `<dt>รายวิชา</dt><dd>${esc(v.course)}</dd>` : ''}<dt>ผู้จอง</dt><dd>${esc(v.name)}</dd><dt>จำนวน</dt><dd>${esc(v.participants)} คน</dd>
+        ${v.equipment ? `<dt>อุปกรณ์</dt><dd>${esc(v.equipment)}</dd>` : ''}<dt>บันทึกวิดีโอ</dt><dd>${truthy(v.record) ? 'ต้องการ' : 'ไม่ต้องการ'}</dd>
+        ${v.staffNote ? `<dt>หมายเหตุเจ้าหน้าที่</dt><dd><b>${esc(v.staffNote)}</b></dd>` : ''}${v.cancelReason ? `<dt>การยกเลิก</dt><dd>${esc(v.cancelReason)}</dd>` : ''}
+        <dt>ส่งคำขอเมื่อ</dt><dd>${thDT(v.createdAt)}</dd></dl>
+      ${v.videoUrl ? `<a class="bigbtn mt" href="${link(v.videoUrl)}" target="_blank" rel="noopener"><span class="e">🎬</span>เปิดไฟล์วิดีโอการสอน</a>` : truthy(v.record) && !bad ? '<div class="small muted mt">🎬 ลิงก์ไฟล์วิดีโอจะแสดงที่นี่หลังเจ้าหน้าที่อัปโหลด (1–3 วันทำการ)</div>' : ''}
+      <div class="row mt">${v.canCancel ? '<button class="btn red sm" id="cancelBk">ยกเลิกการจอง</button>' : ''}<button class="btn ghost sm" id="refresh">↻ รีเฟรช</button></div></div>
+      ${['approved', 'checkedin', 'completed'].indexOf(v.status) !== -1 ? `<div class="card"><h3>📝 ประเมินการสอน (ตนเอง / เพื่อน / อาจารย์)</h3>
+        <p class="small muted mt0">แชร์ลิงก์หรือรหัส <b>${esc(v.code)}</b> ให้เพื่อนและอาจารย์ประเมินทักษะการสอนของคุณ ผลสรุปจะแสดงด้านล่าง</p>
+        <div class="row"><a class="btn sm" href="#evaluate/${encodeURIComponent(v.code)}">ประเมินตนเอง</a><button class="btn sm ghost" id="cpyEval">📋 คัดลอกลิงก์ประเมิน</button></div>
+        ${ev.count ? `<div class="mt"><div class="small muted">ผู้ประเมิน ${ev.count} คน (ตนเอง ${ev.roles.self || 0} · เพื่อน ${ev.roles.peer || 0} · อาจารย์ ${ev.roles.lecturer || 0})</div>
+          ${ev.skills.map(s => `<div class="hbar"><span class="small">${esc(s.name)}</span><div class="bar"><i style="width:${s.avg / 5 * 100}%"></i></div><b class="small right">${s.avg.toFixed(2)}</b></div>`).join('')}
+          ${ev.comments.length ? `<h4 class="mt">ข้อเสนอแนะ</h4>${ev.comments.map(cm => `<div class="newsitem small"><b>${{ self: 'ตนเอง', peer: 'เพื่อน', lecturer: 'อาจารย์' }[cm.role] || ''}${cm.evaluator ? ' (' + esc(cm.evaluator) + ')' : ''}</b>${cm.strengths ? `<div>👍 ${esc(cm.strengths)}</div>` : ''}${cm.improve ? `<div>🔧 ${esc(cm.improve)}</div>` : ''}</div>`).join('')}` : ''}</div>` : '<div class="small muted mt">ยังไม่มีผู้ประเมิน</div>'}
+      </div>` : ''}
+      ${v.canFeedback ? `<div class="card"><h3>⭐ แบบประเมินความพึงพอใจการใช้บริการ</h3><form id="fbf">
+        ${P.feedbackItems.map((q, i) => `<div class="row between" style="border-bottom:1px solid var(--line);padding:6px 0"><span class="grow small">${i + 1}. ${esc(q)}</span><span class="stars">${[5, 4, 3, 2, 1].map(n => `<input type="radio" name="q${i}" id="q${i}_${n}" value="${n}"><label for="q${i}_${n}" title="${n}">★</label>`).join('')}</span></div>`).join('')}
+        <label class="f mt"><span>ข้อเสนอแนะเพิ่มเติม</span><textarea name="comment"></textarea></label><button class="btn" type="submit">ส่งแบบประเมิน</button></form></div>` : v.feedbackDone ? '<div class="card small">⭐ ส่งแบบประเมินความพึงพอใจแล้ว ขอบคุณค่ะ</div>' : ''}`;
+    const again = () => call('checkBooking', v.code, contact).then(x => showBk(x, contact)).catch(e => toast(e.message, 'err'));
+    $('#refresh').onclick = again;
+    const cb = $('#cancelBk'); if (cb) cb.onclick = () => promptBox('ยกเลิกการจอง ' + v.code, 'เหตุผลการยกเลิก', '', false).then(reason => {
+      if (reason === null) return;
+      call('cancelBooking', v.code, contact, reason).then(x => { clearSched(); toast('ยกเลิกแล้ว', 'ok'); showBk(x, contact); }).catch(e => toast(e.message, 'err'));
+    });
+    const ce = $('#cpyEval'); if (ce) ce.onclick = () => copy(CFG.baseUrl ? evalUrl : v.code);
+    const fb = $('#fbf'); if (fb) fb.onsubmit = e => {
+      e.preventDefault();
+      const o = formData(fb), ans = P.feedbackItems.map((_, i) => o['q' + i]);
+      if (ans.some(a => !a)) return toast('กรุณาให้คะแนนให้ครบทุกข้อ', 'err');
+      call('submitFeedback', v.code, contact, ans, o.comment).then(x => { toast('ขอบคุณสำหรับการประเมิน', 'ok'); showBk(x, contact); }).catch(err => toast(err.message, 'err'));
+    };
+  }
+
+  /* ================= แบบฟอร์ม / คำร้อง ================= */
+  function vForms(el, arg) {
+    const me = LS.get('me') || {};
+    const cats = {};
+    P.docs.forEach(d => { (cats[d.category || 'เอกสาร'] = cats[d.category || 'เอกสาร'] || []).push(d); });
+    el.innerHTML = `<div class="wrap page"><h1>📄 แบบฟอร์ม / คำร้อง</h1>
+      <div class="grid g4">
+        <a class="card center" href="#book" style="text-decoration:none;color:inherit"><div style="font-size:34px">📅</div><h4>จองห้องออนไลน์</h4><div class="small muted">เลือกเวลาว่าง ส่งคำขอทันที</div></a>
+        <a class="card center" href="#status" style="text-decoration:none;color:inherit"><div style="font-size:34px">🔎</div><h4>ตรวจสอบสถานะ</h4><div class="small muted">การจอง / คำร้อง / ไฟล์วิดีโอ</div></a>
+        <a class="card center" href="#evaluate" style="text-decoration:none;color:inherit"><div style="font-size:34px">📝</div><h4>ประเมินการสอน</h4><div class="small muted">ตนเอง เพื่อน อาจารย์ 10 ทักษะ</div></a>
+        <a class="card center" href="#" id="toReq" style="text-decoration:none;color:inherit"><div style="font-size:34px">✉️</div><h4>ยื่นคำร้อง</h4><div class="small muted">นอกเวลา ยืมอุปกรณ์ ขอไฟล์ แจ้งซ่อม</div></a>
+      </div>
+      <div class="grid g2 mt" style="align-items:start">
+        <div class="card" id="reqCard"><h3>✉️ ยื่นคำร้องออนไลน์</h3><form id="rf" novalidate>
+          <label class="f"><span>ประเภทคำร้อง <i>*</i></span><select name="type">${Object.keys(P.requestTypes).map(k => `<option value="${k}" ${arg === k ? 'selected' : ''}>${esc(P.requestTypes[k])}</option>`).join('')}</select></label>
+          <div class="fgrid"><label class="f"><span>ชื่อ-นามสกุล <i>*</i></span><input type="text" name="name" value="${esc(me.name || '')}"></label>
+            <label class="f"><span>สถานะผู้ยื่น</span><select name="userType">${Object.keys(P.userTypes).map(k => `<option value="${k}" ${me.userType === k ? 'selected' : ''}>${esc(P.userTypes[k])}</option>`).join('')}</select></label>
+            <label class="f"><span>รหัสนักศึกษา / บุคลากร</span><input type="text" name="studentId" value="${esc(me.studentId || '')}"></label>
+            <label class="f"><span>คณะ / หน่วยงาน</span><input type="text" name="faculty" value="${esc(me.faculty || '')}"></label>
+            <label class="f"><span>เบอร์โทรศัพท์ <i>*</i></span><input type="tel" name="phone" value="${esc(me.phone || '')}"></label>
+            <label class="f"><span>อีเมล</span><input type="email" name="email" value="${esc(me.email || '')}"></label></div>
+          <label class="f"><span>เรื่อง <i>*</i></span><input type="text" name="subject"></label>
+          <label class="f"><span>รายละเอียด <i>*</i></span><textarea name="detail" placeholder="ระบุวัน เวลา ห้อง/อุปกรณ์ จำนวน และเหตุผลความจำเป็น"></textarea></label>
+          <div class="fgrid"><label class="f"><span>วันที่ต้องการ</span><input type="date" name="needDate" min="${today()}"></label>
+            <label class="f"><span>อ้างอิงรหัสการจอง (ถ้ามี)</span><input type="text" name="refCode" placeholder="MT…"></label></div>
+          <label class="f"><span>ลิงก์เอกสารแนบ (Google Drive, ถ้ามี)</span><input type="url" name="link" placeholder="https://drive.google.com/…"></label>
+          <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+          <button class="btn block" type="submit">ส่งคำร้อง</button></form></div>
+        <div class="card"><h3>📂 เอกสารดาวน์โหลด</h3>${Object.keys(cats).length ? Object.keys(cats).map(c => `<h4 class="mt">${esc(c)}</h4><div class="doclist">${cats[c].map(d =>
+          `<a href="${d.url ? link(d.url) : '#'}" ${d.url ? 'target="_blank" rel="noopener"' : 'data-nofile'}><span class="ic">${/ประเมิน/.test(c) ? '📊' : /ระเบียบ/.test(c) ? '📜' : /คู่มือ/.test(c) ? '📘' : '📄'}</span><span class="grow"><b>${esc(d.title)}</b><div class="xs muted">${esc(d.description)}${d.url ? '' : ' · (ยังไม่ได้แนบไฟล์)'}</div></span><span>${d.url ? '⬇' : ''}</span></a>`).join('')}</div>`).join('') : '<div class="muted">ยังไม่มีเอกสาร</div>'}
+          <div class="mt small"><a href="#page/rules">📋 อ่านระเบียบการใช้ห้อง</a> · <a href="#page/faq">❓ คำถามที่พบบ่อย</a></div></div>
+      </div></div>`;
+    $('#toReq').onclick = e => { e.preventDefault(); $('#reqCard').scrollIntoView({ behavior: 'smooth' }); };
+    $$('[data-nofile]').forEach(a => a.onclick = e => { e.preventDefault(); toast('ยังไม่ได้แนบไฟล์ — ติดต่อเจ้าหน้าที่ หรือใช้แบบฟอร์มออนไลน์'); });
+    const f = $('#rf');
+    f.onsubmit = e => {
+      e.preventDefault();
+      const o = formData(f);
+      if (!o.name.trim() || !o.phone.trim() || !o.subject.trim() || !o.detail.trim()) return toast('กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบ', 'err');
+      const btn = f.querySelector('[type=submit]'); btn.disabled = true;
+      call('submitRequest', o).then(res => {
+        $('#reqCard').innerHTML = `<div class="center"><div style="font-size:48px">📨</div><h3>ส่งคำร้องเรียบร้อย</h3><p>${esc(res.typeLabel)}</p><div class="codebox">${esc(res.code)}</div>
+          <p class="small muted mt">ติดตามผลได้ที่เมนู ตรวจสอบสถานะ ด้วยรหัสนี้และเบอร์โทรที่กรอก</p><a class="btn" href="#status/${encodeURIComponent(res.code)}">ตรวจสอบสถานะ</a></div>`;
+        LS.set('last', { code: res.code, contact: o.phone });
+      }).catch(err => { toast(err.message, 'err'); btn.disabled = false; });
+    };
+  }
+
+  /* ================= ประเมินการสอน ================= */
+  function vEvaluate(el, arg) {
+    el.innerHTML = `<div class="wrap page" style="max-width:900px"><h1>📝 แบบประเมินทักษะการสอนแบบจุลภาค</h1>
+      <p class="muted mt0">ใช้รหัสการจองที่ผู้สอนแชร์ให้ ประเมินได้ทั้งตนเอง เพื่อน และอาจารย์ · ให้คะแนน 1 (ต้องปรับปรุงมาก) – 5 (ดีมาก)</p>
+      <div class="card"><form id="ef0" class="row"><input type="text" name="code" placeholder="รหัสการจอง เช่น MT6911-K7Q2" value="${esc(arg || '')}" class="grow" style="text-transform:uppercase;max-width:340px"><button class="btn" type="submit">เริ่มประเมิน</button></form></div>
+      <div id="evBox"></div></div>`;
+    const f0 = $('#ef0');
+    f0.onsubmit = e => { e.preventDefault(); const code = f0.code.value.trim(); if (!code) return toast('กรุณากรอกรหัสการจอง', 'err'); call('getEvalTarget', code).then(drawEvalForm).catch(err => toast(err.message, 'err')); };
+    if (arg) f0.onsubmit(new Event('submit'));
+  }
+  function drawEvalForm(t) {
+    const box = $('#evBox');
+    box.innerHTML = `<div class="card"><div class="row between"><div><h3 class="mt0">${esc(t.title)}</h3><div class="small muted">ผู้สอน: <b>${esc(t.teacher)}</b>${t.course ? ' · ' + esc(t.course) : ''} · ${esc(t.roomName)} · ${esc(t.dateText)} ${t.start}–${t.end} น.</div></div><span class="badge b-approved">${esc(t.code)}</span></div></div>
+      <form id="ef" class="card"><div class="fgrid"><label class="f"><span>ประเมินในฐานะ</span><select name="role"><option value="peer">เพื่อน / ผู้สังเกต</option><option value="lecturer">อาจารย์ / ผู้นิเทศ</option><option value="self">ตนเอง (ผู้สอน)</option></select></label>
+        <label class="f" id="evName"><span>ชื่อผู้ประเมิน <i>*</i></span><input type="text" name="evaluator"></label></div>
+        <div class="small" style="font-weight:600">เลือกทักษะที่จะประเมิน (ไมโครทีชชิ่งมักเน้น 1–2 ทักษะต่อรอบ)</div>
+        <div class="chips mt mb">${P.skills.map((s, i) => `<label class="chip"><input type="checkbox" data-skill="${s.key}" ${i < 2 ? 'checked' : ''}>${i + 1}. ${esc(s.name.replace('ทักษะการ', '').replace('ทักษะ', ''))}</label>`).join('')}</div>
+        <div id="skillForms"></div>
+        <div class="fgrid mt"><label class="f"><span>👍 จุดเด่น</span><textarea name="strengths"></textarea></label><label class="f"><span>🔧 สิ่งที่ควรปรับปรุง / ข้อเสนอแนะ</span><textarea name="improve"></textarea></label></div>
+        <button class="bigbtn" type="submit">ส่งผลการประเมิน</button></form>`;
+    const f = $('#ef');
+    f.role.onchange = () => { $('#evName').hidden = f.role.value === 'self'; };
+    const drawSkills = () => {
+      const keep = {};
+      $$('[data-sc]', f).forEach(i => { if (i.checked) keep[i.name] = i.value; });
+      $('#skillForms').innerHTML = P.skills.filter(s => $(`[data-skill=${s.key}]`, f).checked).map(s => `<div class="card" style="box-shadow:none;background:var(--bg-2)"><h4>${esc(s.name)}</h4>
+        ${s.items.map((it, j) => `<div class="row between" style="padding:5px 0;border-bottom:1px dashed var(--line)"><span class="grow small">${j + 1}) ${esc(it)}</span><span class="scale">${[1, 2, 3, 4, 5].map(n => `<label><input type="radio" data-sc name="${s.key}_${j}" value="${n}" ${keep[s.key + '_' + j] == n ? 'checked' : ''}>${n}</label>`).join('')}</span></div>`).join('')}</div>`).join('') || '<div class="muted small">ยังไม่ได้เลือกทักษะ</div>';
+    };
+    $$('[data-skill]', f).forEach(c => c.onchange = drawSkills); drawSkills();
+    f.onsubmit = e => {
+      e.preventDefault();
+      const o = formData(f), scores = {};
+      let missing = 0;
+      P.skills.forEach(s => {
+        if (!$(`[data-skill=${s.key}]`, f).checked) return;
+        scores[s.key] = s.items.map((_, j) => { const v = (f.querySelector(`[name="${s.key}_${j}"]:checked`) || {}).value; if (!v) missing++; return Number(v || 0); });
+      });
+      if (!Object.keys(scores).length) return toast('กรุณาเลือกทักษะอย่างน้อย 1 ทักษะ', 'err');
+      if (missing) return toast('ยังให้คะแนนไม่ครบ ' + missing + ' ข้อ', 'err');
+      if (o.role !== 'self' && !o.evaluator.trim()) return toast('กรุณากรอกชื่อผู้ประเมิน', 'err');
+      call('submitEvaluation', t.code, { role: o.role, evaluator: o.evaluator, scores: scores, strengths: o.strengths, improve: o.improve }).then(res => {
+        $('#evBox').innerHTML = `<div class="card center"><div style="font-size:50px">🙏</div><h3>ส่งผลการประเมินแล้ว</h3><p>คะแนนเฉลี่ยที่คุณให้: <b>${res.avg.toFixed(2)}</b> / 5</p><button class="btn ghost" id="evAgain">ประเมินอีกครั้ง (ผู้ประเมินคนอื่น)</button></div>`;
+        $('#evAgain').onclick = () => drawEvalForm(t);
+        window.scrollTo(0, 0);
+      }).catch(err => toast(err.message, 'err'));
+    };
+  }
+
+  /* ================= หน้าเนื้อหา / ติดต่อ ================= */
+  function vPage(el, key) {
+    const p = page(key);
+    el.innerHTML = `<div class="wrap page" style="max-width:960px"><div class="card md">${p ? md(p.body) : '<h1>ไม่พบหน้านี้</h1>'}</div>
+      ${key === 'services' || key === 'teaching' ? '<div class="grid g2 mt"><a class="bigbtn" href="#book"><span class="e">📅</span>จองห้อง</a><a class="bigbtn alt" href="#evaluate"><span class="e">📝</span>แบบประเมินทักษะการสอน</a></div>' : ''}
+      ${key === 'about' ? `<div class="sec-title">🏫 ห้องและสิ่งอำนวยความสะดวก</div><div class="grid g2">${rooms().map(roomCard).join('')}</div>` : ''}</div>`;
+  }
+  function vContact(el) {
+    const s = P.site;
+    const item = (ic, t, v, href) => v ? `<div class="row" style="align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)"><span style="font-size:24px">${ic}</span><div class="grow"><div class="small muted">${t}</div><div>${href ? `<a href="${href}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v)}</div></div></div>` : '';
+    el.innerHTML = `<div class="wrap page"><h1>☎️ ช่องทางติดต่อ</h1><div class="grid g2" style="align-items:start">
+      <div class="card"><h3>${esc(s.appName)}</h3><div class="muted">${esc(s.org)}</div>
+        ${item('📍', 'ที่ตั้ง', [s.building, s.address].filter(Boolean).join(' · '))}${item('☎️', 'โทรศัพท์', s.phone, s.phone ? 'tel:' + s.phone.replace(/[^0-9+]/g, '') : '')}
+        ${item('✉️', 'อีเมล', s.email, s.email ? 'mailto:' + s.email : '')}${item('💬', 'LINE', s.line)}${item('📘', 'Facebook', s.facebook ? 'เพจ Facebook' : '', link(s.facebook))}${item('🕘', 'เวลาให้บริการ', s.hoursText)}
+        ${s.mapUrl ? `<a class="btn mt" href="${link(s.mapUrl)}" target="_blank" rel="noopener">🗺️ เปิดแผนที่</a>` : ''}
+        ${s.staffText ? `<h4 class="mt">ผู้รับผิดชอบ</h4><div class="small">${esc(s.staffText).replace(/\n/g, '<br>')}</div>` : ''}</div>
+      <div class="card"><h3>ส่งข้อความถึงเจ้าหน้าที่</h3><p class="small muted mt0">สอบถาม แจ้งปัญหา หรือข้อเสนอแนะ ระบบจะออกรหัสคำร้องให้ติดตามผลได้</p>
+        <form id="cf"><input type="hidden" name="type" value="other"><div class="fgrid"><label class="f"><span>ชื่อ-นามสกุล *</span><input type="text" name="name"></label><label class="f"><span>เบอร์โทร *</span><input type="tel" name="phone"></label></div>
+        <label class="f"><span>อีเมล</span><input type="email" name="email"></label><label class="f"><span>เรื่อง *</span><input type="text" name="subject"></label><label class="f"><span>ข้อความ *</span><textarea name="detail"></textarea></label>
+        <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true"><button class="btn block">ส่งข้อความ</button></form></div></div></div>`;
+    const f = $('#cf');
+    f.onsubmit = e => { e.preventDefault(); const o = formData(f); call('submitRequest', o).then(res => { f.innerHTML = `<div class="center"><h3>ส่งข้อความแล้ว</h3><div class="codebox">${esc(res.code)}</div><p class="small muted mt">ติดตามผลที่เมนู ตรวจสอบสถานะ</p></div>`; }).catch(err => toast(err.message, 'err')); };
+  }
+
+  /* ================= ป้ายหน้าห้อง ================= */
+  let dispTimer = null;
+  function renderDisplay(roomId) {
+    if (!roomId) { app.innerHTML = `<div class="display"><div class="big">เลือกห้องสำหรับป้ายหน้าห้อง</div>${P.rooms.map(r => `<a class="bigbtn" href="#display/${esc(r.id)}">${esc(r.name)}</a>`).join('')}</div>`; return; }
+    const draw = () => call('getDisplay', roomId).then(d => {
+      if (location.hash.indexOf('#display') !== 0) return;
+      const nm = mins(nowLocal().substr(11));
+      const cur = d.items.find(i => mins(i.start) <= nm && nm < mins(i.end));
+      const next = d.items.filter(i => mins(i.start) > nm);
+      app.innerHTML = `<div class="display"><div class="row between"><div><div class="big">${esc(d.room.name)}</div><div style="opacity:.7;font-size:20px">${esc(d.todayText)}</div></div><div class="clock" id="clk">${nowLocal().substr(11)}</div></div>
+        ${d.closed ? `<div class="state closedst"><div style="font-size:44px">⛔ ปิดให้บริการ</div><div style="font-size:22px">${esc(d.closed)}</div></div>` :
+          cur ? `<div class="state busyst"><div style="font-size:22px;opacity:.85">กำลังใช้งาน · ${cur.start}–${cur.end} น.</div><div style="font-size:42px;font-weight:700">${esc(cur.label)}</div><div style="font-size:22px">${esc(cur.course || '')} ${esc(cur.who || '')}</div></div>` :
+          `<div class="state free"><div style="font-size:48px;font-weight:700">✅ ว่าง</div><div style="font-size:22px">${next[0] ? 'การใช้ครั้งถัดไป ' + next[0].start + ' น.' : 'ไม่มีการจองต่อจากนี้ในวันนี้'}</div></div>`}
+        <div class="nx"><div style="opacity:.7;margin-bottom:8px">ตารางวันนี้</div>${d.items.length ? d.items.map(i => `<div style="padding:6px 0;border-bottom:1px solid #333;${mins(i.end) <= nm ? 'opacity:.4' : ''}"><b>${i.start}–${i.end}</b> · ${esc(i.label)} <span style="opacity:.6">${esc(i.course || '')}</span></div>`).join('') : '<div>— ไม่มีการจอง —</div>'}</div>
+        <div style="opacity:.6;font-size:16px">จองห้องออนไลน์: ${esc(CFG.baseUrl || P.site.appName)}</div></div>`;
+    }).catch(e => { app.innerHTML = `<div class="display"><div class="big">${esc(e.message)}</div></div>`; });
+    draw();
+    clearInterval(dispTimer);
+    dispTimer = setInterval(() => { if (location.hash.indexOf('#display') !== 0) { clearInterval(dispTimer); return; } draw(); }, 60000);
+  }
+
+  /* =====================================================================
+   *  ระบบหลังบ้าน
+   * ===================================================================== */
+  const isAdmin = () => A && A.me.role === 'admin';
+  function reloadAdmin() { return api('getAdminData').then(d => { A = d; P.rules = d.rules; return d; }); }
+
+  function renderAdmin(tab) {
+    if (!TOKEN) return adminLogin();
+    if (!A) { app.innerHTML = shell('<div class="spinner">กำลังโหลดข้อมูลหลังบ้าน…</div>', ''); bindShell(); reloadAdmin().then(() => renderAdmin(tab)).catch(e => { toast(e.message, 'err'); if (!TOKEN) adminLogin(); }); return; }
+    ST.admTab = tab || ST.admTab || 'dash';
+    const pend = A.bookings.filter(b => b.status === 'pending').length, rq = A.requests.filter(q => q.status === 'new').length;
+    const tabs = [['dash', '📊', 'แดชบอร์ด'], ['bookings', '📋', 'การจอง', pend], ['calendar', '🗓️', 'ปฏิทินห้อง'], ['requests', '✉️', 'คำร้อง', rq], ['equipment', '🎛️', 'อุปกรณ์'],
+      ['closures', '⛔', 'วันปิดห้อง'], ['evals', '⭐', 'ผลประเมิน'], ['reports', '📈', 'รายงาน'], ['content', '📝', 'เนื้อหาเว็บ'], ['rooms', '🏫', 'ห้อง']];
+    if (isAdmin()) tabs.push(['users', '👥', 'ผู้ใช้งาน'], ['settings', '⚙️', 'ตั้งค่า'], ['log', '🧾', 'บันทึกระบบ']);
+    app.innerHTML = shell(`<div class="wrap"><div class="adm"><aside class="side">
+        <div class="small muted sep" style="padding:0 12px 8px">👤 ${esc(A.me.name)} · ${A.me.role === 'admin' ? 'ผู้ดูแลระบบ' : 'เจ้าหน้าที่'}</div>
+        ${tabs.map(t => `<a href="#admin/${t[0]}" class="${ST.admTab === t[0] ? 'on' : ''}">${t[1]} ${t[2]}${t[3] ? `<span class="n">${t[3]}</span>` : ''}</a>`).join('')}
+        <div class="sep" style="height:1px;background:var(--line);margin:8px 0"></div>
+        <a href="#" id="chpw">🔑 เปลี่ยนรหัสผ่าน</a><a href="#" id="lout">🚪 ออกจากระบบ</a></aside>
+      <section id="adm"></section></div></div>`, '');
+    bindShell();
+    $('#lout').onclick = e => { e.preventDefault(); call('logout', TOKEN).catch(() => { }); TOKEN = null; A = null; try { sessionStorage.removeItem('mt_token'); } catch (x) { } go('#home'); };
+    $('#chpw').onclick = e => { e.preventDefault(); changePw(); };
+    const views = { dash: aDash, bookings: aBookings, calendar: aCalendar, requests: aRequests, equipment: aEquipment, closures: aClosures, evals: aEvals, reports: aReports, content: aContent, rooms: aRooms, users: aUsers, settings: aSettings, log: aLog };
+    (views[ST.admTab] || aDash)($('#adm'));
+  }
+  function adminLogin() {
+    app.innerHTML = shell(`<div class="wrap page" style="max-width:420px"><div class="card"><h2>🔐 เข้าสู่ระบบเจ้าหน้าที่</h2><form id="lf">
+      <label class="f"><span>ชื่อผู้ใช้</span><input type="text" name="u" autocomplete="username"></label><label class="f"><span>รหัสผ่าน</span><input type="password" name="p" autocomplete="current-password"></label>
+      <button class="btn block">เข้าสู่ระบบ</button></form><p class="xs muted mt">สำหรับเจ้าหน้าที่ห้องและผู้ดูแลระบบเท่านั้น ผู้ขอใช้ห้องไม่ต้องเข้าสู่ระบบ</p></div></div>`, '');
+    bindShell();
+    const f = $('#lf');
+    f.onsubmit = e => { e.preventDefault(); call('staffLogin', f.u.value, f.p.value).then(r => { TOKEN = r.token; try { sessionStorage.setItem('mt_token', TOKEN); } catch (x) { } A = null; renderAdmin(route().a); }).catch(err => toast(err.message, 'err')); };
+  }
+  function changePw() {
+    const m = modal('เปลี่ยนรหัสผ่าน', `<label class="f"><span>รหัสผ่านเดิม</span><input type="password" id="pw0"></label><label class="f"><span>รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)</span><input type="password" id="pw1"></label><label class="f"><span>ยืนยันรหัสผ่านใหม่</span><input type="password" id="pw2"></label>`,
+      '<button class="btn ghost" data-x>ยกเลิก</button><button class="btn" id="pwOk">บันทึก</button>');
+    $('#pwOk', m).onclick = () => { if ($('#pw1', m).value !== $('#pw2', m).value) return toast('รหัสผ่านใหม่ไม่ตรงกัน', 'err'); api('changePassword', $('#pw0', m).value, $('#pw1', m).value).then(() => { m.close(); toast('เปลี่ยนรหัสผ่านแล้ว', 'ok'); }).catch(e => toast(e.message, 'err')); };
+  }
+  const refresh = () => reloadAdmin().then(() => { clearSched(); renderAdmin(ST.admTab); });
+  const hours = b => (mins(b.end) - mins(b.start)) / 60;
+
+  /* ---------- แดชบอร์ด ---------- */
+  function aDash(el) {
+    const t = A.today, ym = t.substr(0, 7), B = A.bookings;
+    const todayB = B.filter(b => b.date === t && ACTIVE.concat(['noshow']).indexOf(b.status) !== -1).sort((a, b) => a.start.localeCompare(b.start));
+    const pending = B.filter(b => b.status === 'pending').sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+    const month = B.filter(b => b.date.substr(0, 7) === ym && ['approved', 'checkedin', 'completed'].indexOf(b.status) !== -1);
+    const mHours = month.reduce((s, b) => s + hours(b), 0);
+    const util = utilization(ym + '-01', lastDay(ym));
+    const fbAll = A.feedback.map(f => num(f.q6)).filter(Boolean);
+    const sat = fbAll.length ? fbAll.reduce((a, b) => a + b, 0) / fbAll.length : 0;
+    const noVideo = B.filter(b => truthy(b.record) && b.status === 'completed' && !b.videoUrl).length;
+    const months = Array.from({ length: 12 }, (_, i) => { const d = D0(ym + '-01'); d.setUTCMonth(d.getUTCMonth() - 11 + i); return iso(d).substr(0, 7); });
+    const perM = months.map(m => B.filter(b => b.date.substr(0, 7) === m && ['approved', 'checkedin', 'completed'].indexOf(b.status) !== -1).length);
+    const maxM = Math.max(1, ...perM);
+    el.innerHTML = `<div class="row between"><h2 class="mt0">📊 แดชบอร์ด</h2><div class="row"><span class="muted small">${thL(t)}</span><button class="btn sm ghost" id="rf">↻ รีเฟรช</button><button class="btn sm" id="nb">＋ เพิ่มการจอง</button></div></div>
+      <div class="grid kpis">
+        <div class="kpi hl"><div class="v">${todayB.length}</div><div class="l">การใช้ห้องวันนี้</div></div>
+        <div class="kpi"><div class="v" style="color:var(--warn)">${pending.length}</div><div class="l">รออนุมัติ</div></div>
+        <div class="kpi"><div class="v" style="color:var(--info)">${A.requests.filter(q => q.status === 'new' || q.status === 'progress').length}</div><div class="l">คำร้องค้างดำเนินการ</div></div>
+        <div class="kpi"><div class="v">${fmt(mHours)}</div><div class="l">ชั่วโมงใช้งานเดือนนี้ (${month.length} ครั้ง)</div></div>
+        <div class="kpi"><div class="v">${fmt(util.pct)}%</div><div class="l">อัตราการใช้ห้องเดือนนี้</div></div>
+        <div class="kpi"><div class="v">${sat ? sat.toFixed(2) : '-'}</div><div class="l">ความพึงพอใจโดยรวม (เต็ม 5) · ${fbAll.length} คน</div></div>
+        <div class="kpi"><div class="v" style="color:${noVideo ? 'var(--danger)' : 'inherit'}">${noVideo}</div><div class="l">รอแนบไฟล์วิดีโอ</div></div>
+        <div class="kpi"><div class="v">${A.equipment.filter(e => e.status === 'repair' || e.status === 'broken').length}</div><div class="l">อุปกรณ์ชำรุด/ส่งซ่อม</div></div>
+      </div>
+      <div class="grid g2 mt" style="align-items:start">
+        <div class="card"><h3>🕘 วันนี้</h3>${todayB.length ? todayB.map(b => bkRow(b, true)).join('') : '<div class="empty">ไม่มีการใช้ห้องวันนี้</div>'}</div>
+        <div class="card"><div class="row between"><h3 class="mt0">⏳ รออนุมัติ</h3>${pending.length > 1 ? '<button class="btn sm ok" id="apAll">อนุมัติทั้งหมด</button>' : ''}</div>${pending.length ? pending.slice(0, 12).map(b => bkRow(b, false)).join('') : '<div class="empty">ไม่มีรายการรออนุมัติ 🎉</div>'}</div>
+      </div>
+      <div class="card mt"><h3>การใช้ห้อง 12 เดือนล่าสุด (ครั้ง)</h3><div class="vbars">${months.map((m, i) => `<div><em>${perM[i] || ''}</em><i style="height:${perM[i] / maxM * 100}%"></i>${TM[Number(m.substr(5)) - 1]}</div>`).join('')}</div></div>`;
+    $('#rf').onclick = refresh;
+    $('#nb').onclick = () => bookingForm({});
+    const ap = $('#apAll'); if (ap) ap.onclick = () => confirmBox('อนุมัติรายการที่รออนุมัติทั้งหมด ' + pending.length + ' รายการ?', 'อนุมัติทั้งหมด', 'ok').then(ok => ok && api('approveMany', pending.map(b => b.id)).then(r => { toast('อนุมัติ ' + r.ok.length + ' รายการ' + (r.fail.length ? ' · ไม่สำเร็จ ' + r.fail.length : ''), r.fail.length ? 'err' : 'ok'); refresh(); }).catch(e => toast(e.message, 'err')));
+    bindBkRows(el);
+  }
+  function bkRow(b, actions) {
+    const r = roomOf(b.roomId);
+    const act = b.status === 'pending' ? `<button class="btn sm ok" data-act="approve" data-id="${b.id}">อนุมัติ</button><button class="btn sm ghost" data-act="reject" data-id="${b.id}">ไม่อนุมัติ</button>` :
+      b.status === 'approved' ? `<button class="btn sm info" data-act="checkin" data-id="${b.id}">เช็กอิน</button>` : b.status === 'checkedin' ? `<button class="btn sm dark" data-act="checkout" data-id="${b.id}">เช็กเอาต์</button>` : '';
+    return `<div class="ag row" style="padding:9px 0;border-bottom:1px solid var(--line);align-items:flex-start;--c:${esc(r.color)}"><div class="grow" data-open="${b.id}" style="cursor:pointer">
+      <div><b>${actions ? '' : thD(b.date) + ' · '}${b.start}–${b.end}</b> <span class="dot" style="margin-left:6px"></span>${esc(r.code || r.name)} ${stBadge(b.status)} ${truthy(b.record) ? '🎥' : ''}</div>
+      <div class="small">${esc(b.title)}</div><div class="xs muted">${esc(b.name)} · ${esc(P.userTypes[b.userType] || '')}${b.course ? ' · ' + esc(b.course) : ''} · ${esc(b.code)}</div></div>
+      <div class="row" style="gap:6px">${act}</div></div>`;
+  }
+  function bindBkRows(el) {
+    $$('[data-open]', el).forEach(x => x.onclick = () => bookingDetail(x.dataset.open));
+    $$('[data-act]', el).forEach(x => x.onclick = e => { e.stopPropagation(); doAction(x.dataset.id, x.dataset.act); });
+  }
+  function doAction(id, act) {
+    const b = A.bookings.find(x => x.id === id);
+    const run = p => api('setBookingStatus', id, act, p || {}).then(() => { toast('บันทึกแล้ว', 'ok'); const m = $('.modal-bg'); if (m) m.remove(); refresh(); }).catch(e => toast(e.message, 'err'));
+    if (act === 'reject') return promptBox('ไม่อนุมัติ ' + b.code, 'เหตุผล (แจ้งผู้จอง)', '', true).then(v => v && run({ staffNote: v }));
+    if (act === 'cancel') return promptBox('ยกเลิก ' + b.code, 'เหตุผลการยกเลิก', '', true).then(v => v && run({ reason: v }));
+    if (act === 'checkout') {
+      const m = modal('เช็กเอาต์ ' + esc(b.code), `<label class="f"><span>สภาพห้อง/อุปกรณ์หลังใช้งาน</span><select id="cond"><option>ปกติ เรียบร้อย</option><option>ห้องไม่เรียบร้อย (แจ้งเตือนผู้ใช้)</option><option>อุปกรณ์มีปัญหา (ดูหมายเหตุ)</option></select></label>
+        <label class="f"><span>หมายเหตุ</span><input type="text" id="condNote"></label>${truthy(b.record) ? `<label class="f"><span>ลิงก์ไฟล์วิดีโอ (แนบภายหลังได้)</span><input type="url" id="vurl" value="${esc(b.videoUrl)}" placeholder="https://drive.google.com/…"></label>` : ''}`,
+        '<button class="btn ghost" data-x>ยกเลิก</button><button class="btn dark" id="coOk">เช็กเอาต์</button>');
+      $('#coOk', m).onclick = () => { const p = { condition: $('#cond', m).value + ($('#condNote', m).value ? ' — ' + $('#condNote', m).value : '') }; if ($('#vurl', m)) p.videoUrl = $('#vurl', m).value; m.close(); run(p); };
+      return;
+    }
+    if (act === 'delete') return confirmBox('ลบรายการ ' + b.code + ' ถาวร? (แนะนำใช้ “ยกเลิก” แทนเพื่อเก็บประวัติ)', 'ลบถาวร').then(ok => ok && api('deleteBooking', id).then(() => { toast('ลบแล้ว', 'ok'); const m = $('.modal-bg'); if (m) m.remove(); refresh(); }).catch(e => toast(e.message, 'err')));
+    if (act === 'noshow') return confirmBox('บันทึกว่า “ไม่มาใช้ห้อง” สำหรับ ' + b.code + '?', 'บันทึก', 'warn').then(ok => ok && run());
+    run();
+  }
+  function bookingDetail(id) {
+    const b = A.bookings.find(x => x.id === id); if (!b) return;
+    const r = roomOf(b.roomId);
+    const fb = A.feedback.find(f => f.bookingId === b.id);
+    const evs = A.evaluations.filter(e => e.bookingId === b.id);
+    const acts = [];
+    if (b.status === 'pending') acts.push(['approve', 'ok', 'อนุมัติ'], ['reject', 'ghost', 'ไม่อนุมัติ']);
+    if (b.status === 'approved') acts.push(['checkin', 'info', 'เช็กอิน'], ['noshow', 'warn', 'ไม่มาใช้ห้อง']);
+    if (b.status === 'checkedin') acts.push(['checkout', 'dark', 'เช็กเอาต์']);
+    if (['pending', 'approved'].indexOf(b.status) !== -1) acts.push(['cancel', 'red', 'ยกเลิก']);
+    if (['rejected', 'cancelled', 'noshow'].indexOf(b.status) !== -1) acts.push(['reopen', 'ghost', 'เปิดพิจารณาใหม่']);
+    const m = modal(`${esc(b.code)} ${stBadge(b.status)}`, `
+      <dl class="kv"><dt>ห้อง</dt><dd><span class="dot" style="--c:${esc(r.color)}"></span>${esc(r.name)}</dd><dt>วันเวลา</dt><dd>${thL(b.date)} · <b>${b.start}–${b.end} น.</b> (${fmt(hours(b))} ชม.)</dd>
+        <dt>หัวข้อ</dt><dd>${esc(b.title)}</dd><dt>วัตถุประสงค์</dt><dd>${esc(P.purposes[b.purpose] || '')}</dd><dt>ผู้จอง</dt><dd>${esc(b.name)} (${esc(P.userTypes[b.userType] || '')})${b.studentId ? ' · ' + esc(b.studentId) : ''}</dd>
+        <dt>ติดต่อ</dt><dd>${b.phone ? `<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>` : '-'} ${b.email ? ' · <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>' : ''}</dd>
+        <dt>คณะ/สาขา</dt><dd>${esc(b.faculty || '-')} ${esc(b.major || '')}</dd><dt>รายวิชา</dt><dd>${esc(b.course || '-')}</dd><dt>อาจารย์</dt><dd>${esc(b.advisor || '-')}</dd>
+        <dt>จำนวน</dt><dd>${esc(b.participants)} คน</dd><dt>อุปกรณ์</dt><dd>${esc(b.equipment || '-')}</dd><dt>บริการ</dt><dd>${truthy(b.record) ? '🎥 บันทึกวิดีโอ ' : ''}${truthy(b.support) ? '🙋 ต้องการเจ้าหน้าที่ช่วย' : ''}${!truthy(b.record) && !truthy(b.support) ? '-' : ''}</dd>
+        ${b.note ? `<dt>หมายเหตุผู้จอง</dt><dd>${esc(b.note)}</dd>` : ''}${b.cancelReason ? `<dt>ยกเลิก</dt><dd>${esc(b.cancelReason)}</dd>` : ''}
+        <dt>เช็กอิน/เอาต์</dt><dd>${b.checkinAt ? thDT(b.checkinAt) : '-'} / ${b.checkoutAt ? thDT(b.checkoutAt) : '-'} ${b.condition ? '· ' + esc(b.condition) : ''}</dd>
+        <dt>ที่มา</dt><dd>${b.source === 'staff' ? 'เจ้าหน้าที่บันทึก' : 'จองออนไลน์'} · ${thDT(b.createdAt)}${b.decidedBy ? ' · พิจารณาโดย ' + esc(b.decidedBy) : ''}${b.series ? ' · 🔁 จองซ้ำรายสัปดาห์' : ''}</dd>
+        <dt>ประเมิน</dt><dd>${fb ? '⭐ ความพึงพอใจ ' + esc(fb.q6) + '/5' : 'ยังไม่ประเมินความพึงพอใจ'} · 📝 ประเมินการสอน ${evs.length} คน</dd></dl>
+      <div class="card mt" style="box-shadow:none;background:var(--bg-2)"><label class="f"><span>หมายเหตุถึงผู้จอง (แสดงในหน้าตรวจสอบสถานะ)</span><input type="text" id="sn" value="${esc(b.staffNote)}"></label>
+        <label class="f"><span>ลิงก์ไฟล์วิดีโอการสอน (Google Drive)</span><input type="url" id="vu" value="${esc(b.videoUrl)}" placeholder="https://drive.google.com/…"></label><button class="btn sm" id="saveNote">บันทึกหมายเหตุ/ลิงก์ (แจ้งผู้จองทางอีเมล)</button></div>`,
+      acts.map(a => `<button class="btn ${a[1]}" data-a="${a[0]}">${a[2]}</button>`).join('') + `<button class="btn ghost" id="editBk">✎ แก้ไข</button>${isAdmin() ? '<button class="btn ghost" data-a="delete">🗑</button>' : ''}`, { wide: true });
+    $$('[data-a]', m).forEach(x => x.onclick = () => doAction(b.id, x.dataset.a));
+    $('#editBk', m).onclick = () => { m.close(); bookingForm(b); };
+    $('#saveNote', m).onclick = () => api('setBookingStatus', b.id, 'note', { staffNote: $('#sn', m).value, videoUrl: $('#vu', m).value }).then(() => { toast('บันทึกแล้ว', 'ok'); m.close(); refresh(); }).catch(e => toast(e.message, 'err'));
+  }
+  function bookingForm(b) {
+    const isNew = !b.id;
+    const m = modal(isNew ? '＋ เพิ่มการจอง (โดยเจ้าหน้าที่)' : '✎ แก้ไขการจอง ' + esc(b.code), `<form id="sbf">
+      <div class="fgrid"><label class="f"><span>ห้อง *</span><select name="roomId">${A.rooms.filter(r => truthy(r.active)).map(r => `<option value="${r.id}" ${r.id === b.roomId ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
+        <label class="f"><span>วันที่ *</span><input type="date" name="date" value="${esc(b.date || A.today)}"></label>
+        <label class="f"><span>เวลาเริ่ม *</span><input type="time" name="start" value="${esc(b.start || R().openTime)}" step="300"></label><label class="f"><span>เวลาสิ้นสุด *</span><input type="time" name="end" value="${esc(b.end || hhmm(mins(R().openTime) + 60))}" step="300"></label>
+        <label class="f"><span>หัวข้อ / รายวิชาที่สอน *</span><input type="text" name="title" value="${esc(b.title || '')}"></label>
+        <label class="f"><span>วัตถุประสงค์</span><select name="purpose">${Object.keys(P.purposes).map(k => `<option value="${k}" ${k === (b.purpose || 'course') ? 'selected' : ''}>${esc(P.purposes[k])}</option>`).join('')}</select></label>
+        <label class="f"><span>ผู้จอง / ผู้สอน *</span><input type="text" name="name" value="${esc(b.name || '')}"></label>
+        <label class="f"><span>ประเภทผู้จอง</span><select name="userType">${Object.keys(P.userTypes).map(k => `<option value="${k}" ${k === (b.userType || 'lecturer') ? 'selected' : ''}>${esc(P.userTypes[k])}</option>`).join('')}</select></label>
+        <label class="f"><span>เบอร์โทร</span><input type="tel" name="phone" value="${esc(b.phone || '')}"></label><label class="f"><span>อีเมล</span><input type="email" name="email" value="${esc(b.email || '')}"></label>
+        <label class="f"><span>รหัสนักศึกษา</span><input type="text" name="studentId" value="${esc(b.studentId || '')}"></label><label class="f"><span>รายวิชา</span><input type="text" name="course" value="${esc(b.course || '')}"></label>
+        <label class="f"><span>อาจารย์ผู้สอน</span><input type="text" name="advisor" value="${esc(b.advisor || '')}"></label><label class="f"><span>จำนวนผู้เข้าใช้</span><input type="number" name="participants" value="${esc(b.participants || 30)}"></label>
+        <label class="f"><span>สถานะ</span><select name="status">${Object.keys(P.bookingStatus).map(k => `<option value="${k}" ${k === (b.status || 'approved') ? 'selected' : ''}>${esc(P.bookingStatus[k])}</option>`).join('')}</select></label>
+        <label class="f"><span>ลิงก์วิดีโอ</span><input type="url" name="videoUrl" value="${esc(b.videoUrl || '')}"></label></div>
+      <label class="check"><input type="checkbox" name="record" ${truthy(b.record) ? 'checked' : ''}> บันทึกวิดีโอ</label><label class="check"><input type="checkbox" name="support" ${truthy(b.support) ? 'checked' : ''}> ต้องการเจ้าหน้าที่ช่วย</label>
+      <label class="f mt"><span>หมายเหตุเจ้าหน้าที่</span><input type="text" name="staffNote" value="${esc(b.staffNote || '')}"></label>
+      ${isNew ? `<div class="card" style="box-shadow:none;background:var(--bg-2)"><label class="check"><input type="checkbox" id="rep"> 🔁 จองซ้ำทุกสัปดาห์ (ตารางเรียนทั้งภาคเรียน)</label>
+        <div class="fgrid" id="repBox" hidden><label class="f"><span>ซ้ำทุก</span><select id="repEvery"><option value="1">1 สัปดาห์</option><option value="2">2 สัปดาห์</option></select></label><label class="f"><span>ถึงวันที่</span><input type="date" id="repUntil"></label></div>
+        <div class="xs muted">ระบบข้ามวันที่ชนกับการจองอื่นหรือวันปิดห้องให้อัตโนมัติ และแจ้งรายการที่ข้าม</div></div>` : ''}</form>`,
+      '<button class="btn ghost" data-x>ยกเลิก</button><button class="btn" id="sbOk">บันทึก</button>', { wide: true });
+    const f = $('#sbf', m);
+    if (isNew) { $('#rep', m).onchange = e => { $('#repBox', m).hidden = !e.target.checked; if (!$('#repUntil', m).value) $('#repUntil', m).value = addDays(f.date.value, 7 * 15); }; }
+    $('#sbOk', m).onclick = () => {
+      const o = formData(f); if (!isNew) o.id = b.id;
+      const rep = isNew && $('#rep', m).checked ? { every: $('#repEvery', m).value, until: $('#repUntil', m).value } : null;
+      api('saveBooking', o, rep).then(res => {
+        m.close();
+        toast('บันทึก ' + res.saved.length + ' รายการ', 'ok');
+        if (res.skipped.length) modal('รายการที่ข้าม (' + res.skipped.length + ')', '<ul>' + res.skipped.map(s => `<li>${thL(s.date)} — ${esc(s.reason)}</li>`).join('') + '</ul>');
+        refresh();
+      }).catch(e => toast(e.message, 'err'));
+    };
+  }
+
+  /* ---------- รายการจอง ---------- */
+  function aBookings(el) {
+    const F = ST.bk;
+    el.innerHTML = `<div class="row between"><h2 class="mt0">📋 การจองห้อง</h2><div class="row"><button class="btn sm ghost" id="exp">⬇ CSV</button><button class="btn sm" id="nb">＋ เพิ่มการจอง</button></div></div>
+      <div class="filters"><input type="search" id="fq" placeholder="ค้นหา ชื่อ รหัส หัวข้อ รายวิชา เบอร์" value="${esc(F.q)}">
+        <select id="fs"><option value="active">ยังไม่สิ้นสุด (รอ/อนุมัติ/กำลังใช้)</option><option value="">ทุกสถานะ</option>${Object.keys(P.bookingStatus).map(k => `<option value="${k}">${esc(P.bookingStatus[k])}</option>`).join('')}<option value="novideo">รอแนบวิดีโอ</option></select>
+        <select id="fr"><option value="">ทุกห้อง</option>${A.rooms.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select>
+        <input type="date" id="ff" value="${F.from}" title="ตั้งแต่"><input type="date" id="ft" value="${F.to}" title="ถึง"></div>
+      <div class="row mb"><span class="small muted" id="cnt"></span><button class="btn sm ok" id="bulk" hidden>อนุมัติที่เลือก</button></div>
+      <div class="card tscroll" style="padding:0"><table class="t" id="tbl"></table></div>`;
+    $('#fs').value = F.status; $('#fr').value = F.room;
+    const list = () => {
+      const q = F.q.trim().toLowerCase();
+      return A.bookings.filter(b => {
+        if (F.status === 'active' && ['pending', 'approved', 'checkedin'].indexOf(b.status) === -1) return false;
+        if (F.status === 'novideo' && !(truthy(b.record) && !b.videoUrl && ['completed', 'checkedin'].indexOf(b.status) !== -1)) return false;
+        if (F.status && ['active', 'novideo'].indexOf(F.status) === -1 && b.status !== F.status) return false;
+        if (F.room && b.roomId !== F.room) return false;
+        if (F.from && b.date < F.from) return false; if (F.to && b.date > F.to) return false;
+        if (q && [b.code, b.name, b.title, b.course, b.phone, b.studentId, b.advisor, b.email].join(' ').toLowerCase().indexOf(q) === -1) return false;
+        return true;
+      }).sort((a, b) => F.status === 'active' || F.status === 'pending' ? (a.date + a.start).localeCompare(b.date + b.start) : (b.date + b.start).localeCompare(a.date + a.start));
+    };
+    const draw = () => {
+      const rows = list();
+      $('#cnt').textContent = 'พบ ' + rows.length + ' รายการ · ' + fmt(rows.reduce((s, b) => s + hours(b), 0)) + ' ชั่วโมง';
+      $('#tbl').innerHTML = `<tr><th><input type="checkbox" id="ckAll"></th><th>วันเวลา</th><th>ห้อง</th><th>หัวข้อ / ผู้จอง</th><th>สถานะ</th><th></th></tr>` + (rows.slice(0, 400).map(b => {
+        const r = roomOf(b.roomId);
+        return `<tr class="click" data-open="${b.id}"><td onclick="event.stopPropagation()">${b.status === 'pending' ? `<input type="checkbox" class="ck" value="${b.id}">` : ''}</td><td class="nowrap">${thD(b.date)}<div class="small"><b>${b.start}–${b.end}</b></div></td>
+          <td><span class="dot" style="--c:${esc(r.color)}"></span>${esc(r.code || r.name)}</td><td>${esc(b.title)} ${truthy(b.record) ? (b.videoUrl ? '🎬' : '🎥') : ''}<div class="xs muted">${esc(b.name)} · ${esc(P.userTypes[b.userType] || '')}${b.course ? ' · ' + esc(b.course) : ''} · ${esc(b.code)}</div></td>
+          <td>${stBadge(b.status)}</td><td class="nowrap">${b.status === 'pending' ? `<button class="btn sm ok" data-act="approve" data-id="${b.id}">✓</button>` : b.status === 'approved' && b.date === A.today ? `<button class="btn sm info" data-act="checkin" data-id="${b.id}">เช็กอิน</button>` : b.status === 'checkedin' ? `<button class="btn sm dark" data-act="checkout" data-id="${b.id}">เช็กเอาต์</button>` : ''}</td></tr>`;
+      }).join('') || '<tr><td colspan="6" class="empty">ไม่พบรายการ</td></tr>');
+      bindBkRows($('#tbl'));
+      const upd = () => { const n = $$('.ck:checked').length; $('#bulk').hidden = !n; $('#bulk').textContent = 'อนุมัติที่เลือก (' + n + ')'; };
+      $$('.ck').forEach(c => c.onchange = upd);
+      $('#ckAll').onchange = e => { $$('.ck').forEach(c => c.checked = e.target.checked); upd(); };
+    };
+    $('#fq').oninput = e => { F.q = e.target.value; draw(); };
+    $('#fs').onchange = e => { F.status = e.target.value; draw(); };
+    $('#fr').onchange = e => { F.room = e.target.value; draw(); };
+    $('#ff').onchange = e => { F.from = e.target.value; draw(); };
+    $('#ft').onchange = e => { F.to = e.target.value; draw(); };
+    $('#nb').onclick = () => bookingForm({});
+    $('#bulk').onclick = () => api('approveMany', $$('.ck:checked').map(c => c.value)).then(r => { toast('อนุมัติ ' + r.ok.length + ' รายการ' + (r.fail.length ? ' · ไม่สำเร็จ ' + r.fail.length + ' (เวลาชน)' : ''), r.fail.length ? 'err' : 'ok'); refresh(); }).catch(e => toast(e.message, 'err'));
+    $('#exp').onclick = () => download('bookings-' + A.today + '.csv', csv(list(), [['code', 'รหัส'], ['date', 'วันที่'], ['start', 'เริ่ม'], ['end', 'สิ้นสุด'], [b => roomOf(b.roomId).name, 'ห้อง'], ['title', 'หัวข้อ'],
+      [b => P.purposes[b.purpose], 'วัตถุประสงค์'], ['name', 'ผู้จอง'], [b => P.userTypes[b.userType], 'ประเภท'], ['studentId', 'รหัสนักศึกษา'], ['faculty', 'คณะ'], ['major', 'สาขา'], ['phone', 'โทร'], ['email', 'อีเมล'],
+      ['course', 'รายวิชา'], ['advisor', 'อาจารย์'], ['participants', 'จำนวน'], ['equipment', 'อุปกรณ์'], ['record', 'บันทึกวิดีโอ'], [b => P.bookingStatus[b.status], 'สถานะ'], ['videoUrl', 'ลิงก์วิดีโอ'], ['checkinAt', 'เช็กอิน'], ['checkoutAt', 'เช็กเอาต์'], ['condition', 'สภาพห้อง'], ['createdAt', 'วันที่จอง']]));
+    draw();
+  }
+
+  /* ---------- ปฏิทิน (หลังบ้าน) ---------- */
+  function aCalendar(el) {
+    el.innerHTML = `<div class="row between"><h2 class="mt0">🗓️ ปฏิทินห้อง</h2><button class="btn sm" id="nb">＋ เพิ่มการจอง</button></div><div id="calBox"></div>`;
+    $('#nb').onclick = () => bookingForm({});
+    const adminLoad = (from, to) => Promise.resolve({
+      items: A.bookings.filter(b => b.date >= from && b.date <= to && ACTIVE.indexOf(b.status) !== -1).map(b => ({ id: b.id, roomId: b.roomId, date: b.date, start: b.start, end: b.end, status: b.status, purpose: b.purpose, label: b.title, who: b.name, course: b.course })),
+      closures: A.closures.filter(c => c.date <= to && (c.endDate || c.date) >= from)
+    });
+    calendar($('#calBox'), { state: ST.calA || (ST.calA = { mode: 'week', date: A.today, room: 'all' }), admin: true, load: adminLoad,
+      onSlot: (roomId, date, time) => bookingForm({ roomId: roomId, date: date, start: time, end: hhmm(mins(time) + 60) }), onItem: it => bookingDetail(it.id) });
+  }
+
+  /* ---------- คำร้อง ---------- */
+  function aRequests(el) {
+    let fs = ST.rqF || 'open';
+    el.innerHTML = `<div class="row between"><h2 class="mt0">✉️ คำร้อง</h2><button class="btn sm ghost" id="exp">⬇ CSV</button></div>
+      <div class="filters"><select id="fs"><option value="open">ค้างดำเนินการ</option><option value="">ทั้งหมด</option>${Object.keys(P.requestStatus).map(k => `<option value="${k}">${esc(P.requestStatus[k])}</option>`).join('')}</select>
+      <select id="ft"><option value="">ทุกประเภท</option>${Object.keys(P.requestTypes).map(k => `<option value="${k}">${esc(P.requestTypes[k])}</option>`).join('')}</select></div><div class="card tscroll" style="padding:0"><table class="t" id="tbl"></table></div>`;
+    $('#fs').value = fs;
+    const list = () => A.requests.filter(q => (fs === 'open' ? (q.status === 'new' || q.status === 'progress') : !fs || q.status === fs) && (!$('#ft').value || q.type === $('#ft').value)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const draw = () => {
+      $('#tbl').innerHTML = '<tr><th>วันที่</th><th>ประเภท / เรื่อง</th><th>ผู้ยื่น</th><th>สถานะ</th></tr>' + (list().map(q => `<tr class="click" data-q="${q.id}"><td class="nowrap">${thDT(q.createdAt)}<div class="xs muted">${esc(q.code)}</div></td>
+        <td><div class="xs muted">${esc(P.requestTypes[q.type])}</div>${esc(q.subject)}${q.needDate ? `<div class="xs">ต้องการ ${thD(q.needDate)}</div>` : ''}</td><td>${esc(q.name)}<div class="xs muted">${esc(q.phone)}</div></td><td>${rqBadge(q.status)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">ไม่มีคำร้อง</td></tr>');
+      $$('[data-q]').forEach(tr => tr.onclick = () => reqDetail(tr.dataset.q));
+    };
+    $('#fs').onchange = e => { fs = ST.rqF = e.target.value; draw(); };
+    $('#ft').onchange = draw;
+    $('#exp').onclick = () => download('requests-' + A.today + '.csv', csv(list(), [['code', 'รหัส'], ['createdAt', 'วันที่ยื่น'], [q => P.requestTypes[q.type], 'ประเภท'], ['subject', 'เรื่อง'], ['detail', 'รายละเอียด'], ['name', 'ผู้ยื่น'], ['phone', 'โทร'], ['email', 'อีเมล'], [q => P.requestStatus[q.status], 'สถานะ'], ['response', 'คำตอบ'], ['handledBy', 'ผู้ดำเนินการ']]));
+    draw();
+  }
+  function reqDetail(id) {
+    const q = A.requests.find(x => x.id === id);
+    const m = modal(esc(q.code) + ' · ' + esc(P.requestTypes[q.type]), `<dl class="kv"><dt>เรื่อง</dt><dd><b>${esc(q.subject)}</b></dd><dt>รายละเอียด</dt><dd>${esc(q.detail).replace(/\n/g, '<br>')}</dd>
+      <dt>ผู้ยื่น</dt><dd>${esc(q.name)} (${esc(P.userTypes[q.userType] || '')}) ${esc(q.studentId)} ${esc(q.faculty)}</dd><dt>ติดต่อ</dt><dd>${esc(q.phone)} ${q.email ? '· ' + esc(q.email) : ''}</dd>
+      ${q.needDate ? `<dt>วันที่ต้องการ</dt><dd>${thL(q.needDate)}</dd>` : ''}${q.refCode ? `<dt>อ้างอิง</dt><dd>${esc(q.refCode)}</dd>` : ''}${q.link ? `<dt>แนบ</dt><dd><a href="${link(q.link)}" target="_blank" rel="noopener">เปิดเอกสารแนบ</a></dd>` : ''}
+      <dt>ยื่นเมื่อ</dt><dd>${thDT(q.createdAt)}</dd>${q.handledBy ? `<dt>ดำเนินการโดย</dt><dd>${esc(q.handledBy)} · ${thDT(q.updatedAt)}</dd>` : ''}</dl>
+      <label class="f mt"><span>สถานะ</span><select id="qs">${Object.keys(P.requestStatus).map(k => `<option value="${k}" ${k === q.status ? 'selected' : ''}>${esc(P.requestStatus[k])}</option>`).join('')}</select></label>
+      <label class="f"><span>คำตอบ / ผลการดำเนินการ (ผู้ยื่นเห็นในหน้าตรวจสอบสถานะ)</span><textarea id="qr">${esc(q.response)}</textarea></label>`,
+      `${isAdmin() ? '<button class="btn ghost" id="qd">🗑</button>' : ''}<button class="btn ghost" data-x>ปิด</button><button class="btn" id="qok">บันทึก</button>`, { wide: true });
+    $('#qok', m).onclick = () => api('updateRequest', q.id, { status: $('#qs', m).value, response: $('#qr', m).value }).then(() => { m.close(); toast('บันทึกแล้ว', 'ok'); refresh(); }).catch(e => toast(e.message, 'err'));
+    const qd = $('#qd', m); if (qd) qd.onclick = () => confirmBox('ลบคำร้องนี้?', 'ลบ').then(ok => ok && api('deleteItem', 'Requests', q.id).then(() => { m.close(); refresh(); }));
+  }
+
+  /* ---------- ตัวแก้ไขแบบรวม (อุปกรณ์ วันปิด ห้อง ข่าว เอกสาร) ---------- */
+  function itemForm(table, item, fields, title) {
+    const m = modal(title, `<form id="itf"><div class="fgrid">${fields.map(fd => {
+      const v = item[fd.k] != null && item[fd.k] !== '' ? item[fd.k] : (fd.def != null ? fd.def : '');
+      if (fd.t === 'check') return `<label class="check" style="grid-column:1/-1"><input type="checkbox" name="${fd.k}" ${truthy(v) ? 'checked' : ''}> ${fd.l}</label>`;
+      if (fd.t === 'select') return `<label class="f"><span>${fd.l}</span><select name="${fd.k}">${fd.o.map(o => `<option value="${esc(o[0])}" ${String(o[0]) === String(v) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select></label>`;
+      if (fd.t === 'area') return `<label class="f" style="grid-column:1/-1"><span>${fd.l}</span><textarea name="${fd.k}" rows="${fd.rows || 4}">${esc(v)}</textarea></label>`;
+      return `<label class="f" ${fd.wide ? 'style="grid-column:1/-1"' : ''}><span>${fd.l}</span><input type="${fd.t || 'text'}" name="${fd.k}" value="${esc(v)}" ${fd.ph ? `placeholder="${esc(fd.ph)}"` : ''}></label>`;
+    }).join('')}</div></form>`, `${item.id || item.key ? '<button class="btn ghost" id="itDel">🗑 ลบ</button>' : ''}<button class="btn ghost" data-x>ยกเลิก</button><button class="btn" id="itOk">บันทึก</button>`, { wide: true });
+    $('#itOk', m).onclick = () => { const o = formData($('#itf', m)); if (item.id) o.id = item.id; if (item.key && !o.key) o.key = item.key; api('saveItem', table, o).then(() => { m.close(); toast('บันทึกแล้ว', 'ok'); refresh(); }).catch(e => toast(e.message, 'err')); };
+    const d = $('#itDel', m); if (d) d.onclick = () => confirmBox('ลบรายการนี้?', 'ลบ').then(ok => ok && api('deleteItem', table, item.id || item.key).then(() => { m.close(); toast('ลบแล้ว', 'ok'); refresh(); }).catch(e => toast(e.message, 'err')));
+  }
+  const roomOpts = (blank) => (blank ? [['', blank]] : []).concat(A.rooms.map(r => [r.id, r.name]));
+
+  /* ---------- อุปกรณ์ ---------- */
+  function aEquipment(el) {
+    const F = ST.eqF || (ST.eqF = { room: '', status: '' });
+    const fields = [{ k: 'code', l: 'รหัสครุภัณฑ์' }, { k: 'name', l: 'ชื่ออุปกรณ์ *' }, { k: 'category', l: 'หมวด', ph: 'เช่น กล้อง/บันทึกภาพ' }, { k: 'roomId', l: 'ประจำห้อง', t: 'select', o: roomOpts('— ไม่ระบุ —') },
+      { k: 'qty', l: 'จำนวน', t: 'number', def: 1 }, { k: 'status', l: 'สถานะ', t: 'select', o: Object.keys(P.equipStatus).map(k => [k, P.equipStatus[k]]) }, { k: 'serial', l: 'หมายเลขเครื่อง (S/N)' }, { k: 'acquired', l: 'ปีที่ได้มา' },
+      { k: 'lendable', l: 'ยืมออกนอกห้องได้ (แสดงให้เลือกในการจองทุกห้อง)', t: 'check' }, { k: 'note', l: 'หมายเหตุ / ประวัติซ่อม', t: 'area', rows: 3 }];
+    el.innerHTML = `<div class="row between"><h2 class="mt0">🎛️ อุปกรณ์และครุภัณฑ์</h2><div class="row"><button class="btn sm ghost" id="exp">⬇ CSV</button><button class="btn sm" id="add">＋ เพิ่มอุปกรณ์</button></div></div>
+      <div class="grid kpis mb" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${Object.keys(P.equipStatus).map(k => `<div class="kpi"><div class="v">${A.equipment.filter(e => e.status === k).reduce((s, e) => s + num(e.qty), 0)}</div><div class="l">${eqBadge(k)}</div></div>`).join('')}</div>
+      <div class="filters"><select id="fr"><option value="">ทุกห้อง</option>${A.rooms.map(r => `<option value="${r.id}" ${F.room === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select>
+        <select id="fs"><option value="">ทุกสถานะ</option>${Object.keys(P.equipStatus).map(k => `<option value="${k}" ${F.status === k ? 'selected' : ''}>${esc(P.equipStatus[k])}</option>`).join('')}</select></div>
+      <div class="card tscroll" style="padding:0"><table class="t" id="tbl"></table></div>`;
+    const list = () => A.equipment.filter(e => (!F.room || e.roomId === F.room) && (!F.status || e.status === F.status)).sort((a, b) => String(a.code).localeCompare(String(b.code)));
+    const draw = () => {
+      $('#tbl').innerHTML = '<tr><th>รหัส</th><th>อุปกรณ์</th><th>ห้อง</th><th class="right">จำนวน</th><th>สถานะ</th></tr>' + (list().map(e => `<tr class="click" data-e="${e.id}"><td>${esc(e.code)}</td><td>${esc(e.name)} ${truthy(e.lendable) ? '<span class="badge">ยืมได้</span>' : ''}<div class="xs muted">${esc(e.category)}${e.note ? ' · ' + esc(e.note) : ''}</div></td>
+        <td class="small">${esc(roomOf(e.roomId).name)}</td><td class="right">${esc(e.qty)}</td><td>${eqBadge(e.status)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">ไม่มีข้อมูล</td></tr>');
+      $$('[data-e]').forEach(tr => tr.onclick = () => itemForm('Equipment', A.equipment.find(x => x.id === tr.dataset.e), fields, '✎ แก้ไขอุปกรณ์'));
+    };
+    $('#fr').onchange = e => { F.room = e.target.value; draw(); };
+    $('#fs').onchange = e => { F.status = e.target.value; draw(); };
+    $('#add').onclick = () => itemForm('Equipment', {}, fields, '＋ เพิ่มอุปกรณ์');
+    $('#exp').onclick = () => download('equipment-' + A.today + '.csv', csv(list(), [['code', 'รหัส'], ['name', 'ชื่อ'], ['category', 'หมวด'], [e => roomOf(e.roomId).name, 'ห้อง'], ['qty', 'จำนวน'], [e => P.equipStatus[e.status], 'สถานะ'], ['serial', 'S/N'], ['acquired', 'ปีที่ได้มา'], ['lendable', 'ยืมได้'], ['note', 'หมายเหตุ']]));
+    draw();
+  }
+
+  /* ---------- วันปิดห้อง ---------- */
+  function aClosures(el) {
+    const fields = [{ k: 'date', l: 'ตั้งแต่วันที่ *', t: 'date', def: A.today }, { k: 'endDate', l: 'ถึงวันที่ (เว้นว่าง = วันเดียว)', t: 'date' }, { k: 'roomId', l: 'ห้อง', t: 'select', o: roomOpts('ทุกห้อง') },
+      { k: 'start', l: 'เวลาเริ่ม (เว้นว่าง = ทั้งวัน)', t: 'time' }, { k: 'end', l: 'เวลาสิ้นสุด', t: 'time' }, { k: 'reason', l: 'เหตุผล', wide: true, ph: 'เช่น วันหยุดราชการ / ซ่อมบำรุง / สอบปลายภาค' }];
+    const rows = A.closures.slice().sort((a, b) => b.date.localeCompare(a.date));
+    el.innerHTML = `<div class="row between"><h2 class="mt0">⛔ วันปิดห้อง / วันหยุด</h2><button class="btn sm" id="add">＋ เพิ่ม</button></div>
+      <p class="small muted mt0">ช่วงเวลาที่ปิดจะจองไม่ได้ และแสดงในตารางการใช้ห้อง (การจองเดิมไม่ถูกยกเลิกอัตโนมัติ — ตรวจและแจ้งผู้จองในเมนูการจอง)</p>
+      <div class="card tscroll" style="padding:0"><table class="t"><tr><th>วันที่</th><th>ห้อง</th><th>เวลา</th><th>เหตุผล</th></tr>${rows.map(c => `<tr class="click" data-c="${c.id}" style="${(c.endDate || c.date) < A.today ? 'opacity:.5' : ''}"><td class="nowrap">${thD(c.date)}${c.endDate ? ' – ' + thD(c.endDate) : ''}</td><td>${c.roomId ? esc(roomOf(c.roomId).name) : 'ทุกห้อง'}</td><td>${c.start ? c.start + '–' + c.end : 'ทั้งวัน'}</td><td>${esc(c.reason)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">ไม่มีข้อมูล</td></tr>'}</table></div>`;
+    $('#add').onclick = () => itemForm('Closures', {}, fields, '＋ เพิ่มวันปิดห้อง');
+    $$('[data-c]').forEach(tr => tr.onclick = () => itemForm('Closures', A.closures.find(x => x.id === tr.dataset.c), fields, '✎ แก้ไขวันปิดห้อง'));
+  }
+
+  /* ---------- ห้อง ---------- */
+  function aRooms(el) {
+    const fields = [{ k: 'code', l: 'รหัสห้อง' }, { k: 'name', l: 'ชื่อห้อง *' }, { k: 'kind', l: 'ประเภท' }, { k: 'building', l: 'อาคาร' }, { k: 'floor', l: 'ชั้น' }, { k: 'capacity', l: 'ความจุ (คน)', t: 'number' },
+      { k: 'color', l: 'สีในตาราง', t: 'color', def: '#c2185b' }, { k: 'order', l: 'ลำดับ', t: 'number' }, { k: 'image', l: 'ลิงก์รูปภาพ (https://…)', wide: true }, { k: 'description', l: 'รายละเอียด', t: 'area' },
+      { k: 'features', l: 'สิ่งอำนวยความสะดวก (บรรทัดละ 1 รายการ)', t: 'area', rows: 5 }, { k: 'bookable', l: 'เปิดให้จองออนไลน์', t: 'check', def: 'TRUE' }, { k: 'active', l: 'เปิดใช้งาน (แสดงบนเว็บ)', t: 'check', def: 'TRUE' }];
+    el.innerHTML = `<div class="row between"><h2 class="mt0">🏫 ห้อง</h2>${isAdmin() ? '<button class="btn sm" id="add">＋ เพิ่มห้อง</button>' : ''}</div>
+      <div class="grid g2">${A.rooms.map(r => `<div class="card roomcard" style="--c:${esc(r.color)}"><div class="row between"><h3 class="mt0">${esc(r.name)}</h3>${truthy(r.active) ? '' : '<span class="badge">ปิดใช้งาน</span>'}</div>
+        <div class="small muted">${esc(r.code)} · ${esc(r.kind)} · ${fmt(r.capacity, 0)} ที่นั่ง · ${truthy(r.bookable) ? 'จองออนไลน์ได้' : 'เฉพาะเจ้าหน้าที่'}</div>
+        <div class="small mt">📺 ป้ายหน้าห้อง: <code style="word-break:break-all">${esc((CFG.baseUrl || '') + '?view=display&room=' + r.id)}</code></div>
+        <div class="row mt">${isAdmin() ? `<button class="btn sm" data-r="${r.id}">✎ แก้ไข</button>` : ''}<button class="btn sm ghost" data-cp="${esc((CFG.baseUrl || '') + '?view=display&room=' + r.id)}">📋 คัดลอกลิงก์ป้าย</button><a class="btn sm ghost" href="#display/${esc(r.id)}">เปิดป้าย</a></div></div>`).join('')}</div>`;
+    const add = $('#add'); if (add) add.onclick = () => itemForm('Rooms', {}, fields, '＋ เพิ่มห้อง');
+    $$('[data-r]').forEach(b => b.onclick = () => itemForm('Rooms', A.rooms.find(x => x.id === b.dataset.r), fields, '✎ แก้ไขห้อง'));
+    $$('[data-cp]').forEach(b => b.onclick = () => copy(b.dataset.cp));
+  }
+
+  /* ---------- ผลประเมิน ---------- */
+  function aEvals(el) {
+    const fb = A.feedback;
+    const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    const items = P.feedbackItems.map((q, i) => ({ q: q, v: avg(fb.map(f => num(f['q' + (i + 1)])).filter(Boolean)) }));
+    const all = {};
+    A.evaluations.forEach(e => { let sc = {}; try { sc = JSON.parse(e.scores || '{}'); } catch (x) { } Object.keys(sc).forEach(k => { const v = sc[k].filter(n => n > 0); if (v.length) { all[k] = all[k] || []; all[k].push(avg(v)); } }); });
+    const byB = {};
+    A.evaluations.forEach(e => { (byB[e.bookingId] = byB[e.bookingId] || []).push(e); });
+    el.innerHTML = `<h2 class="mt0">⭐ ผลการประเมิน</h2><div class="tabs"><button data-t="fb" class="on">ความพึงพอใจการใช้บริการ (${fb.length})</button><button data-t="ev">ทักษะการสอน (${A.evaluations.length})</button></div><div id="evBody"></div>`;
+    const drawFb = () => { $('#evBody').innerHTML = `<div class="grid g2" style="align-items:start"><div class="card"><h3>ค่าเฉลี่ยรายข้อ (เต็ม 5)</h3>${items.map(x => `<div class="hbar"><span class="small">${esc(x.q)}</span><div class="bar"><i style="width:${x.v / 5 * 100}%"></i></div><b class="small right">${x.v ? x.v.toFixed(2) : '-'}</b></div>`).join('')}
+        <div class="small muted mt">ระดับ: 4.51–5.00 มากที่สุด · 3.51–4.50 มาก · 2.51–3.50 ปานกลาง · 1.51–2.50 น้อย · 1.00–1.50 น้อยที่สุด</div><button class="btn sm ghost mt" id="expFb">⬇ CSV</button></div>
+      <div class="card"><h3>ข้อเสนอแนะล่าสุด</h3>${fb.filter(f => f.comment).slice(-30).reverse().map(f => `<div class="newsitem small">${esc(f.comment)}<div class="xs muted">${esc(f.bookingCode)} · ${thDT(f.createdAt)}</div></div>`).join('') || '<div class="muted">-</div>'}</div></div>`;
+      $('#expFb').onclick = () => download('feedback-' + A.today + '.csv', csv(fb, [['bookingCode', 'รหัสการจอง'], [f => roomOf(f.roomId).name, 'ห้อง'], [f => P.userTypes[f.userType], 'ประเภทผู้ใช้']].concat(P.feedbackItems.map((q, i) => ['q' + (i + 1), q])).concat([['comment', 'ข้อเสนอแนะ'], ['createdAt', 'วันที่']])));
+    };
+    const drawEv = () => {
+      $('#evBody').innerHTML = `<div class="card"><h3>ค่าเฉลี่ยรายทักษะ (ทุกการประเมิน)</h3>${P.skills.map(s => { const v = avg(all[s.key] || []); return `<div class="hbar"><span class="small">${esc(s.name)} <span class="muted">(${(all[s.key] || []).length})</span></span><div class="bar"><i style="width:${v / 5 * 100}%"></i></div><b class="small right">${v ? v.toFixed(2) : '-'}</b></div>`; }).join('')}<button class="btn sm ghost mt" id="expEv">⬇ CSV</button></div>
+        <div class="card tscroll" style="padding:0"><table class="t"><tr><th>การจอง</th><th>ผู้สอน / หัวข้อ</th><th class="right">ผู้ประเมิน</th><th class="right">เฉลี่ย</th></tr>${Object.keys(byB).map(id => { const b = A.bookings.find(x => x.id === id) || {}; const es = byB[id]; return `<tr class="click" data-open="${esc(id)}"><td class="nowrap">${esc(es[0].bookingCode)}<div class="xs muted">${thD(b.date)}</div></td><td>${esc(b.name || '-')}<div class="xs muted">${esc(b.title || '')}</div></td><td class="right">${es.length}</td><td class="right"><b>${avg(es.map(e => num(e.avg))).toFixed(2)}</b></td></tr>`; }).join('') || '<tr><td colspan="4" class="empty">ยังไม่มีการประเมิน</td></tr>'}</table></div>`;
+      $$('[data-open]', $('#evBody')).forEach(tr => tr.onclick = () => { if (A.bookings.find(x => x.id === tr.dataset.open)) bookingDetail(tr.dataset.open); });
+      $('#expEv').onclick = () => download('teaching-evaluations-' + A.today + '.csv', csv(A.evaluations, [['bookingCode', 'รหัสการจอง'], [e => (A.bookings.find(b => b.id === e.bookingId) || {}).name, 'ผู้สอน'], [e => ({ self: 'ตนเอง', peer: 'เพื่อน', lecturer: 'อาจารย์' })[e.role], 'บทบาทผู้ประเมิน'], ['evaluator', 'ผู้ประเมิน'],
+        [e => String(e.skill).split(',').map(k => (P.skills.find(s => s.key === k) || {}).name).join(' / '), 'ทักษะ'], ['avg', 'คะแนนเฉลี่ย'], ['scores', 'คะแนนรายข้อ'], ['strengths', 'จุดเด่น'], ['improve', 'ข้อปรับปรุง'], ['createdAt', 'วันที่']]));
+    };
+    $$('[data-t]').forEach(b => b.onclick = () => { $$('[data-t]').forEach(x => x.classList.toggle('on', x === b)); b.dataset.t === 'fb' ? drawFb() : drawEv(); });
+    drawFb();
+  }
+
+  /* ---------- รายงาน ---------- */
+  function lastDay(ym) { const d = D0(ym + '-01'); d.setUTCMonth(d.getUTCMonth() + 1); d.setUTCDate(0); return iso(d); }
+  function utilization(from, to, roomId) {
+    const r = R(), per = (mins(r.closeTime) - mins(r.openTime)) / 60;
+    const rs = A.rooms.filter(x => truthy(x.active) && truthy(x.bookable) && (!roomId || x.id === roomId));
+    let avail = 0;
+    rs.forEach(rm => { for (let d = from; d <= to; d = addDays(d, 1)) { if (r.openDays.indexOf(dow(d)) === -1) continue; if (A.closures.some(c => !c.start && d >= c.date && d <= (c.endDate || c.date) && (!c.roomId || c.roomId === rm.id))) continue; avail += per; } });
+    const used = A.bookings.filter(b => b.date >= from && b.date <= to && ['approved', 'checkedin', 'completed'].indexOf(b.status) !== -1 && rs.some(x => x.id === b.roomId)).reduce((s, b) => s + hours(b), 0);
+    return { avail: avail, used: used, pct: avail ? used / avail * 100 : 0 };
+  }
+  function aReports(el) {
+    const rp = ST.rpt;
+    if (!rp.from) { rp.from = A.today.substr(0, 7) + '-01'; rp.to = lastDay(A.today.substr(0, 7)); }
+    el.innerHTML = `<div class="row between noprint"><h2 class="mt0">📈 รายงานการใช้ห้อง</h2><div class="row"><button class="btn sm ghost" id="pr">🖨 พิมพ์ / PDF</button></div></div>
+      <div class="filters noprint"><select id="preset"><option value="">— ช่วงเวลา —</option><option value="m0">เดือนนี้</option><option value="m1">เดือนที่แล้ว</option><option value="s1">ภาคเรียนที่ 1 (มิ.ย.–ต.ค.)</option><option value="s2">ภาคเรียนที่ 2 (พ.ย.–มี.ค.)</option><option value="fy">ปีงบประมาณ (ต.ค.–ก.ย.)</option></select>
+        <input type="date" id="rf" value="${rp.from}"><input type="date" id="rt" value="${rp.to}"></div><div id="rpt"></div>`;
+    const draw = () => {
+      const from = rp.from, to = rp.to;
+      const inR = A.bookings.filter(b => b.date >= from && b.date <= to);
+      const used = inR.filter(b => ['approved', 'checkedin', 'completed'].indexOf(b.status) !== -1);
+      const decided = inR.filter(b => ['approved', 'checkedin', 'completed', 'noshow', 'rejected'].indexOf(b.status) !== -1);
+      const noshow = inR.filter(b => b.status === 'noshow').length, cancel = inR.filter(b => b.status === 'cancelled').length, rej = inR.filter(b => b.status === 'rejected').length;
+      const u = utilization(from, to);
+      const grp = (arr, key, lab) => { const o = {}; arr.forEach(b => { const k = typeof key === 'function' ? key(b) : b[key]; if (!k) return; o[k] = o[k] || { n: 0, h: 0 }; o[k].n++; o[k].h += hours(b); }); return Object.keys(o).map(k => ({ k: lab ? lab(k) : k, n: o[k].n, h: o[k].h })).sort((a, b) => b.n - a.n); };
+      const bars = (rows, unit) => { const mx = Math.max(1, ...rows.map(r => r.n)); return rows.slice(0, 12).map(r => `<div class="hbar"><span class="small">${esc(r.k)}</span><div class="bar"><i style="width:${r.n / mx * 100}%"></i></div><b class="small right">${r.n}</b></div>`).join('') || '<div class="muted small">-</div>'; };
+      const fb = A.feedback.filter(f => { const b = A.bookings.find(x => x.id === f.bookingId); return b && b.date >= from && b.date <= to; });
+      const sat = fb.length ? fb.reduce((s, f) => s + num(f.q6), 0) / fb.length : 0;
+      const people = new Set(used.map(b => (b.phone || '').replace(/\D/g, '') || b.name)).size;
+      const participants = used.reduce((s, b) => s + num(b.participants), 0);
+      const reqs = A.requests.filter(q => q.createdAt.substr(0, 10) >= from && q.createdAt.substr(0, 10) <= to);
+      $('#rpt').innerHTML = `<div class="card"><h3 class="center">รายงานการใช้ห้องทดลองสอน (Micro Teaching)</h3><div class="center muted">${esc(P.site.org)} · ระหว่าง ${thL(from)} ถึง ${thL(to)}</div></div>
+        <div class="grid kpis mt">
+          <div class="kpi hl"><div class="v">${used.length}</div><div class="l">ครั้งที่ใช้ห้อง</div></div><div class="kpi"><div class="v">${fmt(u.used)}</div><div class="l">ชั่วโมงใช้งาน</div></div>
+          <div class="kpi"><div class="v">${fmt(u.pct)}%</div><div class="l">อัตราการใช้ห้อง (${fmt(u.used)}/${fmt(u.avail)} ชม.)</div></div><div class="kpi"><div class="v">${people}</div><div class="l">ผู้จอง (คน) · ผู้เข้าใช้รวม ${fmt(participants, 0)} คน</div></div>
+          <div class="kpi"><div class="v">${used.filter(b => truthy(b.record)).length}</div><div class="l">บันทึกวิดีโอการสอน</div></div><div class="kpi"><div class="v">${sat ? sat.toFixed(2) : '-'}</div><div class="l">ความพึงพอใจ (${fb.length} คน)</div></div>
+          <div class="kpi"><div class="v">${decided.length ? fmt(noshow / decided.length * 100) : 0}%</div><div class="l">ไม่มาใช้ห้อง (${noshow}) · ยกเลิก ${cancel} · ไม่อนุมัติ ${rej}</div></div><div class="kpi"><div class="v">${reqs.length}</div><div class="l">คำร้อง</div></div></div>
+        <div class="grid g2 mt">
+          <div class="card"><h3>อัตราการใช้แต่ละห้อง</h3>${A.rooms.filter(r => truthy(r.active) && truthy(r.bookable)).map(r => { const x = utilization(from, to, r.id); return `<div class="hbar"><span class="small"><span class="dot" style="--c:${esc(r.color)}"></span>${esc(r.name)}</span><div class="bar"><i style="width:${Math.min(100, x.pct)}%"></i></div><b class="small right">${fmt(x.pct, 0)}%</b></div>`; }).join('')}</div>
+          <div class="card"><h3>ตามวัตถุประสงค์</h3>${bars(grp(used, 'purpose', k => P.purposes[k] || k))}</div>
+          <div class="card"><h3>ตามประเภทผู้ใช้</h3>${bars(grp(used, 'userType', k => P.userTypes[k] || k))}</div>
+          <div class="card"><h3>ตามคณะ / หน่วยงาน</h3>${bars(grp(used, b => b.faculty || 'ไม่ระบุ'))}</div>
+          <div class="card"><h3>รายวิชาที่ใช้ห้องมากที่สุด</h3>${bars(grp(used, 'course'))}</div>
+          <div class="card"><h3>ช่วงเวลาที่ใช้มากที่สุด</h3>${bars(grp(used, b => b.start.substr(0, 2) + ':00 น.'))}</div>
+          <div class="card"><h3>ตามวันในสัปดาห์</h3>${bars(grp(used, b => 'วัน' + TDL[dow(b.date)]))}</div>
+          <div class="card"><h3>คำร้องตามประเภท</h3>${bars(grp(reqs, 'type', k => P.requestTypes[k] || k))}</div></div>
+        <div class="card mt noprint"><h3>ส่งออกข้อมูล</h3><div class="row"><button class="btn sm ghost" id="x1">⬇ การจองในช่วงนี้ (CSV)</button><button class="btn sm ghost" id="x2">⬇ สรุปรายห้อง (CSV)</button></div></div>`;
+      $('#x1').onclick = () => download('report-bookings-' + from + '_' + to + '.csv', csv(inR, [['code', 'รหัส'], ['date', 'วันที่'], ['start', 'เริ่ม'], ['end', 'สิ้นสุด'], [b => hours(b), 'ชั่วโมง'], [b => roomOf(b.roomId).name, 'ห้อง'], [b => P.purposes[b.purpose], 'วัตถุประสงค์'], [b => P.userTypes[b.userType], 'ประเภทผู้ใช้'], ['faculty', 'คณะ'], ['course', 'รายวิชา'], ['participants', 'จำนวนผู้เข้าใช้'], [b => P.bookingStatus[b.status], 'สถานะ']]));
+      $('#x2').onclick = () => download('report-rooms-' + from + '_' + to + '.csv', csv(A.rooms.filter(r => truthy(r.active)), [['name', 'ห้อง'], [r => used.filter(b => b.roomId === r.id).length, 'ครั้ง'], [r => utilization(from, to, r.id).used, 'ชั่วโมงใช้'], [r => utilization(from, to, r.id).avail, 'ชั่วโมงเปิดให้บริการ'], [r => fmt(utilization(from, to, r.id).pct) + '%', 'อัตราการใช้']]));
+    };
+    $('#rf').onchange = e => { rp.from = e.target.value; draw(); };
+    $('#rt').onchange = e => { rp.to = e.target.value; draw(); };
+    $('#preset').onchange = e => {
+      const y = Number(A.today.substr(0, 4)), m = Number(A.today.substr(5, 2)), v = e.target.value, p2 = n => ('0' + n).slice(-2);
+      if (v === 'm0') { rp.from = A.today.substr(0, 7) + '-01'; rp.to = lastDay(A.today.substr(0, 7)); }
+      if (v === 'm1') { const d = D0(A.today.substr(0, 7) + '-01'); d.setUTCMonth(d.getUTCMonth() - 1); const k = iso(d).substr(0, 7); rp.from = k + '-01'; rp.to = lastDay(k); }
+      if (v === 's1') { const yy = m >= 6 ? y : y - 1; rp.from = yy + '-06-01'; rp.to = yy + '-10-31'; }
+      if (v === 's2') { const yy = m >= 11 ? y : y - 1; rp.from = yy + '-11-01'; rp.to = lastDay((yy + 1) + '-03'); }
+      if (v === 'fy') { const yy = m >= 10 ? y : y - 1; rp.from = yy + '-10-01'; rp.to = (yy + 1) + '-09-30'; }
+      $('#rf').value = rp.from; $('#rt').value = rp.to; draw();
+      void p2;
+    };
+    $('#pr').onclick = () => window.print();
+    draw();
+  }
+
+  /* ---------- เนื้อหาเว็บ ---------- */
+  function aContent(el) {
+    const tab = ST.ctTab || 'pages';
+    el.innerHTML = `<h2 class="mt0">📝 เนื้อหาหน้าเว็บ</h2><div class="tabs"><button data-t="pages">หน้าเว็บ</button><button data-t="news">ข่าวประชาสัมพันธ์</button><button data-t="docs">เอกสารดาวน์โหลด</button></div><div id="ct"></div>`;
+    $$('[data-t]').forEach(b => { b.classList.toggle('on', b.dataset.t === tab); b.onclick = () => { ST.ctTab = b.dataset.t; aContent(el); }; });
+    const ct = $('#ct');
+    if (tab === 'pages') {
+      ct.innerHTML = `${isAdmin() ? '<div class="row mb"><button class="btn sm" id="np">＋ เพิ่มหน้า</button></div>' : '<p class="muted small">แก้ไขหน้าเว็บได้เฉพาะผู้ดูแลระบบ</p>'}
+        <div class="card tscroll" style="padding:0"><table class="t"><tr><th>หน้า</th><th>รหัส (ลิงก์)</th><th>ในเมนู</th><th>แก้ไขล่าสุด</th></tr>${A.pages.map(p => `<tr class="${isAdmin() ? 'click' : ''}" data-p="${esc(p.key)}"><td>${esc(p.icon)} ${esc(p.title)}</td><td><code>#page/${esc(p.key)}</code></td><td>${truthy(p.inMenu) ? '✓' : ''}</td><td class="small">${thDT(p.updatedAt)}</td></tr>`).join('')}</table></div>`;
+      if (isAdmin()) { $('#np').onclick = () => pageEditor({}); $$('[data-p]', ct).forEach(tr => tr.onclick = () => pageEditor(A.pages.find(p => p.key === tr.dataset.p))); }
+    } else if (tab === 'news') {
+      const fields = [{ k: 'title', l: 'หัวข้อ *', wide: true }, { k: 'date', l: 'วันที่', t: 'date', def: A.today }, { k: 'body', l: 'รายละเอียด', t: 'area' }, { k: 'pinned', l: '📌 ปักหมุดไว้บนสุด', t: 'check' }, { k: 'active', l: 'แสดงบนหน้าแรก', t: 'check', def: 'TRUE' }];
+      ct.innerHTML = `<div class="row mb"><button class="btn sm" id="nn">＋ เพิ่มข่าว</button></div><div class="card tscroll" style="padding:0"><table class="t"><tr><th>วันที่</th><th>หัวข้อ</th><th>สถานะ</th></tr>${A.news.slice().sort((a, b) => b.date.localeCompare(a.date)).map(n => `<tr class="click" data-n="${n.id}"><td class="nowrap">${thD(n.date)}</td><td>${truthy(n.pinned) ? '📌 ' : ''}${esc(n.title)}</td><td>${truthy(n.active) ? 'แสดง' : 'ซ่อน'}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">ยังไม่มีข่าว</td></tr>'}</table></div>`;
+      $('#nn').onclick = () => itemForm('News', {}, fields, '＋ เพิ่มข่าว');
+      $$('[data-n]', ct).forEach(tr => tr.onclick = () => itemForm('News', A.news.find(x => x.id === tr.dataset.n), fields, '✎ แก้ไขข่าว'));
+    } else {
+      const fields = [{ k: 'title', l: 'ชื่อเอกสาร *', wide: true }, { k: 'category', l: 'หมวด', ph: 'แบบฟอร์ม / แบบประเมิน / ระเบียบ/ประกาศ / คู่มือ' }, { k: 'order', l: 'ลำดับ', t: 'number' }, { k: 'url', l: 'ลิงก์ไฟล์ (Google Drive แชร์ “ทุกคนที่มีลิงก์”)', wide: true, ph: 'https://drive.google.com/…' },
+        { k: 'description', l: 'คำอธิบาย', t: 'area', rows: 2 }, { k: 'active', l: 'แสดงบนเว็บ', t: 'check', def: 'TRUE' }];
+      ct.innerHTML = `${isAdmin() ? '<div class="row mb"><button class="btn sm" id="nd">＋ เพิ่มเอกสาร</button></div>' : ''}<div class="card tscroll" style="padding:0"><table class="t"><tr><th>เอกสาร</th><th>หมวด</th><th>ไฟล์</th></tr>${A.docs.map(d => `<tr class="${isAdmin() ? 'click' : ''}" data-d="${d.id}"><td>${esc(d.title)}<div class="xs muted">${esc(d.description)}</div></td><td>${esc(d.category)}</td><td>${d.url ? '✓ แนบแล้ว' : '<span class="badge b-pending">ยังไม่แนบ</span>'}</td></tr>`).join('')}</table></div>`;
+      if (isAdmin()) { $('#nd').onclick = () => itemForm('Docs', {}, fields, '＋ เพิ่มเอกสาร'); $$('[data-d]', ct).forEach(tr => tr.onclick = () => itemForm('Docs', A.docs.find(x => x.id === tr.dataset.d), fields, '✎ แก้ไขเอกสาร')); }
+    }
+  }
+  function pageEditor(p) {
+    const isNew = !p.key;
+    const m = modal(isNew ? '＋ เพิ่มหน้าเว็บ' : '✎ แก้ไขหน้า: ' + esc(p.title), `<div class="fgrid"><label class="f"><span>ชื่อหน้า *</span><input type="text" id="pt" value="${esc(p.title || '')}"></label>
+      <label class="f"><span>รหัสหน้า (อังกฤษ)</span><input type="text" id="pk" value="${esc(p.key || '')}" ${isNew ? '' : 'disabled'} placeholder="เช่น booking-guide"></label><label class="f"><span>ไอคอน (อีโมจิ)</span><input type="text" id="pi" value="${esc(p.icon || '📄')}"></label><label class="f"><span>ลำดับ</span><input type="number" id="po" value="${esc(p.order || 100)}"></label></div>
+      <label class="check"><input type="checkbox" id="pm" ${truthy(p.inMenu) ? 'checked' : ''}> แสดงในเมนูด้านบน</label>
+      <div class="xs muted mt">รูปแบบ: <code># หัวข้อ</code> <code>## หัวข้อย่อย</code> <code>- รายการ</code> <code>1. ลำดับ</code> <code>**ตัวหนา**</code> <code>[ลิงก์](https://…)</code> <code>&gt; กล่องหมายเหตุ</code> <code>| ตาราง | ... |</code></div>
+      <div class="grid g2 mt" style="align-items:start"><textarea id="pb" style="min-height:380px;font-family:monospace;font-size:13.5px">${esc(p.body || '')}</textarea><div class="card md" id="pv" style="max-height:420px;overflow:auto;box-shadow:none"></div></div>`,
+      `${!isNew ? '<button class="btn ghost" id="pd">🗑</button>' : ''}<button class="btn ghost" data-x>ยกเลิก</button><button class="btn" id="ps">บันทึก</button>`, { wide: true });
+    const pv = () => { $('#pv', m).innerHTML = md($('#pb', m).value); };
+    $('#pb', m).oninput = pv; pv();
+    $('#ps', m).onclick = () => api('saveItem', 'Pages', { key: isNew ? $('#pk', m).value : p.key, title: $('#pt', m).value, icon: $('#pi', m).value, order: $('#po', m).value, inMenu: $('#pm', m).checked ? 'TRUE' : 'FALSE', body: $('#pb', m).value })
+      .then(() => { m.close(); toast('บันทึกแล้ว', 'ok'); return call('getPublicData').then(d => { P = d; refresh(); }); }).catch(e => toast(e.message, 'err'));
+    const pd = $('#pd', m); if (pd) pd.onclick = () => confirmBox('ลบหน้านี้?', 'ลบ').then(ok => ok && api('deleteItem', 'Pages', p.key).then(() => { m.close(); return call('getPublicData').then(d => { P = d; refresh(); }); }));
+  }
+
+  /* ---------- ผู้ใช้งาน ---------- */
+  function aUsers(el) {
+    el.innerHTML = `<div class="row between"><h2 class="mt0">👥 ผู้ใช้งานระบบหลังบ้าน</h2><button class="btn sm" id="nu">＋ เพิ่มผู้ใช้</button></div>
+      <div class="card tscroll" style="padding:0"><table class="t"><tr><th>ชื่อผู้ใช้</th><th>ชื่อ</th><th>สิทธิ์</th><th>เข้าใช้ล่าสุด</th><th>สถานะ</th></tr>${A.users.map(u => `<tr class="click" data-u="${u.id}"><td>${esc(u.username)}</td><td>${esc(u.name)}<div class="xs muted">${esc(u.email)}</div></td><td>${u.role === 'admin' ? 'ผู้ดูแลระบบ' : 'เจ้าหน้าที่'}</td><td class="small">${u.lastLogin ? thDT(u.lastLogin) : '-'}</td><td>${truthy(u.active) ? '<span class="badge b-approved">ใช้งาน</span>' : '<span class="badge b-cancelled">ระงับ</span>'}</td></tr>`).join('')}</table></div>
+      <div class="card mt small"><b>สิทธิ์การใช้งาน</b><ul class="mt0"><li><b>ผู้ดูแลระบบ</b> — ทุกเมนู รวมถึงผู้ใช้งาน ตั้งค่า เนื้อหาหน้าเว็บ ห้อง และลบข้อมูล</li><li><b>เจ้าหน้าที่</b> — อนุมัติ/เช็กอินการจอง เพิ่มการจอง คำร้อง อุปกรณ์ วันปิดห้อง ข่าว และดูรายงาน</li></ul></div>`;
+    const form = u => {
+      const m = modal(u.id ? '✎ แก้ไขผู้ใช้' : '＋ เพิ่มผู้ใช้', `<div class="fgrid"><label class="f"><span>ชื่อผู้ใช้ (อังกฤษ) *</span><input type="text" id="uu" value="${esc(u.username || '')}"></label><label class="f"><span>ชื่อ-นามสกุล *</span><input type="text" id="un" value="${esc(u.name || '')}"></label>
+        <label class="f"><span>อีเมล (รับแจ้งเตือน/ทดสอบ)</span><input type="email" id="ue" value="${esc(u.email || '')}"></label><label class="f"><span>โทรศัพท์</span><input type="tel" id="up" value="${esc(u.phone || '')}"></label>
+        <label class="f"><span>สิทธิ์</span><select id="ur"><option value="staff">เจ้าหน้าที่</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>ผู้ดูแลระบบ</option></select></label><label class="f"><span>${u.id ? 'ตั้งรหัสผ่านใหม่ (เว้นว่าง = ไม่เปลี่ยน)' : 'รหัสผ่านเริ่มต้น *'}</span><input type="text" id="upw"></label></div>
+        <label class="check"><input type="checkbox" id="ua" ${u.id ? (truthy(u.active) ? 'checked' : '') : 'checked'}> เปิดใช้งาน</label>`, `${u.id ? '<button class="btn ghost" id="ud">🗑</button>' : ''}<button class="btn ghost" data-x>ยกเลิก</button><button class="btn" id="us">บันทึก</button>`);
+      $('#us', m).onclick = () => api('saveUser', { id: u.id, username: $('#uu', m).value, name: $('#un', m).value, email: $('#ue', m).value, phone: $('#up', m).value, role: $('#ur', m).value, password: $('#upw', m).value, active: $('#ua', m).checked ? 'TRUE' : 'FALSE' }).then(() => { m.close(); toast('บันทึกแล้ว', 'ok'); refresh(); }).catch(e => toast(e.message, 'err'));
+      const ud = $('#ud', m); if (ud) ud.onclick = () => confirmBox('ลบผู้ใช้ ' + esc(u.username) + '?', 'ลบ').then(ok => ok && api('deleteUser', u.id).then(() => { m.close(); refresh(); }).catch(e => toast(e.message, 'err')));
+    };
+    $('#nu').onclick = () => form({});
+    $$('[data-u]').forEach(tr => tr.onclick = () => form(A.users.find(u => u.id === tr.dataset.u)));
+  }
+
+  /* ---------- ตั้งค่า ---------- */
+  function aSettings(el) {
+    const s = A.settings;
+    const inp = (k, l, t, ph) => `<label class="f"><span>${l}</span><input type="${t || 'text'}" name="${k}" value="${esc(s[k] || '')}" ${ph ? `placeholder="${esc(ph)}"` : ''}></label>`;
+    const area = (k, l, ph) => `<label class="f" style="grid-column:1/-1"><span>${l}</span><textarea name="${k}" rows="3" placeholder="${esc(ph || '')}">${esc(s[k] || '')}</textarea></label>`;
+    const chk = (k, l, def) => `<label class="check" style="grid-column:1/-1"><input type="checkbox" name="${k}" ${(s[k] === undefined || s[k] === '' ? def : truthy(s[k])) ? 'checked' : ''}> ${l}</label>`;
+    const days = String(s.openDays || '1,2,3,4,5').split(',');
+    el.innerHTML = `<h2 class="mt0">⚙️ ตั้งค่าระบบ</h2><form id="stf">
+      <div class="card"><h3>ข้อมูลหน่วยงานและช่องทางติดต่อ</h3><div class="fgrid">${inp('appName', 'ชื่อระบบ / ชื่อเว็บไซต์')}${inp('org', 'หน่วยงาน')}${inp('building', 'อาคาร / ห้อง', '', 'เช่น อาคาร 9 ชั้น 3')}${inp('phone', 'โทรศัพท์')}${inp('email', 'อีเมลติดต่อ', 'email')}${inp('line', 'LINE ID / LINE OA')}${inp('facebook', 'ลิงก์เพจ Facebook', 'url')}${inp('mapUrl', 'ลิงก์ Google Maps', 'url')}
+        ${area('address', 'ที่อยู่')}${inp('hoursText', 'ข้อความเวลาให้บริการ')}${area('staffText', 'รายชื่อผู้รับผิดชอบ (แสดงในหน้าติดต่อ)', 'เช่น อ.ชื่อ-สกุล ผู้ดูแลห้อง โทร ...')}</div></div>
+      <div class="card"><h3>หน้าแรก</h3><div class="fgrid">${inp('heroTitle', 'ข้อความใหญ่บนแบนเนอร์')}${inp('heroText', 'ข้อความรอง')}${inp('welcome', 'ข้อความต้อนรับ')}${area('announce', 'ประกาศด่วน (แสดงแถบสีเหลืองบนหน้าแรก — เว้นว่างเพื่อซ่อน)')}</div></div>
+      <div class="card"><h3>กฎการจอง</h3><div class="fgrid">${inp('openTime', 'เวลาเปิด', 'time')}${inp('closeTime', 'เวลาปิด', 'time')}
+        <label class="f"><span>ช่วงเวลาละ (นาที)</span><select name="slotMinutes">${[15, 30, 60].map(n => `<option ${String(s.slotMinutes || 30) === String(n) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        ${inp('minLeadHours', 'ต้องจองล่วงหน้าอย่างน้อย (ชั่วโมง)', 'number')}${inp('maxAdvanceDays', 'จองล่วงหน้าได้ไม่เกิน (วัน)', 'number')}${inp('maxHours', 'จองครั้งละไม่เกิน (ชั่วโมง)', 'number')}${inp('maxActivePerPerson', 'รายการค้างต่อคนสูงสุด (0 = ไม่จำกัด)', 'number')}${inp('bufferMinutes', 'เวลาเตรียมห้องระหว่างการจอง (นาที)', 'number')}
+        <div class="f" style="grid-column:1/-1"><span class="small" style="font-weight:600">วันที่เปิดให้จองออนไลน์</span><div class="chips mt">${[1, 2, 3, 4, 5, 6, 0].map(d => `<label class="chip"><input type="checkbox" class="od" value="${d}" ${days.indexOf(String(d)) !== -1 ? 'checked' : ''}>${TDL[d]}</label>`).join('')}</div></div>
+        ${chk('autoApprove', 'อนุมัติอัตโนมัติ (ไม่ต้องรอเจ้าหน้าที่ — ถ้าเวลาว่างและผ่านกฎ)', false)}${chk('requireAdvisor', 'นักศึกษาต้องระบุอาจารย์ผู้สอน', true)}${chk('showNames', 'แสดงชื่อผู้จองในตารางการใช้ห้องสาธารณะ (ปิดไว้ตาม PDPA เป็นค่าเริ่มต้น)', false)}</div></div>
+      <div class="card"><h3>การแจ้งเตือนทางอีเมล</h3><div class="fgrid">${chk('mailEnabled', 'เปิดการส่งอีเมล (ยืนยันการจอง ผลอนุมัติ ไฟล์วิดีโอ คำร้อง)', true)}${area('notifyEmails', 'อีเมลเจ้าหน้าที่ที่รับแจ้งเมื่อมีการจอง/คำร้องใหม่ (คั่นด้วยจุลภาค)')}</div>
+        <button type="button" class="btn sm ghost" id="tm">✉ ทดสอบส่งอีเมล</button><div class="xs muted mt">เตือนผู้จองล่วงหน้า 1 วัน: ในโปรแกรมแก้ไข Apps Script รันฟังก์ชัน <code>installDailyReminder</code> ครั้งเดียว · โควตาอีเมลของ Google: บัญชีทั่วไป ~100 ฉบับ/วัน, Google Workspace ~1,500 ฉบับ/วัน</div></div>
+      <div class="row mt"><button class="btn" type="submit">💾 บันทึกการตั้งค่า</button></div></form>`;
+    const f = $('#stf');
+    $('#tm').onclick = () => api('testEmail').then(to => toast('ส่งอีเมลทดสอบไปที่ ' + to, 'ok')).catch(e => toast(e.message, 'err'));
+    f.onsubmit = e => {
+      e.preventDefault();
+      const o = formData(f);
+      o.openDays = $$('.od', f).filter(c => c.checked).map(c => c.value).join(',');
+      api('saveSettings', o).then(() => call('getPublicData')).then(d => { P = d; toast('บันทึกแล้ว', 'ok'); refresh(); }).catch(err => toast(err.message, 'err'));
+    };
+  }
+
+  function aLog(el) {
+    el.innerHTML = `<h2 class="mt0">🧾 บันทึกการใช้งานระบบ (400 รายการล่าสุด)</h2><div class="card tscroll" style="padding:0"><table class="t"><tr><th>เวลา</th><th>ผู้ใช้</th><th>การกระทำ</th><th>รายการ</th><th>รายละเอียด</th></tr>${A.log.map(l => `<tr><td class="nowrap small">${thDT(l.time)}</td><td>${esc(l.who)}</td><td><code>${esc(l.action)}</code></td><td class="small">${esc(l.target)}</td><td class="small">${esc(l.detail)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">-</td></tr>'}</table></div>`;
+  }
+
+  /* ================= start ================= */
+  function start() {
+    if (!location.hash) {
+      if (CFG.startView === 'display') location.hash = '#display/' + (CFG.startRoom || '');
+      else if (CFG.startView === 'status') location.hash = '#status/' + (CFG.startCode || '');
+      else if (CFG.startView === 'evaluate') location.hash = '#evaluate/' + (CFG.startCode || '');
+      else if (CFG.startView === 'admin') location.hash = '#admin';
+      else if (CFG.startView === 'book') location.hash = '#book';
+      else if (CFG.startView === 'schedule') location.hash = '#schedule';
+    }
+    call('getPublicData').then(d => { P = d; render(); }).catch(e => { app.innerHTML = `<div class="wrap page"><div class="card"><h2>เปิดระบบไม่สำเร็จ</h2><p>${esc(e.message)}</p></div></div>`; });
+  }
+  start();
+})();
+</script>
+</body>
+</html>
