@@ -16,7 +16,7 @@ function seedSettings_() {
     org: 'คณะครุศาสตร์ มหาวิทยาลัยราชภัฏยะลา',
     building: '',
     address: 'มหาวิทยาลัยราชภัฏยะลา 133 ถนนเทศบาล 3 ตำบลสะเตง อำเภอเมือง จังหวัดยะลา 95000',
-    phone: '', email: '', line: '', facebook: '', mapUrl: '',
+    phone: '', email: '', line: '', facebook: '', mapUrl: '', siteUrl: '',
     hoursText: 'จันทร์–ศุกร์ 08:30–16:30 น. (เว้นวันหยุดราชการ) · นอกเวลายื่นคำร้องล่วงหน้า 3 วันทำการ',
     heroTitle: 'WELCOME',
     heroText: 'Micro Teaching',

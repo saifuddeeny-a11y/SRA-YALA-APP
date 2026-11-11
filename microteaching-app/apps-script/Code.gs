@@ -1,16 +1,24 @@
 /**
  * ============================================================
- *  MT Room — ระบบบริหารจัดการห้องทดลองสอน (Micro Teaching)
- *  Google Apps Script Web App (ฐานข้อมูล = Google Sheet)
+ *  เว็บไซต์ห้อง Micro Teaching — ตัวเชื่อมฐานข้อมูล Google Sheet
  * ------------------------------------------------------------
- *  ไฟล์นี้ : การตั้งค่า โครงสร้างตาราง doGet setup ตัวช่วยฐานข้อมูล
+ *  สคริปต์นี้ไม่มีหน้าเว็บ ทำหน้าที่อ่าน/เขียน Google Sheet ให้เว็บไซต์ (website/index.html)
+ *  เว็บไซต์ส่งคำขอมาที่ doPost แล้วได้ผลลัพธ์กลับเป็น JSON
+ *
+ *  ไฟล์นี้ : การตั้งค่า โครงสร้างตาราง doPost/doGet setup ตัวช่วยฐานข้อมูล
  *           การเข้าสู่ระบบเจ้าหน้าที่ และเครื่องมือทั่วไป
  *  Api.gs  : ฟังก์ชันหน้าเว็บสาธารณะ (จองห้อง ตารางห้อง ตรวจสถานะ คำร้อง ประเมิน)
  *  Admin.gs: ฟังก์ชันระบบหลังบ้าน (อนุมัติ เช็กอิน อุปกรณ์ เนื้อหา ผู้ใช้ รายงาน)
  *  Seed.gs : ข้อมูลเริ่มต้น (เนื้อหาหน้าเว็บ ห้อง อุปกรณ์ เอกสาร)
- *  App.html: หน้าเว็บทั้งหมด (หน้าบ้าน + หลังบ้าน)
  * ============================================================
  */
+
+/**
+ * Google Sheet ที่ใช้เป็นฐานข้อมูล
+ * https://docs.google.com/spreadsheets/d/1tRRr3d_jFhzs5ndiHIjJxHqPfECoblhbqXWtCPBh8js/edit
+ * ระบบสร้างแท็บ Bookings, Rooms, ... ในชีตนี้ให้เองตอนรัน setup
+ */
+var SHEET_ID = '1tRRr3d_jFhzs5ndiHIjJxHqPfECoblhbqXWtCPBh8js';
 
 /** ผู้ดูแลเริ่มต้น (สร้างตอนรัน setup ครั้งแรกเท่านั้น) — เปลี่ยนรหัสก่อนรัน setup และเปลี่ยนอีกครั้งหลังเข้าสู่ระบบ */
 var INITIAL_ADMIN_USERNAME = 'admin';
@@ -45,7 +53,7 @@ var SCHEMA = {
   Log:         ['id', 'time', 'who', 'action', 'target', 'detail']
 };
 
-/** เวอร์ชันโครงสร้างตาราง — เพิ่มเลขเมื่อเพิ่มคอลัมน์ ระบบจะเติมคอลัมน์ที่ขาดให้เองตอนเปิดแอป */
+/** เวอร์ชันโครงสร้างตาราง — เพิ่มเลขเมื่อเพิ่มคอลัมน์ ระบบจะเติมคอลัมน์ที่ขาดให้เองเมื่อมีการเรียกใช้ครั้งแรก */
 var SCHEMA_VERSION = '1';
 
 /** สถานะการจอง */
@@ -120,46 +128,68 @@ var SKILLS = [
 ];
 
 /* ============================================================
- *  WEB APP ENTRY
+ *  API — จุดเชื่อมต่อของเว็บไซต์
  * ============================================================ */
 
-function doGet(e) {
-  var props = PropertiesService.getScriptProperties();
-  if (!props.getProperty('SETUP_DONE')) {
-    try {
-      var lock = LockService.getScriptLock();
-      lock.waitLock(60000);
-      try { if (!props.getProperty('SETUP_DONE')) setup(); } finally { lock.releaseLock(); }
-    } catch (err) {
-      return HtmlService.createHtmlOutput('<div style="font-family:sans-serif;padding:30px;max-width:640px;margin:auto;line-height:1.7"><h2>ยังติดตั้งระบบไม่สำเร็จ</h2>' +
-        '<p>เปิดโปรแกรมแก้ไข Apps Script เลือกฟังก์ชัน <b>setup</b> แล้วกด <b>▶ เรียกใช้</b> และอนุญาตสิทธิ์ให้ครบ จากนั้นรีเฟรชหน้านี้</p><p style="color:#8a2c20">' +
-        String((err && err.message) || err).replace(/[<>&]/g, '') + '</p></div>').setTitle(APP_NAME).addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    }
-  }
-  try { ensureSchema_(); } catch (err) { }
-  var cfg = publicConfig_();
-  var p = (e && e.parameter) || {};
-  cfg.startView = text_(p.view, 30).replace(/[^a-z]/g, '');
-  cfg.startRoom = text_(p.room, 30).replace(/[^a-zA-Z0-9]/g, '');
-  cfg.startCode = text_(p.code, 30).replace(/[^A-Za-z0-9-]/g, '');
-  var tpl = HtmlService.createTemplateFromFile('App');
-  tpl.cfg = safeJson_(cfg);
-  return tpl.evaluate()
-    .setTitle(cfg.appName)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+/**
+ * ฟังก์ชันที่เว็บไซต์เรียกได้ (นอกเหนือจากนี้เรียกไม่ได้)
+ * ฟังก์ชันหลังบ้านทุกตัวตรวจ token ของเจ้าหน้าที่อีกชั้นหนึ่ง
+ */
+function apiFunctions_() {
+  return {
+    getPublicData: getPublicData, getSchedule: getSchedule, submitBooking: submitBooking, checkBooking: checkBooking, cancelBooking: cancelBooking,
+    submitFeedback: submitFeedback, getEvalTarget: getEvalTarget, submitEvaluation: submitEvaluation, submitRequest: submitRequest,
+    checkRequest: checkRequest, getDisplay: getDisplay,
+    staffLogin: staffLogin, logout: logout, getAdminData: getAdminData, saveBooking: saveBooking, setBookingStatus: setBookingStatus,
+    approveMany: approveMany, deleteBooking: deleteBooking, updateRequest: updateRequest, saveItem: saveItem, deleteItem: deleteItem,
+    saveUser: saveUser, deleteUser: deleteUser, changePassword: changePassword, saveSettings: saveSettings, testEmail: testEmail
+  };
 }
 
-/** ค่าตั้งต้นที่หน้าเว็บใช้ก่อนเข้าสู่ระบบ (ไม่มีข้อมูลลับ) */
+/** ติดตั้งอัตโนมัติถ้ายังไม่ได้รัน setup */
+function ensureReady_() {
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('SETUP_DONE')) {
+    var lock = LockService.getScriptLock();
+    lock.waitLock(60000);
+    try { if (!props.getProperty('SETUP_DONE')) setup(); } finally { lock.releaseLock(); }
+  }
+  try { ensureSchema_(); } catch (err) { }
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** เว็บไซต์ส่งคำขอมาที่นี่: body = {"fn": "ชื่อฟังก์ชัน", "args": [...]} */
+function doPost(e) {
+  try {
+    var req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    var fns = apiFunctions_();
+    if (!req.fn || !Object.prototype.hasOwnProperty.call(fns, req.fn)) throw new Error('ไม่รู้จักคำสั่ง');
+    ensureReady_();
+    var args = Array.isArray(req.args) ? req.args.slice(0, 5) : [];
+    return json_({ ok: true, data: fns[req.fn].apply(null, args) });
+  } catch (err) {
+    return json_({ ok: false, error: String((err && err.message) || err) });
+  }
+}
+
+/** เปิดลิงก์ /exec ในเบราว์เซอร์เพื่อทดสอบการเชื่อมต่อ (ไม่มีหน้าเว็บ) */
+function doGet() {
+  try {
+    ensureReady_();
+    var s = getSettings_();
+    return json_({ ok: true, message: 'เชื่อมต่อฐานข้อมูลสำเร็จ — นำลิงก์นี้ไปใส่ API_URL ในไฟล์ website/config.js', name: s.appName || APP_NAME, sheet: db_().getUrl(), site: s.siteUrl || '' });
+  } catch (err) {
+    return json_({ ok: false, error: String((err && err.message) || err), help: 'เปิดโปรแกรมแก้ไข Apps Script เลือกฟังก์ชัน setup แล้วกด ▶ เรียกใช้ และอนุญาตสิทธิ์' });
+  }
+}
+
+/** ค่าที่ใช้สร้างลิงก์ในอีเมล */
 function publicConfig_() {
   var s = getSettings_();
-  var base = '';
-  try { base = ScriptApp.getService().getUrl(); } catch (err) { }
-  return {
-    appName: s.appName || APP_NAME,
-    org: s.org || '',
-    baseUrl: base
-  };
+  return { appName: s.appName || APP_NAME, org: s.org || '', baseUrl: String(s.siteUrl || '').split('#')[0].split('?')[0] };
 }
 
 /** กฎการจอง (ค่าเริ่มต้น + ค่าจากหน้า ตั้งค่า) */
@@ -192,8 +222,6 @@ function ensureSchema_() {
   props.setProperty('SCHEMA_VER', SCHEMA_VERSION);
 }
 
-function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
-
 function safeJson_(obj) {
   return JSON.stringify(obj).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
     .replace(new RegExp('\\u2028', 'g'), '\\u2028').replace(new RegExp('\\u2029', 'g'), '\\u2029');
@@ -205,7 +233,7 @@ function safeJson_(obj) {
 
 function setup() {
   var props = PropertiesService.getScriptProperties();
-  var ss = null, id = props.getProperty('DB_ID');
+  var ss = null, id = SHEET_ID || props.getProperty('DB_ID');
   if (id) ss = SpreadsheetApp.openById(id);
   if (!ss) { try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch (err) { ss = null; } }
   if (!ss) ss = SpreadsheetApp.create(APP_NAME + ' — ฐานข้อมูล');
@@ -278,7 +306,7 @@ function ensureSheet_(ss, name) {
 var _ss = null;
 function db_() {
   if (_ss) return _ss;
-  var id = PropertiesService.getScriptProperties().getProperty('DB_ID');
+  var id = SHEET_ID || PropertiesService.getScriptProperties().getProperty('DB_ID');
   if (!id) throw new Error('ยังไม่ได้ติดตั้งระบบ (รัน setup ก่อน)');
   _ss = SpreadsheetApp.openById(id);
   return _ss;

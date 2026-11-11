@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f1f26">
+<meta name="description" content="เว็บไซต์ห้องทดลองสอน Micro Teaching — ตารางการใช้ห้อง จองห้องออนไลน์ ตรวจสอบสถานะ ประเมินการสอน แบบฟอร์ม/คำร้อง">
+<title>ห้อง Micro Teaching</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;500;600;700&family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -265,11 +267,15 @@
 <div id="app"><div class="spinner">กำลังโหลด…</div></div>
 <div class="toasts" id="toasts"></div>
 
+<script src="config.js"></script>
 <script>
-var CFG = <?!= cfg ?>;
+var CFG = window.MT_CONFIG || {};
 (function () {
   'use strict';
-  const hasGas = typeof google !== 'undefined' && google.script && google.script.run;
+  const hasGas = typeof google !== 'undefined' && google.script && google.script.run;   // ใช้ในไฟล์ทดลอง (demo) เท่านั้น
+  const API = String(CFG.API_URL || '').trim();
+  CFG.baseUrl = location.href.split('#')[0].split('?')[0];
+  (function () { const q = new URLSearchParams(location.search); CFG.startView = (q.get('view') || '').replace(/[^a-z]/g, ''); CFG.startRoom = (q.get('room') || '').replace(/[^a-zA-Z0-9]/g, ''); CFG.startCode = (q.get('code') || '').replace(/[^A-Za-z0-9-]/g, ''); })();
   let P = null;          // ข้อมูลสาธารณะ
   let A = null;          // ข้อมูลหลังบ้าน
   let TOKEN = null;
@@ -306,18 +312,37 @@ var CFG = <?!= cfg ?>;
   let busyN = 0;
   function busy(on) { busyN += on ? 1 : -1; let b = $('#busyBar'); if (busyN > 0 && !b) { b = document.createElement('div'); b.id = 'busyBar'; b.className = 'busy'; document.body.appendChild(b); } else if (busyN <= 0 && b) { busyN = 0; b.remove(); } }
 
+  function authFail(msg) {
+    TOKEN = null; A = null;
+    try { sessionStorage.removeItem('mt_token'); } catch (e) { }
+    if (location.hash.indexOf('#admin') === 0) setTimeout(render, 10);
+    return msg.replace(/.*AUTH:\s*/, '');
+  }
+  const cleanErr = m => String(m || 'เกิดข้อผิดพลาด').replace(/^Error:\s*/, '').replace(/^Exception:\s*/, '');
+  /** เรียกฐานข้อมูล (Apps Script ที่ผูกกับ Google Sheet) ผ่าน API_URL ในไฟล์ config.js */
   function call(fn, ...args) {
-    return new Promise((resolve, reject) => {
-      if (!hasGas) { reject(new Error('ต้องเปิดผ่านเว็บแอป Google Apps Script')); return; }
+    if (hasGas) return new Promise((resolve, reject) => {
       busy(true);
       const r = google.script.run.withSuccessHandler(v => { busy(false); resolve(v); }).withFailureHandler(err => {
         busy(false);
         let msg = (err && err.message) || String(err);
-        if (/AUTH:/.test(msg)) { msg = msg.replace(/.*AUTH:\s*/, ''); TOKEN = null; A = null; try { sessionStorage.removeItem('mt_token'); } catch (e) { } if (location.hash.indexOf('#admin') === 0) setTimeout(render, 10); }
-        reject(new Error(msg.replace(/^Error:\s*/, '').replace(/^Exception:\s*/, '')));
+        if (/AUTH:/.test(msg)) msg = authFail(msg);
+        reject(new Error(cleanErr(msg)));
       });
       r[fn].apply(r, args);
     });
+    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(API)) return Promise.reject(new Error('ยังไม่ได้เชื่อมต่อฐานข้อมูล: ใส่ API_URL ในไฟล์ config.js (ดูคู่มือการติดตั้ง)'));
+    busy(true);
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: args }), redirect: 'follow' })
+      .then(r => r.json())
+      .catch(() => { throw new Error('เชื่อมต่อฐานข้อมูลไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่'); })
+      .then(res => {
+        busy(false);
+        if (res && res.ok) return res.data;
+        let msg = (res && res.error) || 'เกิดข้อผิดพลาด';
+        if (/AUTH:/.test(msg)) msg = authFail(msg);
+        throw new Error(cleanErr(msg));
+      }, err => { busy(false); throw err; });
   }
   const api = (fn, ...args) => call(fn, TOKEN, ...args);
 
@@ -1028,7 +1053,14 @@ var CFG = <?!= cfg ?>;
    *  ระบบหลังบ้าน
    * ===================================================================== */
   const isAdmin = () => A && A.me.role === 'admin';
-  function reloadAdmin() { return api('getAdminData').then(d => { A = d; P.rules = d.rules; return d; }); }
+  function reloadAdmin() {
+    return api('getAdminData').then(d => {
+      A = d; P.rules = d.rules;
+      // บันทึกที่อยู่เว็บไซต์ (ใช้สร้างลิงก์ในอีเมล) อัตโนมัติเมื่อผู้ดูแลเข้าระบบครั้งแรก
+      if (isAdmin() && !d.settings.siteUrl && /^https:/.test(CFG.baseUrl)) api('saveSettings', { siteUrl: CFG.baseUrl }).then(st => { A.settings = st; }).catch(() => { });
+      return d;
+    });
+  }
 
   function renderAdmin(tab) {
     if (!TOKEN) return adminLogin();
@@ -1504,7 +1536,7 @@ var CFG = <?!= cfg ?>;
     const chk = (k, l, def) => `<label class="check" style="grid-column:1/-1"><input type="checkbox" name="${k}" ${(s[k] === undefined || s[k] === '' ? def : truthy(s[k])) ? 'checked' : ''}> ${l}</label>`;
     const days = String(s.openDays || '1,2,3,4,5').split(',');
     el.innerHTML = `<h2 class="mt0">⚙️ ตั้งค่าระบบ</h2><form id="stf">
-      <div class="card"><h3>ข้อมูลหน่วยงานและช่องทางติดต่อ</h3><div class="fgrid">${inp('appName', 'ชื่อระบบ / ชื่อเว็บไซต์')}${inp('org', 'หน่วยงาน')}${inp('building', 'อาคาร / ห้อง', '', 'เช่น อาคาร 9 ชั้น 3')}${inp('phone', 'โทรศัพท์')}${inp('email', 'อีเมลติดต่อ', 'email')}${inp('line', 'LINE ID / LINE OA')}${inp('facebook', 'ลิงก์เพจ Facebook', 'url')}${inp('mapUrl', 'ลิงก์ Google Maps', 'url')}
+      <div class="card"><h3>ข้อมูลหน่วยงานและช่องทางติดต่อ</h3><div class="fgrid">${inp('appName', 'ชื่อระบบ / ชื่อเว็บไซต์')}${inp('org', 'หน่วยงาน')}${inp('building', 'อาคาร / ห้อง', '', 'เช่น อาคาร 9 ชั้น 3')}${inp('phone', 'โทรศัพท์')}${inp('email', 'อีเมลติดต่อ', 'email')}${inp('line', 'LINE ID / LINE OA')}${inp('facebook', 'ลิงก์เพจ Facebook', 'url')}${inp('mapUrl', 'ลิงก์ Google Maps', 'url')}${inp('siteUrl', 'ที่อยู่เว็บไซต์นี้ (ใช้ในลิงก์อีเมล)', 'url', CFG.baseUrl)}
         ${area('address', 'ที่อยู่')}${inp('hoursText', 'ข้อความเวลาให้บริการ')}${area('staffText', 'รายชื่อผู้รับผิดชอบ (แสดงในหน้าติดต่อ)', 'เช่น อ.ชื่อ-สกุล ผู้ดูแลห้อง โทร ...')}</div></div>
       <div class="card"><h3>หน้าแรก</h3><div class="fgrid">${inp('heroTitle', 'ข้อความใหญ่บนแบนเนอร์')}${inp('heroText', 'ข้อความรอง')}${inp('welcome', 'ข้อความต้อนรับ')}${area('announce', 'ประกาศด่วน (แสดงแถบสีเหลืองบนหน้าแรก — เว้นว่างเพื่อซ่อน)')}</div></div>
       <div class="card"><h3>กฎการจอง</h3><div class="fgrid">${inp('openTime', 'เวลาเปิด', 'time')}${inp('closeTime', 'เวลาปิด', 'time')}
@@ -1521,6 +1553,7 @@ var CFG = <?!= cfg ?>;
       e.preventDefault();
       const o = formData(f);
       o.openDays = $$('.od', f).filter(c => c.checked).map(c => c.value).join(',');
+      if (!o.siteUrl) o.siteUrl = CFG.baseUrl;
       api('saveSettings', o).then(() => call('getPublicData')).then(d => { P = d; toast('บันทึกแล้ว', 'ok'); refresh(); }).catch(err => toast(err.message, 'err'));
     };
   }
@@ -1539,7 +1572,7 @@ var CFG = <?!= cfg ?>;
       else if (CFG.startView === 'book') location.hash = '#book';
       else if (CFG.startView === 'schedule') location.hash = '#schedule';
     }
-    call('getPublicData').then(d => { P = d; render(); }).catch(e => { app.innerHTML = `<div class="wrap page"><div class="card"><h2>เปิดระบบไม่สำเร็จ</h2><p>${esc(e.message)}</p></div></div>`; });
+    call('getPublicData').then(d => { P = d; render(); }).catch(e => { app.innerHTML = `<div class="wrap page"><div class="card"><h2>เปิดเว็บไซต์ไม่สำเร็จ</h2><p>${esc(e.message)}</p></div></div>`; });
   }
   start();
 })();

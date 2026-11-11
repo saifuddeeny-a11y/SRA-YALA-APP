@@ -380,7 +380,8 @@ function sendMail_(to, subject, html) {
 function notifyStaff_(subject, html) {
   var s = getSettings_();
   var to = String(s.notifyEmails || '').split(/[,\s;]+/).filter(validEmail_).join(',');
-  if (to) sendMail_(to, subject, mailFrame_(subject, html + '<p><a href="' + publicConfig_().baseUrl + '#admin">เปิดระบบหลังบ้าน</a></p>'));
+  var base = publicConfig_().baseUrl;
+  if (to) sendMail_(to, subject, mailFrame_(subject, html + (base ? '<p><a href="' + esc_(base) + '#admin">เปิดระบบหลังบ้าน</a></p>' : '')));
 }
 
 function mailFrame_(title, body) {
@@ -400,7 +401,7 @@ function bookingMailBody_(b) {
       .map(function (r) { return '<tr><td style="padding:4px 12px 4px 0;color:#777">' + r[0] + '</td><td style="padding:4px 0">' + r[1] + '</td></tr>'; }).join('') + '</table>' +
     (b.staffNote ? '<p style="background:#fff6e0;padding:8px 12px;border-radius:8px">หมายเหตุจากเจ้าหน้าที่: ' + esc_(b.staffNote) + '</p>' : '') +
     (b.videoUrl ? '<p>ไฟล์วิดีโอการสอน: <a href="' + esc_(b.videoUrl) + '">' + esc_(b.videoUrl) + '</a></p>' : '') +
-    '<p><a href="' + base + '?view=status&code=' + encodeURIComponent(b.code) + '" style="background:#c2185b;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">ตรวจสอบ / ยกเลิกการจอง</a></p>';
+    (base ? '<p><a href="' + esc_(base) + '?view=status&code=' + encodeURIComponent(b.code) + '" style="background:#c2185b;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">ตรวจสอบ / ยกเลิกการจอง</a></p>' : '<p>ตรวจสอบหรือยกเลิกได้ที่เมนู “ตรวจสอบสถานะ” บนเว็บไซต์</p>');
 }
 
 function notifyNewBooking_(b) {

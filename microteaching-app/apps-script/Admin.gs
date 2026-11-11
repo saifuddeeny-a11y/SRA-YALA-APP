@@ -300,7 +300,7 @@ function changePassword(token, oldPw, newPw) {
  *  ตั้งค่า (admin)
  * ------------------------------------------------------------ */
 
-var SETTING_KEYS = ['appName', 'org', 'building', 'address', 'phone', 'email', 'line', 'facebook', 'mapUrl', 'hoursText', 'heroTitle', 'heroText', 'welcome', 'announce', 'staffText',
+var SETTING_KEYS = ['appName', 'org', 'building', 'address', 'phone', 'email', 'line', 'facebook', 'mapUrl', 'siteUrl', 'hoursText', 'heroTitle', 'heroText', 'welcome', 'announce', 'staffText',
   'openTime', 'closeTime', 'openDays', 'slotMinutes', 'minLeadHours', 'maxAdvanceDays', 'maxHours', 'maxActivePerPerson', 'bufferMinutes', 'autoApprove', 'requireAdvisor', 'showNames',
   'mailEnabled', 'notifyEmails'];
 
@@ -312,7 +312,7 @@ function saveSettings(token, o) {
     var v = text_(o[k], 3000);
     if ((k === 'openTime' || k === 'closeTime') && !normTime_(v)) throw new Error('รูปแบบเวลาไม่ถูกต้อง (เช่น 08:30)');
     if (k === 'openTime' || k === 'closeTime') v = normTime_(v);
-    if (k === 'mapUrl' || k === 'facebook') v = safeUrl_(v);
+    if (k === 'mapUrl' || k === 'facebook' || k === 'siteUrl') v = safeUrl_(v);
     setSetting_(k, v);
   });
   var r = rules_();

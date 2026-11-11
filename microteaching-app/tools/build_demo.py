@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 สร้างไฟล์ทดลองใช้ demo/index.html จากซอร์สใน apps-script/
-- ใช้ตัวจำลอง Google Apps Script (Sheets/Cache/Properties/Mail) จาก srayala-website/preview/preview.html
+- หน้าเว็บ = website/index.html · ฐานข้อมูลจำลองด้วยตัวจำลอง Google Apps Script/Sheets จาก srayala-website/preview/preview.html
 - รันโค้ดเซิร์ฟเวอร์จริง (Code.gs, Seed.gs, Api.gs, Admin.gs) ในเบราว์เซอร์ ข้อมูลเก็บใน localStorage ของผู้ทดลอง
 - มีข้อมูลตัวอย่าง (การจองย้อนหลัง/ล่วงหน้า ผลประเมิน คำร้อง) ให้ลองใช้ทันที
 
@@ -160,12 +160,9 @@ BOOT = r"""
     insertRow_('Users', { id: newId_(), username: 'staff1', name: 'เจ้าหน้าที่ห้องทดลองสอน', role: 'staff', email: '', phone: '', passwordHash: hashPassword_('demo12345', salt), salt: salt, active: 'TRUE', lastLogin: '', createdAt: now });
   }
   var TPL = __TPL__;
-  var cfg = publicConfig_();
-  cfg.baseUrl = location.href.split('#')[0].split('?')[0];
-  cfg.startView = String(q.view || '').replace(/[^a-z]/g, ''); cfg.startRoom = String(q.room || '').replace(/[^a-zA-Z0-9]/g, ''); cfg.startCode = String(q.code || '').replace(/[^A-Za-z0-9-]/g, '');
-  var html = TPL.App.replace('<?!= cfg ?>', safeJson_(cfg));
-  var bar = isApp || cfg.startView === 'display' ? '' : '<div id="demobar" style="position:fixed;left:10px;bottom:10px;z-index:98;background:#1f1f26;color:#fff;font:12.5px/1.55 Sarabun,sans-serif;border-radius:10px;padding:7px 11px;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 20px)">' +
-    '<b>โหมดทดลอง</b> · ข้อมูลอยู่ในเบราว์เซอร์นี้เท่านั้น · ตรวจสถานะ <b>MT-DEMO1</b> / <b>0812345678</b> · หลังบ้าน <a href="#admin" style="color:#ffb3c9">เจ้าหน้าที่</a> <b>staff1</b> / <b>demo12345</b> · ผู้ดูแล <b>admin</b> / <b>ChangeMe@2569</b> ' +
+  var html = TPL.App.replace('<script src="config.js"><\/script>', '<script>window.MT_CONFIG = { API_URL: "" };<\/script>');
+  var bar = isApp || q.view === 'display' ? '' : '<div id="demobar" style="position:fixed;left:10px;bottom:10px;z-index:98;background:#1f1f26;color:#fff;font:12.5px/1.55 Sarabun,sans-serif;border-radius:10px;padding:7px 11px;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 20px)">' +
+    '<b>เว็บไซต์ทดลอง</b> · ข้อมูลตัวอย่างอยู่ในเบราว์เซอร์นี้เท่านั้น (ของจริงเก็บใน Google Sheet) · ตรวจสถานะ <b>MT-DEMO1</b> / <b>0812345678</b> · หลังบ้าน <a href="#admin" style="color:#ffb3c9">เจ้าหน้าที่</a> <b>staff1</b> / <b>demo12345</b> · ผู้ดูแล <b>admin</b> / <b>ChangeMe@2569</b> ' +
     '<a href="#" onclick="__MOCK_RESET();sessionStorage.clear();location.reload();return false" style="color:#f3cf74">รีเซ็ตข้อมูล</a> <a href="#" onclick="this.parentNode.remove();return false" style="color:#fff;opacity:.7">✕</a></div>';
   html = html.replace('</body>', bar + '</body>');
   document.open(); document.write(html); document.close();
@@ -181,7 +178,7 @@ def main():
     if 'mt_room_demo_v1' not in mock or 'withSuccessHandler' not in runner:
         raise SystemExit('ไม่พบตัวจำลองในไฟล์ preview.html')
     gs = [read(os.path.join(SRC, n)).strip('\n') for n in GS_FILES]
-    tpl = json.dumps({'App': read(os.path.join(SRC, 'App.html'))}, ensure_ascii=False).replace('</script', '<\\/script')
+    tpl = json.dumps({'App': read(os.path.join(APP, 'website', 'index.html'))}, ensure_ascii=False).replace('</script', '<\\/script')
     boot = BOOT.replace('__TPL__', tpl)
     html = '\n;\n'.join([mock] + gs + [runner, boot]) + '\n</script></head><body></body></html>\n'
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
