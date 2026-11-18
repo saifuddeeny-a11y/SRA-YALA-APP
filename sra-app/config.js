@@ -11,5 +11,5 @@ window.SRA_APP = {
   NAME: 'SRA YALA',
   FUND_NAME: 'กองทุนออมทรัพย์และบัญชีฮัจย์-อุมเราะห์',
   ORG: 'มหาวิทยาลัยราชภัฏยะลา',
-  VERSION: '1.0.0'
+  VERSION: '1.1.0'
 };
