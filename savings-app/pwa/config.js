@@ -7,5 +7,5 @@ window.SAVINGS_APP = {
   APP_URL: '',
   NAME: 'SRA Savings',
   ORG: 'ระบบออมทรัพย์กลุ่มอาชีพ และคลินิกแก้หนี้',
-  VERSION: '1.0.0'
+  VERSION: '1.1.0'
 };

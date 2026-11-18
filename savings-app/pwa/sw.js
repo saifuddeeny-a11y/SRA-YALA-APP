@@ -1,6 +1,6 @@
 /* Service worker — เก็บหน้าแอปไว้ในเครื่อง เปิดเร็ว และมีหน้าแจ้งเมื่อออฟไลน์
  * ข้อมูลสมาชิก/ยอดเงิน ไม่ถูกเก็บในเครื่อง (โหลดจาก Google ทุกครั้ง) */
-var CACHE = 'sra-savings-v1.0.0';
+var CACHE = 'sra-savings-v1.1.0';
 var SHELL = ['./', './index.html', './config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-192.png', './icons/maskable-512.png',
   './icons/apple-touch-icon.png', './icons/icon-32.png', './icons/icon-96.png'];
