@@ -1439,13 +1439,15 @@ function parseRoster(grid) {
     rows[i].forEach(function (c, j) {
       var x = c.replace(/\s/g, '').toLowerCase();
       if (!x) return;
-      if (/รหัส|studentid|^id$|^รหัสนักศึกษา/.test(x)) { if (m.sid == null) m.sid = j; }
+      if (/studentid|student_id|studentno|รหัสนักศึกษา|รหัสนศ|รหัสประจำตัว/.test(x)) { if (m.sid == null) m.sid = j; }
+      else if (/^id$|^รหัส$|^no\.?$/.test(x)) { if (m.sidWeak == null) m.sidWeak = j; }
       else if (/คำนำหน้า|prefix|^title$/.test(x)) m.pre = j;
       else if (/นามสกุล|surname|lastname/.test(x)) m.last = j;
       else if (/ชื่อ|name/.test(x)) { if (m.name == null) m.name = j; }
       else if (/สาขา|program|major|หลักสูตร|ชั้นปี/.test(x)) m.prog = j;
       else if (/อีเมล|e-?mail/.test(x)) m.email = j;
     });
+    if (m.sid == null) m.sid = m.sidWeak;
     if (m.sid != null && m.name != null) { hi = i; mp = m; break; }
   }
   var out = [];
@@ -1479,12 +1481,12 @@ function loadXLSX() {
     document.head.appendChild(sc);
   });
 }
-function readGridFromFile(file) {
-  if (/\.(csv|txt)$/i.test(file.name)) return file.text().then(textToGrid);
+/** อ่านไฟล์ → [{name, grid, n}] ทุกชีต (n = จำนวนรายชื่อที่อ่านได้) */
+function readSheetsFromFile(file) {
+  if (/\.(csv|txt)$/i.test(file.name)) return file.text().then(function (t) { var g = textToGrid(t); return [{ name: file.name, grid: g, n: parseRoster(g).length }]; });
   return loadXLSX().then(function (X) { return file.arrayBuffer().then(function (buf) {
-    var wb = X.read(new Uint8Array(buf), { type: 'array' }), best = null;
-    wb.SheetNames.forEach(function (n) { var g = X.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }); if (!best || g.length > best.length) best = g; });
-    return best || [];
+    var wb = X.read(new Uint8Array(buf), { type: 'array' });
+    return wb.SheetNames.map(function (n) { var g = X.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }); return { name: n, grid: g, n: parseRoster(g).length }; });
   }); });
 }
 function importModal(cid) {
@@ -1493,13 +1495,22 @@ function importModal(cid) {
   openModal('<h3>นำเข้ารายชื่อนักศึกษา — ' + esc(c.title) + '</h3>' +
     '<div class="box warn" style="margin-top:0">ใช้ไฟล์รายชื่อจากระบบทะเบียน หรือคัดลอกคอลัมน์ <b>รหัสนักศึกษา</b> และ <b>ชื่อ-สกุล</b> จาก Excel มาวาง<br>• คนที่ลงทะเบียนเองแล้ว → เพิ่มเข้ารายวิชา (รหัสผ่านเดิมไม่เปลี่ยน)<br>• คนที่ยังไม่มีบัญชี → ระบบสร้างให้ <b>รหัสผ่านเริ่มต้น = 6 หลักท้ายของรหัสนักศึกษา</b> (เข้าสู่ระบบแล้วเปลี่ยนเองได้)</div>' +
     '<div class="grid g2"><div class="f"><label>เลือกไฟล์ Excel (.xlsx) หรือ CSV</label><input id="imp_file" type="file" accept=".xlsx,.xls,.csv,.txt"></div>' + fld('imp_prog', 'สาขา/ชั้นปี (ใส่ให้คนที่ไฟล์ไม่มีข้อมูลสาขา)', 'text', '') + '</div>' +
-    '<div class="f"><label>หรือวางรายชื่อ (1 บรรทัด = 1 คน: รหัส ตามด้วยชื่อ-สกุล)</label><textarea id="imp_text" placeholder="406917001&#9;นายตัวอย่าง ใจดี&#10;406917002&#9;นางสาวตัวอย่าง รักเรียน"></textarea></div>' +
+    '<div id="impSheetBox"></div><div class="f"><label>หรือวางรายชื่อ (1 บรรทัด = 1 คน: รหัส ตามด้วยชื่อ-สกุล)</label><textarea id="imp_text" placeholder="406917001&#9;นายตัวอย่าง ใจดี&#10;406917002&#9;นางสาวตัวอย่าง รักเรียน"></textarea></div>' +
     '<div class="row"><button class="btn" data-act="impCheck">ตรวจรายชื่อ</button><label class="chk"><input type="checkbox" id="imp_upd"> แก้ชื่อในบัญชีที่มีอยู่ให้ตรงตามรายชื่อนี้</label><span class="tag" id="impMsg"></span></div><div id="impBox"></div>' +
     '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ปิด</button><button class="btn gold" id="impGo" data-act="impGo" data-p="' + cid + '" disabled>นำเข้า</button></div>', c.color);
   $('imp_file').onchange = function () {
     var f = this.files[0]; if (!f) return;
     $('impMsg').textContent = 'กำลังอ่านไฟล์…';
-    readGridFromFile(f).then(function (g) { S._imp.grid = g; $('impMsg').textContent = 'อ่านไฟล์แล้ว ' + g.length + ' แถว'; ACTIONS.impCheck(); }).catch(function (x) { $('impMsg').textContent = ''; fail(x); });
+    readSheetsFromFile(f).then(function (sheets) {
+      S._imp.sheets = sheets;
+      var best = 0; sheets.forEach(function (x, k) { if (x.n > sheets[best].n || (x.n === sheets[best].n && x.n && /student|รายชื่อ|นักศึกษา/i.test(x.name))) best = k; });
+      S._imp.grid = sheets[best] ? sheets[best].grid : [];
+      $('impSheetBox').innerHTML = sheets.length > 1 ? '<div class="f"><label>ชีตที่ใช้ (ไฟล์นี้มี ' + sheets.length + ' ชีต — ระบบเลือกชีตที่มีรายชื่อมากที่สุดให้)</label><select id="imp_sheet" onchange="S._imp.grid=S._imp.sheets[this.value].grid;ACTIONS.impCheck()">' +
+        sheets.map(function (x, k) { return '<option value="' + k + '"' + (k === best ? ' selected' : '') + '>' + esc(x.name) + ' — ' + (x.n ? 'พบ ' + x.n + ' รายชื่อ' : 'ไม่พบรายชื่อ') + '</option>'; }).join('') + '</select></div>' : '';
+      $('impMsg').textContent = sheets[best] && sheets[best].n ? 'อ่านไฟล์แล้ว (ชีต ' + sheets[best].name + ')' : 'อ่านไฟล์แล้ว แต่ไม่พบคอลัมน์รหัสนักศึกษา/ชื่อ';
+      if ($('imp_text').value.trim() && sheets[best] && sheets[best].n) $('imp_text').value = '';
+      ACTIONS.impCheck();
+    }).catch(function (x) { $('impMsg').textContent = ''; fail(x); });
   };
 }
 function importPreview() {
