@@ -232,6 +232,11 @@ td.subcell{min-width:300px}
 .imp-tbl{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0}
 .imp-tbl table{margin:0}
 tr.imp-bad td{color:var(--bad)}
+.av{border-radius:50%;object-fit:cover;display:inline-flex;align-items:center;justify-content:center;background:#e8ebff;color:#3b3fb6;font-weight:700;vertical-align:middle;margin-right:6px;flex:none;overflow:hidden}
+.mems{display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 0}
+.mem{display:flex;align-items:center;gap:2px;font-size:13px;margin:3px 0}
+.gcard{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fbfcff}
+.gcard .qin{margin:0}
 .aibar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:linear-gradient(90deg,#eef0ff,#fff6dc);border:1px solid #d9dcff;border-radius:12px;padding:8px 10px;margin:4px 0 10px}
 .aibar b{color:#3b3fb6;font-size:13.5px}
 .aibar input{border:1px solid #cdd5e3;border-radius:8px;padding:6px 9px;flex:1;min-width:140px}
@@ -952,7 +957,7 @@ function renderNav() {
     h.push('<div class="h">ห้องเรียนของฉัน</div>' + navA('shome', null, 'หน้าแรกของฉัน', '', '⌂', '#2563eb'));
     (S.stu ? S.stu.courses : []).forEach(function (c) { h.push(navA('scourse', c.id, c.title, '', c.title.charAt(0), c.color || '#2563eb')); });
   } else if (isT()) {
-    var pend = S.lms ? S.lms.subs.filter(function (x) { return x.status === 'submitted'; }).length : 0;
+    var pend = S.lms ? pendList().length : 0;
     h.push('<div class="h">ภาพรวม</div>' + navA('thome', null, 'แดชบอร์ดอาจารย์', '', '★', '#3b3fb6'));
     h.push('<div class="h">ห้องเรียนออนไลน์</div>' + navA('tcourses', null, 'รายวิชาทั้งหมด', S.lms ? S.lms.courses.length + '' : '', '▦', '#2563eb') +
       navA('tpending', null, 'งานรอตรวจ', pend ? pend + '' : '', '✓', '#ea580c') + navA('tstudents', null, 'นักศึกษาทั้งหมด', S.lms ? S.lms.students.length + '' : '', '☺', '#0d9488'));
@@ -1061,6 +1066,49 @@ function readB64(file) { return new Promise(function (ok, no) { var fr = new Fil
 function dueTxt(d) { if (!d) return ''; var late = new Date(d + 'T23:59:59') < new Date(); return '<span class="chip ' + (late ? 'c-noevidence' : 'c-partial') + '">กำหนดส่ง ' + esc(d) + '</span>'; }
 function typeChip(t) { var c = { assignment: '#2563eb', quiz: '#7c3aed', activity: '#0d9488' }[t]; var n = { assignment: 'ใบงาน', quiz: 'แบบทดสอบ', activity: 'กิจกรรม' }[t]; return '<span class="chip" style="background:color-mix(in srgb,' + c + ' 14%,#fff);color:' + c + '">' + n + '</span>'; }
 function gradeOf(pct, scale) { for (var i = 0; i < scale.length; i++) if (pct >= scale[i][0]) return scale[i][1]; return 'F'; }
+/* ---- โปรไฟล์/รูป/งานกลุ่ม ---- */
+function avatar(st, size) {
+  size = size || 28; var css = 'width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size * 0.42) + 'px';
+  if (st && st.photo) return '<img class="av" src="' + esc(st.photo) + '" style="' + css + '" alt="">';
+  return '<span class="av" style="' + css + '">' + esc(String((st && st.name) || '?').replace(/^\s*(นางสาว|นาย|นาง)\s*/, '').charAt(0)) + '</span>';
+}
+function contactHtml(m) {
+  var a = [];
+  if (m.phone) a.push('โทร <a href="tel:' + esc(String(m.phone).replace(/[^\d+]/g, '')) + '">' + esc(m.phone) + '</a>');
+  if (m.lineId) a.push('LINE: ' + esc(m.lineId));
+  return a.join(' · ');
+}
+function pendList() {
+  var seen = {};
+  return L().subs.filter(function (s) {
+    if (s.status !== 'submitted') return false;
+    if (!s.groupId) return true;
+    var k = s.itemId + '|' + s.groupId; if (seen[k]) return false; seen[k] = 1; return true;
+  });
+}
+function latestSub(rows) { return rows.slice().sort(function (a, b) { return String(b.submittedAt || '').localeCompare(String(a.submittedAt || '')); })[0]; }
+function resizePhoto(file, size) {
+  return new Promise(function (ok, no) {
+    if (!/^image\//.test(file.type || '')) return no(new Error('กรุณาเลือกไฟล์รูปภาพ'));
+    var fr = new FileReader();
+    fr.onerror = function () { no(new Error('อ่านไฟล์รูปไม่ได้')); };
+    fr.onload = function () {
+      var img = new Image();
+      img.onerror = function () { no(new Error('เปิดรูปนี้ไม่ได้ ลองรูปแบบ JPG หรือ PNG')); };
+      img.onload = function () {
+        var m = Math.min(img.width, img.height), c = document.createElement('canvas'); c.width = c.height = size;
+        var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, size, size);
+        x.drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, size, size);
+        var d = c.toDataURL('image/jpeg', 0.82); if (d.length > 40000) d = c.toDataURL('image/jpeg', 0.6);
+        ok(d);
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function pfLater(id) { try { return localStorage.getItem('pfLater_' + id) === '1'; } catch (e) { return false; } }
+
 /* ---- ใบงานแบบมีคำถาม: คำถาม/คำตอบ/คะแนนรายข้อ ---- */
 function subQs(it) { return it && it.type === 'assignment' ? (it.quiz || []) : []; }
 function isLate(it, s) { return !!(it && it.dueDate && s && s.submittedAt && String(s.submittedAt).slice(0, 10) > it.dueDate); }
@@ -1071,12 +1119,13 @@ function subChips(it, s) {
     (isLate(it, s) ? ' <span class="chip c-noevidence">ส่งช้า</span>' : '') + (s.editCount ? ' <span class="chip c-none">แก้ไข ' + s.editCount + ' ครั้ง</span>' : '');
 }
 /** แสดงคำถาม + คำตอบนักศึกษา; grade=true → มีช่องให้คะแนนรายข้อ (อาจารย์) */
-function qaHtml(it, s, grade) {
+function qaHtml(it, s, grade, key) {
   var qs = subQs(it); if (!qs.length || !s) return '';
+  var kk = key || s.sid;
   var ans = s.answers || [], qsc = s.qScores || [];
   return '<div class="qa">' + qs.map(function (q, k) {
     var a = ans[k] == null ? '' : String(ans[k]), has = qsc[k] !== '' && qsc[k] != null;
-    var sc = grade ? '<label class="tag qsc">คะแนน <input type="number" step="0.5" min="0"' + (q.points ? ' max="' + q.points + '"' : '') + ' id="qs_' + s.sid + '_' + k + '" value="' + esc(has ? qsc[k] : '') + '" oninput="qsSum(\'' + s.sid + '\',' + qs.length + ')">' + (q.points ? ' / ' + q.points : '') + '</label>'
+    var sc = grade ? '<label class="tag qsc">คะแนน <input type="number" step="0.5" min="0"' + (q.points ? ' max="' + q.points + '"' : '') + ' id="qs_' + kk + '_' + k + '" value="' + esc(has ? qsc[k] : '') + '" oninput="qsSum(\'' + kk + '\',' + qs.length + ')">' + (q.points ? ' / ' + q.points : '') + '</label>'
       : (s.status === 'graded' && has ? '<span class="chip c-full">ได้ ' + fx(qsc[k]) + (q.points ? '/' + q.points : '') + '</span>'
         : s.status === 'graded' && qsc.some(function (x) { return x !== '' && x != null; }) ? '<span class="chip c-none">– ' + (q.points ? '/ ' + q.points : '') + '</span>'
         : (q.points ? '<span class="tag">' + q.points + ' คะแนน</span>' : ''));
@@ -1158,8 +1207,9 @@ function subStatus(it, s) {
 }
 function vSHome() {
   var me = S.stu.me, h = [];
-  h.push('<div class="hero" style="grid-template-columns:auto 1fr"><div class="avatar">' + esc(me.name.charAt(0)) + '</div><div><h2>สวัสดี ' + esc(me.name) + '</h2><div class="sub">รหัสนักศึกษา ' + esc(me.studentId) + (me.program ? ' · ' + esc(me.program) : '') + '</div>' +
-    '<div class="row"><input id="j_code" placeholder="รหัสเข้าเรียนรายวิชา" style="border:0;border-radius:999px;padding:8px 14px;max-width:220px"><button class="btn gold" data-act="sJoin">เข้าร่วมรายวิชา</button><button class="btn-top" data-act="sPw">เปลี่ยนรหัสผ่าน</button></div></div></div>');
+  h.push('<div class="hero" style="grid-template-columns:auto 1fr">' + (me.photo ? '<div class="avatar" style="padding:0;overflow:hidden"><img src="' + esc(me.photo) + '" style="width:100%;height:100%;object-fit:cover" alt=""></div>' : '<div class="avatar">' + esc(me.name.charAt(0)) + '</div>') + '<div><h2>สวัสดี ' + esc(me.name) + '</h2><div class="sub">รหัสนักศึกษา ' + esc(me.studentId) + (me.program ? ' · ' + esc(me.program) : '') + '</div>' +
+    '<div class="row"><input id="j_code" placeholder="รหัสเข้าเรียนรายวิชา" style="border:0;border-radius:999px;padding:8px 14px;max-width:220px"><button class="btn gold" data-act="sJoin">เข้าร่วมรายวิชา</button><button class="btn-top" data-act="sProfile">โปรไฟล์ของฉัน</button><button class="btn-top" data-act="sPw">เปลี่ยนรหัสผ่าน</button></div></div></div>');
+  if (!me.photo && !me.phone && !me.lineId && !pfLater(me.id)) h.push('<div class="box ai row"><b>เพิ่มรูปโปรไฟล์ เบอร์โทร และไอดีไลน์</b><span>(ไม่บังคับ) ช่วยให้อาจารย์และเพื่อนในกลุ่มติดต่อได้</span><span class="sp"></span><button class="btn sm" data-act="sProfile">เพิ่มเลย</button><button class="btn sm light" data-act="sPfLater">ไว้ทีหลัง</button></div>');
   if (!S.stu.courses.length) h.push('<div class="card"><h3>ยังไม่มีรายวิชา</h3><p class="tag">กรอก “รหัสเข้าเรียน” ที่ได้รับจากอาจารย์ด้านบน แล้วกดเข้าร่วมรายวิชา</p></div>');
   h.push('<div class="grid g3">');
   S.stu.courses.forEach(function (c) {
@@ -1192,7 +1242,7 @@ function vSCourse(cid) {
     var its = stuItems(cid);
     if (!its.length) h.push('<p class="tag">ยังไม่มีงานที่เผยแพร่</p>');
     its.forEach(function (i) {
-      h.push('<div class="card lrow" style="--c:' + (c.color || '#2563eb') + '" data-act="go" data-v="sitem" data-p="' + i.id + '"><div>' + typeChip(i.type) + ' <b>' + esc(i.title) + '</b><div class="tag">คะแนนเต็ม ' + i.maxScore + ' ' + dueTxt(i.dueDate) + '</div></div><span class="sp"></span>' + subStatus(i, stuSub(i.id)) + '</div>');
+      h.push('<div class="card lrow" style="--c:' + (c.color || '#2563eb') + '" data-act="go" data-v="sitem" data-p="' + i.id + '"><div>' + typeChip(i.type) + (i.isGroup ? ' <span class="chip c-none">งานกลุ่ม' + ((S.stu.myGroups || {})[i.id] ? ' · ' + esc(S.stu.myGroups[i.id].name) : '') + '</span>' : '') + ' <b>' + esc(i.title) + '</b><div class="tag">คะแนนเต็ม ' + i.maxScore + ' ' + dueTxt(i.dueDate) + '</div></div><span class="sp"></span>' + subStatus(i, stuSub(i.id)) + '</div>');
     });
   } else {
     h.push('<div class="grid g4" style="margin-bottom:12px">' + kpi('คะแนนรวม', fx(sm.got) + '/' + sm.max) + kpi('ร้อยละ', sm.pct + '%') + kpi('เกรดประมาณการ', sm.grade) + kpi('บทเรียนที่เรียน', sm.lsDone + '/' + sm.lessons) + '</div>');
@@ -1225,20 +1275,23 @@ function vSItem(iid) {
   h.push('<div style="--c:' + (c.color || '#2563eb') + '"><div class="tag"><a href="javascript:void 0" data-act="go" data-v="scourse" data-p="' + c.id + '">' + esc(c.title) + '</a> › งาน</div>');
   h.push('<h2 class="pg">' + typeChip(i.type) + ' ' + esc(i.title) + '</h2><p class="lead">คะแนนเต็ม ' + i.maxScore + ' ' + dueTxt(i.dueDate) + ' ' + subStatus(i, s) + '</p>');
   if (i.instructions) h.push('<div class="card">' + md(i.instructions) + '</div>');
+  var myG = (S.stu.myGroups || {})[iid], noGroup = i.isGroup && !myG;
+  if (i.isGroup) h.push(myG ? groupPanel(myG, i) : '<div class="box gap" style="margin-top:12px"><b>งานกลุ่ม</b> — อาจารย์ยังไม่ได้จัดคุณเข้ากลุ่ม' + (i.type === 'assignment' ? ' จึงยังส่งงานไม่ได้' : '') + ' (ติดต่ออาจารย์ผู้สอน)</div>');
   if (i.type === 'assignment') {
     var editing = s && S._sEdit === iid && s.status !== 'graded';
     if (s && s.status === 'returned') h.push('<div class="box gap" style="margin-top:12px"><b>อาจารย์ส่งงานคืนให้แก้ไข</b>' + (s.feedback ? '<div>ความเห็นอาจารย์: ' + esc(s.feedback) + '</div>' : '') + '<div class="tag">กด “แก้ไขงาน” แก้ตามคำแนะนำ แล้วกดส่งอีกครั้ง</div></div>');
     if (s && !editing) {
       var qn = subQs(i).length;
-      h.push('<div class="card accent" style="margin-top:12px"><div class="row"><h3 style="margin:0">ผลงานที่ส่งของฉัน</h3><span class="sp"></span>' +
+      var byM = myG && s.lastBy ? myG.members.filter(function (m) { return m.id === s.lastBy; })[0] : null;
+      h.push('<div class="card accent" style="margin-top:12px"><div class="row"><h3 style="margin:0">' + (myG ? 'ผลงานของกลุ่ม' : 'ผลงานที่ส่งของฉัน') + '</h3><span class="sp"></span>' +
         (s.status !== 'graded' ? '<button class="btn" data-act="sEdit" data-p="' + iid + '">แก้ไขงาน</button><button class="btn danger" data-act="sDel" data-p="' + iid + '">ลบงานที่ส่ง</button>' : '') + '</div>' +
-        '<div class="tag">ส่งล่าสุด ' + esc(s.submittedAt || '-') + (s.editCount ? ' · แก้ไขแล้ว ' + s.editCount + ' ครั้ง' : '') + (isLate(i, s) ? ' · <span class="chip c-noevidence">ส่งช้า</span>' : '') + (s.gradedAt && s.status === 'graded' ? ' · ตรวจเมื่อ ' + esc(s.gradedAt) : '') + '</div>' +
+        '<div class="tag">ส่งล่าสุด ' + esc(s.submittedAt || '-') + (byM ? ' โดย ' + esc(byM.name) : '') + (s.editCount ? ' · แก้ไขแล้ว ' + s.editCount + ' ครั้ง' : '') + (isLate(i, s) ? ' · <span class="chip c-noevidence">ส่งช้า</span>' : '') + (s.gradedAt && s.status === 'graded' ? ' · ตรวจเมื่อ ' + esc(s.gradedAt) : '') + '</div>' +
         qaHtml(i, s, false) +
         (s.text ? (qn ? '<div class="tag" style="margin-top:6px">ข้อความเพิ่มเติม</div>' : '') + '<div class="wd" style="white-space:pre-wrap;margin:8px 0">' + esc(s.text) + '</div>' : '') + fileList(s.files) +
         (s.status === 'graded' ? '<div class="box ok"><b>คะแนน ' + fx(s.score) + '/' + i.maxScore + '</b>' + (s.feedback ? '<div>ความเห็นอาจารย์: ' + esc(s.feedback) + '</div>' : '') + '</div>'
           : s.status === 'returned' ? '' : '<div class="box gap">รออาจารย์ตรวจ — แก้ไขหรือลบได้จนกว่าอาจารย์จะตรวจ' + (s.feedback ? '<div>ความเห็นอาจารย์ (ครั้งก่อน): ' + esc(s.feedback) + '</div>' : '') + '</div>') + '</div>');
     }
-    if (!s || editing) h.push(stuAnswerForm(i, s));
+    if ((!s || editing) && !noGroup) h.push(stuAnswerForm(i, s, myG));
   } else if (s) {
     h.push('<div class="card accent" style="margin-top:12px"><h3>ผลงานที่ส่งของฉัน</h3><div class="tag">ส่งเมื่อ ' + esc(s.submittedAt || '-') + (s.gradedAt && s.status === 'graded' ? ' · ตรวจเมื่อ ' + esc(s.gradedAt) : '') + '</div>' +
       (s.text ? '<div class="wd" style="white-space:pre-wrap;margin:8px 0">' + esc(s.text) + '</div>' : '') + fileList(s.files) +
@@ -1255,9 +1308,10 @@ function vSItem(iid) {
 }
 
 /** แบบฟอร์มส่งงาน/แก้ไขงานของนักศึกษา (ใบงาน) */
-function stuAnswerForm(i, s) {
+function stuAnswerForm(i, s, g) {
   var qs = subQs(i), ans = (s && s.answers) || [];
-  return '<div class="card" style="margin-top:12px"><h3>' + (s ? 'แก้ไขงานที่ส่ง' : 'ส่งงาน') + '</h3>' +
+  return '<div class="card" style="margin-top:12px"><h3>' + (g ? (s ? 'แก้ไขงานของกลุ่ม' : 'ส่งงานกลุ่ม') + ' · ' + esc(g.name) : (s ? 'แก้ไขงานที่ส่ง' : 'ส่งงาน')) + '</h3>' +
+    (g ? '<p class="tag">เพื่อนในกลุ่มทุกคนจะเห็นคำตอบนี้ และแก้ไขต่อได้ · ถ้าแก้พร้อมกัน ระบบเก็บฉบับที่กดส่งล่าสุด</p>' : '') +
     (qs.length ? '<p class="tag">ตอบคำถาม ' + qs.length + ' ข้อ พิมพ์คำตอบในช่องใต้คำถามแต่ละข้อ</p>' + qs.map(function (q, k) {
       return '<div class="qz"><div class="row"><b>ข้อ ' + (k + 1) + '.</b><span class="qa-q">' + esc(q.q) + '</span><span class="sp"></span>' + (q.points ? '<span class="tag">' + q.points + ' คะแนน</span>' : '') + '</div>' +
         '<textarea class="qin qans" id="sb_a' + k + '" placeholder="พิมพ์คำตอบข้อ ' + (k + 1) + '">' + esc(ans[k] || '') + '</textarea></div>';
@@ -1266,6 +1320,11 @@ function stuAnswerForm(i, s) {
     (s ? '<div class="f"><label>ไฟล์ที่แนบไว้ (กด ✕ เพื่อเอาออก)</label><div id="sbFiles">' + sbFilesHtml() + '</div></div>' : '') +
     '<div class="f"><label>' + (s ? 'แนบไฟล์เพิ่ม' : 'แนบไฟล์') + ' (ไม่บังคับ · ไม่เกิน 15MB/ไฟล์ · เลือกได้หลายไฟล์)</label><input id="sb_files" type="file" multiple></div>' +
     '<div class="row"><button class="btn gold" data-act="sSubmit" data-p="' + i.id + '">' + (s ? 'บันทึกการแก้ไขและส่ง' : 'ส่งงาน') + '</button>' + (s ? '<button class="btn light" data-act="sCancel">ยกเลิกการแก้ไข</button>' : '') + '<span class="tag" id="sbMsg"></span></div></div>';
+}
+function groupPanel(g, i) {
+  return '<div class="card" style="margin-top:12px;border-left:4px solid var(--c)"><div class="row"><h3 style="margin:0">งานกลุ่ม · ' + esc(g.name) + '</h3><span class="tag">' + g.members.length + ' คน</span></div>' +
+    '<div class="mems">' + g.members.map(function (m) { var ct = contactHtml(m); return '<div class="mem">' + avatar(m, 34) + '<div><b>' + esc(m.name) + (m.id === S.stu.me.id ? ' (ฉัน)' : '') + '</b>' + (ct ? '<div class="tag">' + ct + '</div>' : '') + '</div></div>'; }).join('') + '</div>' +
+    '<p class="tag" style="margin:0">' + (i.type === 'assignment' ? 'สมาชิกทุกคนเห็นใบงานเดียวกัน ใครส่งหรือแก้ไขก็ได้ (จนกว่าอาจารย์จะตรวจ) · คะแนนเป็นของทุกคนในกลุ่ม' : 'กิจกรรมกลุ่ม อาจารย์ให้คะแนนในชั้นเรียน') + ' · เบอร์/ไลน์ของเพื่อนแสดงเฉพาะคนที่อนุญาตในโปรไฟล์</p></div>';
 }
 function sbFilesHtml() {
   var f = S._sFiles || [];
@@ -1287,7 +1346,7 @@ function tScore(cid, sid) {
   return { max: max, got: Math.round(got * 100) / 100, pct: pct, grade: gradeOf(pct, L().gradeScale), lsDone: L().progress.filter(function (p) { return p.courseId === cid && p.sid === sid; }).length };
 }
 function vTHome() {
-  var pend = L().subs.filter(function (s) { return s.status === 'submitted'; });
+  var pend = pendList();
   var g = S.data ? S.data.analysis.groups[S.group] : null, h = [];
   h.push('<div class="hero">' + (g ? ring(g.total, 100, '#ffd56b') : '') + '<div><h2>สวัสดี ' + esc(S.boot.settings.OWNER_NAME || 'อาจารย์') + '</h2><div class="sub">' + esc(S.boot.settings.FACULTY || '') + '</div><div class="kpis">' +
     '<div class="kpi"><b>' + L().courses.length + '</b><span>รายวิชา</span></div><div class="kpi"><b>' + L().students.length + '</b><span>นักศึกษา</span></div>' +
@@ -1303,10 +1362,11 @@ function vTHome() {
 function pendRow(s) {
   var it = L().items.filter(function (i) { return i.id === s.itemId; })[0], st = tStudent(s.sid), c = it ? tCourse(it.courseId) : null;
   if (!it || !st) return '';
-  return '<div class="lrow" data-act="go" data-v="titem" data-p="' + it.id + '"><div><b>' + esc(st.name) + '</b> <span class="tag">' + esc(st.studentId) + '</span><div class="tag">' + esc(c ? c.title : '') + ' › ' + esc(it.title) + ' · ส่ง ' + esc(s.submittedAt) + (isLate(it, s) ? ' <span class="chip c-noevidence">ส่งช้า</span>' : '') + (s.editCount ? ' <span class="chip c-none">แก้ไข ' + s.editCount + ' ครั้ง</span>' : '') + '</div></div><span class="sp"></span><span class="chip c-partial">ตรวจ →</span></div>';
+  var grp = s.groupId ? (it.groups || []).filter(function (g) { return g.id === s.groupId; })[0] : null;
+  return '<div class="lrow" data-act="go" data-v="titem" data-p="' + it.id + '"><div>' + (grp ? '<b>' + esc(grp.name) + '</b> <span class="chip c-none">งานกลุ่ม ' + grp.members.length + ' คน</span>' : avatar(st, 24) + '<b>' + esc(st.name) + '</b> <span class="tag">' + esc(st.studentId) + '</span>') + '<div class="tag">' + esc(c ? c.title : '') + ' › ' + esc(it.title) + ' · ส่ง ' + esc(s.submittedAt) + (isLate(it, s) ? ' <span class="chip c-noevidence">ส่งช้า</span>' : '') + (s.editCount ? ' <span class="chip c-none">แก้ไข ' + s.editCount + ' ครั้ง</span>' : '') + '</div></div><span class="sp"></span><span class="chip c-partial">ตรวจ →</span></div>';
 }
 function vTPending() {
-  var pend = L().subs.filter(function (s) { return s.status === 'submitted'; });
+  var pend = pendList();
   return '<h2 class="pg">งานรอตรวจ (' + pend.length + ')</h2><p class="lead">คลิกเพื่อเปิดหน้าตรวจงานและให้คะแนน</p><div class="card">' + (pend.length ? pend.map(pendRow).join('') : '<p class="tag">ไม่มีงานค้างตรวจ</p>') + '</div>';
 }
 function vTCourses() {
@@ -1338,9 +1398,9 @@ function vTCourse(cid) {
     var its = tItems(cid), tot = its.reduce(function (a, i) { return a + i.maxScore; }, 0);
     h.push('<p class="tag">คะแนนเต็มรวมของรายวิชา: <b>' + tot + '</b> คะแนน</p>');
     its.forEach(function (i) {
-      var subs = L().subs.filter(function (s) { return s.itemId === i.id; }), pend = subs.filter(function (s) { return s.status === 'submitted'; }).length;
+      var subs = L().subs.filter(function (s) { return s.itemId === i.id; }), pend = pendList().filter(function (s) { return s.itemId === i.id; }).length;
       var ls = i.lessonId ? L().lessons.filter(function (l) { return l.id === i.lessonId; })[0] : null;
-      h.push('<div class="card lrow" style="--c:' + c.color + '" data-act="go" data-v="titem" data-p="' + i.id + '"><div>' + typeChip(i.type) + ' <b>' + esc(i.title) + '</b><div class="tag">เต็ม ' + i.maxScore + ' · ' + (i.published ? 'เผยแพร่' : 'ฉบับร่าง') + (ls ? ' · บทเรียน: ' + esc(ls.title) : '') + ' ' + dueTxt(i.dueDate) + '</div></div><span class="sp"></span>' +
+      h.push('<div class="card lrow" style="--c:' + c.color + '" data-act="go" data-v="titem" data-p="' + i.id + '"><div>' + typeChip(i.type) + ((i.groups || []).length ? ' <span class="chip c-none">งานกลุ่ม ' + i.groups.length + ' กลุ่ม</span>' : '') + ' <b>' + esc(i.title) + '</b><div class="tag">เต็ม ' + i.maxScore + ' · ' + (i.published ? 'เผยแพร่' : 'ฉบับร่าง') + (ls ? ' · บทเรียน: ' + esc(ls.title) : '') + ' ' + dueTxt(i.dueDate) + '</div></div><span class="sp"></span>' +
         '<span class="tag">ส่งแล้ว ' + subs.length + '/' + studs.length + '</span>' + (pend ? ' <span class="chip c-partial">รอตรวจ ' + pend + '</span>' : '') + ' <span class="tag">ตรวจ/ให้คะแนน →</span></div>');
     });
   } else if (t === 'students') {
@@ -1348,11 +1408,11 @@ function vTCourse(cid) {
     h.push('<div class="card" style="margin-bottom:12px"><div class="row"><button class="btn gold" data-act="impOpen" data-p="' + cid + '">นำเข้ารายชื่อนักศึกษา (Excel/วางรายชื่อ)</button><span class="tag">ตรวจว่าใครลงทะเบียนแล้ว/ยังไม่ลงทะเบียน และสร้างบัญชีให้คนที่ยังไม่มี</span></div></div>');
     h.push('<div class="card" style="margin-bottom:12px"><div class="row"><b>เพิ่มนักศึกษาที่ลงทะเบียนในระบบแล้ว</b><select id="addStu" style="min-width:260px;border:1px solid #cdd5e3;border-radius:9px;padding:6px"><option value="">— เลือก —</option>' + all.map(function (s) { return '<option value="' + s.id + '">' + esc(s.studentId + ' ' + s.name) + '</option>'; }).join('') + '</select><button class="btn sm" data-act="enrollAdd" data-p="' + cid + '">เพิ่ม</button><span class="sp"></span><span class="tag">หรือให้นักศึกษาลงทะเบียนเองด้วยรหัส <b>' + esc(c.enrollCode) + '</b></span></div></div>');
     var dn = dupNames();
-    h.push('<div class="card tblwrap"><table class="t"><tr><th class="n">#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>สาขา</th><th>เข้าระบบล่าสุด</th><th class="n">บทเรียน</th><th class="n">คะแนน</th><th class="c">เกรด</th><th></th></tr>' + studs.map(function (s, k) {
+    h.push('<div class="card tblwrap"><table class="t"><tr><th class="n">#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>สาขา</th><th>ติดต่อ</th><th>เข้าระบบล่าสุด</th><th class="n">บทเรียน</th><th class="n">คะแนน</th><th class="c">เกรด</th><th></th></tr>' + studs.map(function (s, k) {
       var sc = tScore(cid, s.id);
-      return '<tr><td class="n">' + (k + 1) + '</td><td>' + esc(s.studentId) + '</td><td>' + esc(s.name) + (s.status === 'disabled' ? ' <span class="chip c-noevidence">ระงับ</span>' : '') + (dn[normName(s.name)] > 1 ? ' <span class="chip c-partial" title="มีบัญชีชื่อเดียวกันมากกว่า 1 บัญชี">ชื่อซ้ำ</span>' : '') + '</td><td>' + esc(s.program) + '</td><td class="tag">' + esc(s.lastLogin || '–') + '</td><td class="n">' + sc.lsDone + '/' + tLessons(cid).length + '</td><td class="n">' + fx(sc.got) + '/' + sc.max + '</td><td class="c"><b>' + sc.grade + '</b></td>' +
+      return '<tr><td class="n">' + (k + 1) + '</td><td>' + esc(s.studentId) + '</td><td>' + avatar(s, 26) + esc(s.name) + (s.status === 'disabled' ? ' <span class="chip c-noevidence">ระงับ</span>' : '') + (dn[normName(s.name)] > 1 ? ' <span class="chip c-partial" title="มีบัญชีชื่อเดียวกันมากกว่า 1 บัญชี">ชื่อซ้ำ</span>' : '') + '</td><td>' + esc(s.program) + '</td><td class="tag">' + (contactHtml(s) || '–') + '</td><td class="tag">' + esc(s.lastLogin || '–') + '</td><td class="n">' + sc.lsDone + '/' + tLessons(cid).length + '</td><td class="n">' + fx(sc.got) + '/' + sc.max + '</td><td class="c"><b>' + sc.grade + '</b></td>' +
         '<td class="n"><button class="btn sm light" data-act="stuRpt" data-p="' + s.id + '">รายงานรายบุคคล</button> <button class="btn sm light" data-act="stuEdit" data-p="' + s.id + '">แก้ไข</button> <button class="btn sm light" data-act="stuPw" data-p="' + s.id + '">รีเซ็ตรหัส</button> <button class="btn sm danger" data-act="enrollDel" data-p="' + s.id + '">นำออก</button></td></tr>';
-    }).join('') + (studs.length ? '' : '<tr><td colspan="9" class="tag">ยังไม่มีนักศึกษา</td></tr>') + '</table></div><p class="tag">เข้าระบบล่าสุด: บันทึกตั้งแต่เวอร์ชันนี้เป็นต้นไป · “ชื่อซ้ำ” = มีหลายบัญชีชื่อเดียวกัน (เช่น บัญชีทดสอบ/ลงทะเบียนซ้ำ) ลบได้ที่เมนู นักศึกษาทั้งหมด</p>');
+    }).join('') + (studs.length ? '' : '<tr><td colspan="10" class="tag">ยังไม่มีนักศึกษา</td></tr>') + '</table></div><p class="tag">เข้าระบบล่าสุด: บันทึกตั้งแต่เวอร์ชันนี้เป็นต้นไป · “ชื่อซ้ำ” = มีหลายบัญชีชื่อเดียวกัน (เช่น บัญชีทดสอบ/ลงทะเบียนซ้ำ) ลบได้ที่เมนู นักศึกษาทั้งหมด</p>');
   } else if (t === 'grades') {
     var its2 = tItems(cid);
     h.push('<div class="row" style="margin-bottom:10px"><button class="btn" style="background:#1d6f42;border-color:#1d6f42" data-act="gbXlsx" data-p="' + cid + '">ส่งออกสมุดคะแนน Excel</button><span class="tag">คลิกช่องคะแนนเพื่อให้/แก้คะแนน · คลิกชื่อเพื่อดูรายงานรายบุคคล</span></div>');
@@ -1393,27 +1453,80 @@ function vTItem(iid) {
   if (i.instructions || subQs(i).length) h.push('<details class="card"><summary><b>คำสั่งงาน' + (subQs(i).length ? '/คำถาม' : '') + '</b></summary>' + md(i.instructions || '') +
     (subQs(i).length ? '<ol>' + subQs(i).map(function (q) { return '<li style="white-space:pre-wrap">' + esc(q.q) + (q.points ? ' <span class="tag">(' + q.points + ' คะแนน)</span>' : '') + '</li>'; }).join('') + '</ol>' : '') + '</details>');
   if (i.type === 'activity' && /^\s*(?:ข้อ\s*)?\d{1,2}\s*[.)]/m.test(i.instructions || '')) h.push('<div class="box gap" style="margin-top:12px"><b>งานนี้เป็น “กิจกรรม” นักศึกษาจึงพิมพ์คำตอบส่งในระบบไม่ได้</b><div>ถ้าต้องการให้นักศึกษาตอบคำถามในระบบ: กด แก้ไขงาน > เปลี่ยนประเภทเป็น “ใบงาน” > กด “ดึงคำถามจากช่องคำชี้แจง”</div><button class="btn sm" style="margin-top:6px" data-act="itemEdit" data-p="' + iid + '">แก้ไขงาน / เปลี่ยนเป็นใบงาน</button></div>');
-  h.push('<div class="card tblwrap" style="margin-top:12px"><h3>ตรวจงานและให้คะแนน (' + studs.length + ' คน)</h3><table class="t"><tr><th>นักศึกษา</th><th>ผลงานที่ส่ง</th><th style="width:90px">คะแนน</th><th>ความเห็น</th><th></th></tr>');
-  studs.forEach(function (s) {
-    var sb = tSub(iid, s.id);
-    h.push('<tr><td><b>' + esc(s.name) + '</b><div class="tag">' + esc(s.studentId) + '</div>' + subChips(i, sb) + '</td><td class="subcell">' +
-      (sb ? '<div class="tag">' + esc(sb.submittedAt || '') + (ansCount(i, sb) ? ' · ' + ansCount(i, sb) : '') + '</div>' + qaHtml(i, sb, true) + (sb.text ? (subQs(i).length ? '<div class="tag">ข้อความเพิ่มเติม</div>' : '') + '<div class="wd" style="white-space:pre-wrap;max-height:120px;overflow:auto">' + esc(sb.text) + '</div>' : '') + fileList(sb.files) + (i.type === 'quiz' ? '<div class="tag">' + esc(sb.feedback) + '</div>' : '') : '') + '</td>' +
-      '<td><input type="number" step="0.5" min="0" max="' + i.maxScore + '" id="sc_' + s.id + '" value="' + esc(sb && sb.score !== '' ? sb.score : '') + '" style="width:80px;border:1px solid #cdd5e3;border-radius:8px;padding:5px"></td>' +
-      '<td><textarea id="fb_' + s.id + '" style="width:100%;min-height:46px;border:1px solid #cdd5e3;border-radius:8px;padding:5px">' + esc(sb ? sb.feedback : '') + '</textarea></td>' +
-      '<td class="n"><button class="btn sm" data-act="gradeSave" data-p="' + iid + '" data-k="' + s.id + '">บันทึก</button>' +
-        (sb && i.type === 'assignment' && sb.status !== 'returned' ? '<br><button class="btn sm light" style="margin-top:4px" data-act="returnSub" data-p="' + sb.id + '" data-k="' + s.id + '" title="ส่งคืนพร้อมความเห็น ให้นักศึกษาแก้ไขแล้วส่งใหม่">ส่งคืนให้แก้ไข</button>' : '') +
-        (sb && (sb.text || ansCount(i, sb)) && S.boot.aiReady ? '<br><button class="btn sm light" style="margin-top:4px" data-act="aiFb" data-p="' + sb.id + '" data-k="' + s.id + '">AI ช่วยร่าง</button>' : '') +
-      (sb ? '<br><button class="btn sm danger" style="margin-top:4px" data-act="subReset" data-p="' + sb.id + '" title="ลบงานที่ส่งทิ้ง ให้นักศึกษาเริ่มส่งใหม่">ลบ/ให้ส่งใหม่</button>' : '') + '</td></tr>');
-  });
-  h.push('</table>' + (studs.length ? '<button class="btn gold" style="margin-top:8px" data-act="gradeAll" data-p="' + iid + '">บันทึกคะแนนทั้งหมด</button>' : '<p class="tag">ยังไม่มีนักศึกษาในรายวิชา</p>') + '</div></div>');
+  var groups = i.type === 'quiz' ? [] : (i.groups || []), inG = {};
+  groups.forEach(function (g) { g.members.forEach(function (sid) { inG[sid] = g; }); });
+  var nG = studs.filter(function (s) { return inG[s.id]; }).length;
+  if (i.type !== 'quiz') h.push('<div class="card" style="margin-top:12px"><div class="row"><h3 style="margin:0">' + (groups.length ? 'งานกลุ่ม · ' + groups.length + ' กลุ่ม' : 'งานเดี่ยว') + '</h3><span class="sp"></span><button class="btn ' + (groups.length ? 'light' : 'gold') + '" data-act="grpOpen" data-p="' + iid + '">' + (groups.length ? 'แก้ไขกลุ่ม/สมาชิก' : 'กำหนดเป็นงานกลุ่ม / จัดกลุ่ม') + '</button></div>' +
+    '<p class="tag" style="margin:6px 0 0">' + (groups.length ? 'นักศึกษาในกลุ่มเดียวกันเห็นใบงานเดียวกัน ใครส่ง/แก้ไขก็ได้ · ให้คะแนนครั้งเดียวได้ทั้งกลุ่ม (ปรับรายคนได้ที่สมุดคะแนน)' + (nG < studs.length ? ' · <b>ยังไม่มีกลุ่ม ' + (studs.length - nG) + ' คน</b>' : '') : 'อาจารย์กำหนดกลุ่มและรายชื่อสมาชิกเองได้ นักศึกษาในกลุ่มจะเห็นและส่ง' + (i.type === 'activity' ? 'ผลกิจกรรม' : 'ใบงาน') + 'ร่วมกัน') + '</p></div>');
+  var TH = function (first) { return '<table class="t"><tr><th>' + first + '</th><th>ผลงานที่ส่ง</th><th style="width:90px">คะแนน</th><th>ความเห็น</th><th></th></tr>'; };
+  if (groups.length) {
+    h.push('<div class="card tblwrap" style="margin-top:12px"><h3>ตรวจงานกลุ่ม (' + groups.length + ' กลุ่ม)</h3>' + TH('กลุ่ม/สมาชิก'));
+    groups.forEach(function (g) {
+      var rows = L().subs.filter(function (x) { return x.itemId === iid && x.groupId === g.id; }), sb = latestSub(rows), by = sb && sb.lastBy ? tStudent(sb.lastBy) : null;
+      var mem = g.members.map(function (sid) { var st = tStudent(sid); if (!st) return ''; var r = tSub(iid, sid); return '<div class="mem">' + avatar(st, 22) + esc(st.name) + (r && sb && r.score !== '' && String(r.score) !== String(sb.score) ? ' <span class="chip c-partial" title="คะแนนรายบุคคล">' + fx(r.score) + '</span>' : '') + '</div>'; }).join('');
+      h.push(gradeRow(i, g.id, sb, '<b>' + esc(g.name) + '</b> <span class="tag">' + g.members.length + ' คน</span>' + mem + subChips(i, sb) + (by ? '<div class="tag">ส่ง/แก้ล่าสุดโดย ' + esc(by.name) + '</div>' : ''), true));
+    });
+    h.push('</table></div>');
+  }
+  var indiv = studs.filter(function (s) { return !inG[s.id]; });
+  if (indiv.length || !groups.length) {
+    h.push('<div class="card tblwrap" style="margin-top:12px"><h3>' + (groups.length ? 'นักศึกษาที่ยังไม่มีกลุ่ม (' + indiv.length + ' คน) — ให้คะแนนรายบุคคล' : 'ตรวจงานและให้คะแนน (' + studs.length + ' คน)') + '</h3>' + TH('นักศึกษา'));
+    indiv.forEach(function (s) { var sb = tSub(iid, s.id); h.push(gradeRow(i, s.id, sb, avatar(s, 26) + '<b>' + esc(s.name) + '</b><div class="tag">' + esc(s.studentId) + '</div>' + subChips(i, sb), false)); });
+    h.push('</table></div>');
+  }
+  h.push((studs.length ? '<button class="btn gold" style="margin-top:8px" data-act="gradeAll" data-p="' + iid + '">บันทึกคะแนนทั้งหมด</button>' : '<p class="tag">ยังไม่มีนักศึกษาในรายวิชา</p>') + '</div>');
   return h.join('');
 }
+/** แถวตรวจงาน 1 แถว (key = รหัสนักศึกษาในระบบ หรือรหัสกลุ่ม) */
+function gradeRow(i, key, sb, label, isGroup) {
+  return '<tr><td>' + label + '</td><td class="subcell">' +
+    (sb ? '<div class="tag">' + esc(sb.submittedAt || '') + (ansCount(i, sb) ? ' · ' + ansCount(i, sb) : '') + '</div>' + qaHtml(i, sb, true, key) + (sb.text ? (subQs(i).length ? '<div class="tag">ข้อความเพิ่มเติม</div>' : '') + '<div class="wd" style="white-space:pre-wrap;max-height:120px;overflow:auto">' + esc(sb.text) + '</div>' : '') + fileList(sb.files) + (i.type === 'quiz' ? '<div class="tag">' + esc(sb.feedback) + '</div>' : '') : '') + '</td>' +
+    '<td><input type="number" step="0.5" min="0" max="' + i.maxScore + '" id="sc_' + key + '" value="' + esc(sb && sb.score !== '' ? sb.score : '') + '" style="width:80px;border:1px solid #cdd5e3;border-radius:8px;padding:5px"></td>' +
+    '<td><textarea id="fb_' + key + '" style="width:100%;min-height:46px;border:1px solid #cdd5e3;border-radius:8px;padding:5px">' + esc(sb ? sb.feedback : '') + '</textarea></td>' +
+    '<td class="n"><button class="btn sm" data-act="' + (isGroup ? 'gradeGroup' : 'gradeSave') + '" data-p="' + i.id + '" data-k="' + key + '">' + (isGroup ? 'บันทึกทั้งกลุ่ม' : 'บันทึก') + '</button>' +
+    (sb && i.type === 'assignment' && sb.status !== 'returned' ? '<br><button class="btn sm light" style="margin-top:4px" data-act="returnSub" data-p="' + sb.id + '" data-k="' + key + '" title="ส่งคืนพร้อมความเห็น ให้แก้ไขแล้วส่งใหม่">ส่งคืนให้แก้ไข</button>' : '') +
+    (sb && (sb.text || ansCount(i, sb)) && S.boot.aiReady ? '<br><button class="btn sm light" style="margin-top:4px" data-act="aiFb" data-p="' + sb.id + '" data-k="' + key + '">AI ช่วยร่าง</button>' : '') +
+    (sb ? '<br><button class="btn sm danger" style="margin-top:4px" data-act="subReset" data-p="' + sb.id + '" title="ลบงานที่ส่งทิ้ง ให้เริ่มส่งใหม่">ลบ/ให้ส่งใหม่</button>' : '') + '</td></tr>';
+}
+/* ---------------- จัดกลุ่ม (อาจารย์) ---------------- */
+function grpModal(iid) {
+  var it = L().items.filter(function (x) { return x.id === iid; })[0], studs = tEnrolled(it.courseId), gs = JSON.parse(JSON.stringify(it.groups || []));
+  S._grp = { iid: iid, groups: gs.map(function (g) { return { id: g.id, name: g.name }; }), assign: {} };
+  studs.forEach(function (s) { S._grp.assign[s.id] = -1; });
+  gs.forEach(function (g, k) { g.members.forEach(function (sid) { if (sid in S._grp.assign) S._grp.assign[sid] = k; }); });
+  var others = tItems(it.courseId).filter(function (x) { return x.id !== iid && (x.groups || []).length; });
+  openModal('<h3>จัดกลุ่ม — ' + esc(it.title) + '</h3><p class="tag">นักศึกษาในกลุ่มเดียวกันจะเห็นและส่ง/แก้ไขใบงานร่วมกัน · อาจารย์ให้คะแนนครั้งเดียวได้ทั้งกลุ่ม · เปลี่ยนสมาชิกภายหลังได้ (สมาชิกใหม่จะเห็นงานที่กลุ่มส่งแล้ว)</p>' +
+    '<div class="row"><label class="tag">จำนวนกลุ่ม <input id="g_n" type="number" min="1" max="100" value="' + (gs.length || Math.max(1, Math.round(studs.length / 5))) + '" style="width:64px;border:1px solid #cdd5e3;border-radius:7px;padding:4px"></label>' +
+    '<button class="btn sm" data-act="grpAuto" data-p="rand">สุ่มจัดกลุ่ม</button><button class="btn sm light" data-act="grpAuto" data-p="seq">แบ่งตามลำดับรหัส</button><button class="btn sm light" data-act="grpAdd">+ เพิ่มกลุ่ม</button>' +
+    (others.length ? '<select id="g_copy" style="border:1px solid #cdd5e3;border-radius:8px;padding:5px"><option value="">คัดลอกกลุ่มจากงานอื่น…</option>' + others.map(function (x) { return '<option value="' + x.id + '">' + esc(x.title) + ' (' + x.groups.length + ' กลุ่ม)</option>'; }).join('') + '</select>' : '') + '</div>' +
+    '<div id="grpBox"></div>' +
+    '<div class="row">' + (gs.length ? '<button class="btn danger" data-act="grpClear">ยกเลิกงานกลุ่ม</button>' : '') + '<span class="sp"></span><button class="btn light" data-act="close">ปิด</button><button class="btn gold" data-act="grpSave">บันทึกกลุ่ม</button></div>', tCourse(it.courseId).color);
+  if ($('g_copy')) $('g_copy').onchange = function () { if (this.value) ACTIONS.grpCopy(this.value); };
+  grpRender();
+}
+function grpRender() {
+  var G = S._grp, it = L().items.filter(function (x) { return x.id === G.iid; })[0], studs = tEnrolled(it.courseId);
+  var box = $('grpBox'), tb = box.querySelector('.imp-tbl'), top = tb ? tb.scrollTop : 0;
+  var cards = G.groups.map(function (g, k) {
+    var mem = studs.filter(function (s) { return G.assign[s.id] === k; });
+    return '<div class="gcard"><div class="row"><input class="qin" style="flex:1;min-width:90px" value="' + esc(g.name) + '" oninput="S._grp.groups[' + k + '].name=this.value"><span class="tag">' + mem.length + ' คน</span><span class="x" style="color:var(--bad);cursor:pointer" data-act="grpDel" data-p="' + k + '">✕</span></div>' +
+      '<div class="tag" style="margin-top:4px">' + (mem.map(function (s) { return esc(s.name); }).join(', ') || 'ยังไม่มีสมาชิก') + '</div></div>';
+  }).join('');
+  var opts = function (sel) { return '<option value="-1">— ไม่มีกลุ่ม —</option>' + G.groups.map(function (g, k) { return '<option value="' + k + '"' + (sel === k ? ' selected' : '') + '>' + esc(g.name || ('กลุ่ม ' + (k + 1))) + '</option>'; }).join(''); };
+  var none = studs.filter(function (s) { return G.assign[s.id] < 0; }).length;
+  box.innerHTML = (G.groups.length ? '<div class="grid g3" style="margin:8px 0">' + cards + '</div>' : '<p class="tag">ยังไม่มีกลุ่ม — ใส่จำนวนกลุ่มแล้วกด “สุ่มจัดกลุ่ม” หรือ “แบ่งตามลำดับรหัส” หรือกด “+ เพิ่มกลุ่ม” แล้วเลือกกลุ่มให้นักศึกษาในตาราง</p>') +
+    '<div class="imp-tbl" style="max-height:330px"><table class="t"><tr><th class="n">#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>กลุ่ม</th></tr>' + studs.map(function (s, k) {
+      return '<tr><td class="n">' + (k + 1) + '</td><td>' + esc(s.studentId) + '</td><td>' + avatar(s, 22) + esc(s.name) + '</td><td><select onchange="S._grp.assign[\'' + s.id + '\']=Number(this.value);grpRender()">' + opts(G.assign[s.id]) + '</select></td></tr>';
+    }).join('') + '</table></div>' + (none && G.groups.length ? '<p class="tag">ยังไม่มีกลุ่ม ' + none + ' คน — ให้คะแนนรายบุคคล และส่งใบงานไม่ได้จนกว่าจะมีกลุ่ม</p>' : '');
+  var tb2 = box.querySelector('.imp-tbl'); if (tb2) tb2.scrollTop = top;
+}
+
 function vTStudents() {
   var st = L().students, dn = dupNames();
   return '<h2 class="pg">นักศึกษาทั้งหมด (' + st.length + ')</h2><p class="lead">นักศึกษาลงทะเบียนเองที่หน้า “ห้องเรียนออนไลน์” · อาจารย์รีเซ็ตรหัสผ่านหรือระงับบัญชีได้</p><div class="f" style="max-width:360px"><input id="stuQ" placeholder="ค้นหารหัส/ชื่อ" oninput="var q=this.value.toLowerCase();Array.prototype.forEach.call(document.querySelectorAll(\'#stuT tr[data-q]\'),function(r){r.style.display=r.getAttribute(\'data-q\').indexOf(q)>=0?\'\':\'none\'})"></div>' +
-    '<div class="card tblwrap"><table class="t" id="stuT"><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>สาขา</th><th>อีเมล</th><th>รายวิชา</th><th>ลงทะเบียน</th><th>เข้าระบบล่าสุด</th><th></th></tr>' + st.slice().sort(function (a, b) { return String(a.studentId).localeCompare(String(b.studentId)); }).map(function (s) {
+    '<div class="card tblwrap"><table class="t" id="stuT"><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>สาขา</th><th>ติดต่อ</th><th>อีเมล</th><th>รายวิชา</th><th>ลงทะเบียน</th><th>เข้าระบบล่าสุด</th><th></th></tr>' + st.slice().sort(function (a, b) { return String(a.studentId).localeCompare(String(b.studentId)); }).map(function (s) {
       var cs = L().enrollments.filter(function (e) { return e.sid === s.id; }).map(function (e) { var c = tCourse(e.courseId); return c ? c.code || c.title : ''; });
-      return '<tr data-q="' + esc((s.studentId + ' ' + s.name).toLowerCase()) + '"><td>' + esc(s.studentId) + '</td><td>' + esc(s.name) + (dn[normName(s.name)] > 1 ? ' <span class="chip c-partial">ชื่อซ้ำ</span>' : '') + (s.status === 'disabled' ? ' <span class="chip c-noevidence">ระงับ</span>' : '') + '</td><td>' + esc(s.program) + '</td><td>' + esc(s.email) + '</td><td>' + esc(cs.join(', ')) + '</td><td>' + esc(s.createdAt) + '</td><td class="tag">' + esc(s.lastLogin || '–') + '</td>' +
+      return '<tr data-q="' + esc((s.studentId + ' ' + s.name).toLowerCase()) + '"><td>' + esc(s.studentId) + '</td><td>' + avatar(s, 26) + esc(s.name) + (dn[normName(s.name)] > 1 ? ' <span class="chip c-partial">ชื่อซ้ำ</span>' : '') + (s.status === 'disabled' ? ' <span class="chip c-noevidence">ระงับ</span>' : '') + '</td><td>' + esc(s.program) + '</td><td class="tag">' + (contactHtml(s) || '–') + '</td><td>' + esc(s.email) + '</td><td>' + esc(cs.join(', ')) + '</td><td>' + esc(s.createdAt) + '</td><td class="tag">' + esc(s.lastLogin || '–') + '</td>' +
         '<td class="n"><button class="btn sm light" data-act="stuEdit" data-p="' + s.id + '">แก้ไข</button> <button class="btn sm light" data-act="stuPw" data-p="' + s.id + '">รีเซ็ตรหัส</button> <button class="btn sm ' + (s.status === 'disabled' ? 'light' : 'danger') + '" data-act="stuToggle" data-p="' + s.id + '">' + (s.status === 'disabled' ? 'เปิดใช้งาน' : 'ระงับ') + '</button> <button class="btn sm danger" data-act="stuDelete" data-p="' + s.id + '">ลบ</button></td></tr>';
     }).join('') + '</table></div><p class="tag">นำเข้ารายชื่อจาก Excel: เข้ารายวิชา > แท็บ นักศึกษา > นำเข้ารายชื่อนักศึกษา · “ลบ” = ลบบัญชีพร้อมงานที่ส่งและคะแนน (ใช้กับบัญชีทดสอบ/ลงทะเบียนซ้ำ) · ถ้าแค่ไม่ให้เข้าใช้ ให้กด “ระงับ”</p>';
 }
@@ -1574,6 +1687,7 @@ function itemForm(cid, it, type) {
     (it.type === 'quiz' ? aiBar('quiz', 'ออกข้อสอบ') + '<div id="qzBox"></div><button class="btn sm light" data-act="qzAdd">+ เพิ่มข้อ</button>' : '') +
     (it.type === 'assignment' ? '<div class="hr"></div><h4 style="margin:4px 0">คำถามให้นักศึกษาพิมพ์ตอบ</h4><p class="tag">ไม่บังคับ — ถ้าตั้งคำถาม นักศึกษาจะมีช่องพิมพ์คำตอบใต้แต่ละข้อ และอาจารย์ให้คะแนนรายข้อได้ · ถ้าไม่ตั้ง นักศึกษาตอบในช่องข้อความ/แนบไฟล์ตามเดิม · ใส่คะแนนรายข้อหรือเว้นว่างก็ได้</p>' +
       '<div id="aqBox"></div><div class="row"><button class="btn sm light" data-act="aqAdd">+ เพิ่มคำถาม</button><button class="btn sm light" data-act="aqFromIns" title="แยกบรรทัดที่ขึ้นต้นด้วย 1. 2. 3. ในช่องคำชี้แจงมาเป็นคำถาม">ดึงคำถามจากช่องคำชี้แจง</button><span class="tag" id="aqSum"></span></div><div class="hr"></div>' : '') +
+    (it.type !== 'quiz' ? '<p class="tag">งานกลุ่ม: บันทึกงานก่อน แล้วกด “กำหนดเป็นงานกลุ่ม / จัดกลุ่ม” ที่หน้างาน</p>' : '') +
     '<label class="chk"><input type="checkbox" id="i_pub"' + (it.published ? ' checked' : '') + '> เผยแพร่ให้นักศึกษาเห็น</label>' +
     '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ปิด</button><button class="btn gold" data-act="itemSave" data-p="' + (it.id || '') + '">บันทึก</button></div>', c.color);
   S._editing = { kind: 'item', courseId: cid, id: it.id, type: it.type };
@@ -1622,6 +1736,27 @@ var LMS_ACTIONS = {
   sJoin: function (p, el) { busy(el, true); call('stuJoin', S.token, v_('j_code')).then(function (t) { busy(el, false); reStu('เข้าร่วมรายวิชา ' + t + ' แล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
   sPw: function () { openModal('<h3>เปลี่ยนรหัสผ่าน</h3>' + fld('pw_old', 'รหัสผ่านเดิม', 'password') + fld('pw_new', 'รหัสผ่านใหม่ (≥ 6 ตัว)', 'password') + '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ยกเลิก</button><button class="btn" data-act="sPwSave">บันทึก</button></div>'); },
   sPwSave: function (p, el) { busy(el, true); call('studentChangePassword', S.token, $('pw_old').value, $('pw_new').value).then(function () { closeModal(); toast('เปลี่ยนรหัสผ่านแล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
+  sProfile: function () {
+    var me = S.stu.me; S._pf = { photo: me.photo || '', changed: false };
+    openModal('<h3>โปรไฟล์ของฉัน</h3><p class="tag">ทุกช่องไม่บังคับ · อาจารย์ผู้สอนเห็นข้อมูลนี้เพื่อใช้ติดต่อ</p>' +
+      '<div class="row" style="align-items:flex-start"><div id="pfPrev">' + avatar({ name: me.name, photo: S._pf.photo }, 96) + '</div><div style="flex:1"><div class="f"><label>รูปโปรไฟล์ (ระบบตัดเป็นสี่เหลี่ยมและย่อขนาดให้อัตโนมัติ)</label><input id="pf_file" type="file" accept="image/*"></div><button class="btn sm light" data-act="sPhotoDel">ลบรูป</button></div></div>' +
+      '<div class="grid g2">' + fld('pf_phone', 'เบอร์โทรศัพท์', 'tel', me.phone) + fld('pf_line', 'ไอดีไลน์ (LINE ID)', 'text', me.lineId) + fld('pf_email', 'อีเมล', 'email', me.email) + fld('pf_prog', 'สาขา/ชั้นปี', 'text', me.program) + '</div>' +
+      '<label class="chk"><input type="checkbox" id="pf_share"' + (me.shareContact ? ' checked' : '') + '> ให้เพื่อนในกลุ่มเดียวกัน (งานกลุ่ม) เห็นเบอร์โทรและไอดีไลน์ของฉัน</label>' +
+      '<p class="tag">ชื่อ-สกุลและรหัสนักศึกษาแก้ไขโดยอาจารย์ (แจ้งอาจารย์ถ้าไม่ถูกต้อง)</p>' +
+      '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ยกเลิก</button><button class="btn gold" data-act="sProfileSave">บันทึก</button></div>');
+    $('pf_file').onchange = function () {
+      var f = this.files[0]; if (!f) return;
+      resizePhoto(f, 200).then(function (d) { S._pf.photo = d; S._pf.changed = true; $('pfPrev').innerHTML = avatar({ name: me.name, photo: d }, 96); }).catch(fail);
+    };
+  },
+  sPhotoDel: function () { S._pf.photo = ''; S._pf.changed = true; $('pfPrev').innerHTML = avatar({ name: S.stu.me.name, photo: '' }, 96); },
+  sProfileSave: function (p, el) {
+    var f = { phone: v_('pf_phone'), lineId: v_('pf_line'), email: v_('pf_email'), program: v_('pf_prog'), shareContact: $('pf_share').checked };
+    if (S._pf.changed) f.photo = S._pf.photo;
+    busy(el, true);
+    call('stuUpdateProfile', S.token, f).then(function () { closeModal(); reStu('บันทึกโปรไฟล์แล้ว'); }).catch(function (x) { busy(el, false); fail(x); });
+  },
+  sPfLater: function () { try { localStorage.setItem('pfLater_' + S.stu.me.id, '1'); } catch (e) {} render(); },
   sQuiz: function (p, el) {
     var it = S.stu.items.filter(function (x) { return x.id === p; })[0], ans = [], miss = 0;
     it.quiz.forEach(function (q, k) { var r = document.querySelector('input[name="q' + k + '"]:checked'); ans.push(r ? Number(r.value) : -1); if (!r) miss++; });
@@ -1647,7 +1782,7 @@ var LMS_ACTIONS = {
   sCancel: function () { S._sEdit = null; S._sFiles = null; render(); },
   sFileDel: function (p) { S._sFiles.splice(Number(p), 1); $('sbFiles').innerHTML = sbFilesHtml(); },
   sDel: function (p, el) {
-    if (!confirm('ลบงานที่ส่งทั้งหมด (คำตอบและไฟล์แนบ)?\nลบแล้วกู้คืนไม่ได้ ต้องส่งงานใหม่')) return;
+    if (!confirm(((S.stu.myGroups || {})[p] ? 'นี่คืองานกลุ่ม: การลบจะลบงานของทั้งกลุ่ม\n' : '') + 'ลบงานที่ส่งทั้งหมด (คำตอบและไฟล์แนบ)?\nลบแล้วกู้คืนไม่ได้ ต้องส่งงานใหม่')) return;
     busy(el, true);
     call('stuDeleteSubmission', S.token, p).then(function () { S._sEdit = null; reStu('ลบงานที่ส่งแล้ว'); }).catch(function (x) { busy(el, false); fail(x); });
   },
@@ -1742,22 +1877,68 @@ var LMS_ACTIONS = {
   gradeAll: function (p, el) {
     var it = L().items.filter(function (x) { return x.id === p; })[0], studs = tEnrolled(it.courseId), chain = Promise.resolve(), n = 0;
     busy(el, true);
-    studs.forEach(function (s) {
-      var sc = v_('sc_' + s.id), fb = $('fb_' + s.id).value, sb = tSub(p, s.id), nq = subQs(it).length, qv = collectQS(s.id, nq);
+    var jobs = [], nq = subQs(it).length;
+    (it.groups || []).forEach(function (g) { if ($('sc_' + g.id)) jobs.push({ key: g.id, groupId: g.id, sb: latestSub(L().subs.filter(function (x) { return x.itemId === p && x.groupId === g.id; })) }); });
+    studs.forEach(function (s) { if ($('sc_' + s.id)) jobs.push({ key: s.id, sid: s.id, sb: tSub(p, s.id) }); });
+    jobs.forEach(function (j) {
+      var sc = v_('sc_' + j.key), fb = $('fb_' + j.key).value, sb = j.sb, qv = collectQS(j.key, nq);
       if (sc === '' && !fb && !sb) return;
       if (sb && String(sb.score) === sc && (sb.feedback || '') === fb && (!qv || JSON.stringify(normQS(qv, nq)) === JSON.stringify(normQS(sb.qScores, nq)))) return;
-      chain = chain.then(function () { n++; return call('gradeSubmission', S.token, { itemId: p, sid: s.id, score: sc, feedback: fb, qScores: qv }); });
+      chain = chain.then(function () { n++; return call('gradeSubmission', S.token, { itemId: p, sid: j.sid, groupId: j.groupId, score: sc, feedback: fb, qScores: qv }); });
     });
     chain.then(function () { return reLms('บันทึกคะแนน ' + n + ' รายการแล้ว'); }).catch(function (x) { busy(el, false); fail(x); });
   },
   gradeCell: function (p, el) {
     var sid = el.getAttribute('data-k'), it = L().items.filter(function (x) { return x.id === p; })[0], sb = tSub(p, sid), st = tStudent(sid);
+    var gm = (it.groups || []).filter(function (g) { return g.members.indexOf(sid) >= 0; })[0];
     openModal('<h3>ให้คะแนน: ' + esc(it.title) + '</h3><p class="tag">' + esc(st.studentId + ' ' + st.name) + ' · เต็ม ' + it.maxScore + '</p>' +
+      (gm ? '<div class="box warn">งานกลุ่ม (' + esc(gm.name) + '): คะแนนที่บันทึกตรงนี้เปลี่ยนเฉพาะคนนี้ — ให้คะแนนทั้งกลุ่มได้ที่หน้าตรวจงาน</div>' : '') +
       (sb ? '<div class="row">' + subChips(it, sb) + '</div>' + qaHtml(it, sb, true) + (sb.text ? '<div class="wd" style="white-space:pre-wrap;max-height:160px;overflow:auto">' + esc(sb.text) + '</div>' : '') + fileList(sb.files) : '<p class="tag">ยังไม่มีงานส่ง (ให้คะแนนกิจกรรม/ในชั้นเรียนได้)</p>') +
       '<div class="grid g2"><div class="f"><label>คะแนน</label><input id="sc_' + sid + '" type="number" step="0.5" min="0" max="' + it.maxScore + '" value="' + esc(sb && sb.score !== '' ? sb.score : '') + '"></div></div><div class="f"><label>ความเห็น</label><textarea id="fb_' + sid + '">' + esc(sb ? sb.feedback : '') + '</textarea></div>' +
       '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ยกเลิก</button><button class="btn gold" data-act="gradeCellSave" data-p="' + p + '" data-k="' + sid + '">บันทึก</button></div>', tCourse(it.courseId).color);
   },
   gradeCellSave: function (p, el) { var sid = el.getAttribute('data-k'), it = L().items.filter(function (x) { return x.id === p; })[0]; busy(el, true); call('gradeSubmission', S.token, { itemId: p, sid: sid, score: v_('sc_' + sid), feedback: $('fb_' + sid).value, qScores: collectQS(sid, subQs(it).length) }).then(function () { closeModal(); return reLms('บันทึกคะแนนแล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
+  grpOpen: function (p) { grpModal(p); },
+  grpAdd: function () { S._grp.groups.push({ id: '', name: 'กลุ่ม ' + (S._grp.groups.length + 1) }); grpRender(); },
+  grpDel: function (p) {
+    var k = Number(p), G = S._grp, n = Object.keys(G.assign).filter(function (sid) { return G.assign[sid] === k; }).length;
+    if (n && !confirm('ลบ ' + G.groups[k].name + '? สมาชิก ' + n + ' คนจะกลายเป็น “ไม่มีกลุ่ม”')) return;
+    G.groups.splice(k, 1);
+    Object.keys(G.assign).forEach(function (sid) { var v = G.assign[sid]; G.assign[sid] = v === k ? -1 : v > k ? v - 1 : v; });
+    grpRender();
+  },
+  grpAuto: function (mode) {
+    var G = S._grp, it = L().items.filter(function (x) { return x.id === G.iid; })[0], studs = tEnrolled(it.courseId).slice(), n = Math.max(1, Math.min(100, Number(v_('g_n')) || 1));
+    if (Object.keys(G.assign).some(function (sid) { return G.assign[sid] >= 0; }) && !confirm('จัดกลุ่มใหม่ทั้งหมด? (สมาชิกเดิมจะถูกจัดใหม่)')) return;
+    while (G.groups.length < n) G.groups.push({ id: '', name: 'กลุ่ม ' + (G.groups.length + 1) });
+    if (G.groups.length > n) G.groups = G.groups.slice(0, n);
+    if (mode === 'rand') { for (var i = studs.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = studs[i]; studs[i] = studs[j]; studs[j] = t; } studs.forEach(function (s, k) { G.assign[s.id] = k % n; }); }
+    else studs.forEach(function (s, k) { G.assign[s.id] = Math.floor(k * n / studs.length); });
+    grpRender();
+  },
+  grpCopy: function (fromId) {
+    var G = S._grp, src = L().items.filter(function (x) { return x.id === fromId; })[0]; if (!src) return;
+    G.groups = src.groups.map(function (g) { return { id: '', name: g.name }; });
+    Object.keys(G.assign).forEach(function (sid) { G.assign[sid] = -1; });
+    src.groups.forEach(function (g, k) { g.members.forEach(function (sid) { if (sid in G.assign) G.assign[sid] = k; }); });
+    grpRender(); toast('คัดลอกกลุ่มจาก “' + src.title + '” แล้ว — กดบันทึกกลุ่ม');
+  },
+  grpSave: function (p, el) {
+    var G = S._grp, groups = G.groups.map(function (g, k) { return { id: g.id, name: g.name, members: Object.keys(G.assign).filter(function (sid) { return G.assign[sid] === k; }) }; });
+    if (!groups.length) return toast('ยังไม่มีกลุ่ม — กด + เพิ่มกลุ่ม หรือ สุ่มจัดกลุ่ม', true);
+    busy(el, true);
+    call('saveItemGroups', S.token, G.iid, groups).then(function (r) { closeModal(); reLms('บันทึก ' + r.length + ' กลุ่มแล้ว'); }).catch(function (x) { busy(el, false); fail(x); });
+  },
+  grpClear: function (p, el) {
+    if (!confirm('ยกเลิกงานกลุ่ม ให้เป็นงานเดี่ยว?\nงานที่กลุ่มส่งไว้แล้วจะยังอยู่ เป็นงานของสมาชิกแต่ละคน')) return;
+    busy(el, true);
+    call('saveItemGroups', S.token, S._grp.iid, []).then(function () { closeModal(); reLms('ยกเลิกงานกลุ่มแล้ว'); }).catch(function (x) { busy(el, false); fail(x); });
+  },
+  gradeGroup: function (p, el) {
+    var gid = el.getAttribute('data-k'), it = L().items.filter(function (x) { return x.id === p; })[0]; busy(el, true);
+    call('gradeSubmission', S.token, { itemId: p, groupId: gid, score: v_('sc_' + gid), feedback: $('fb_' + gid).value, qScores: collectQS(gid, subQs(it).length) })
+      .then(function () { busy(el, false); el.textContent = '✓ บันทึกทั้งกลุ่ม'; return loadLms().then(renderNav); }).catch(function (x) { busy(el, false); fail(x); });
+  },
   returnSub: function (p, el) {
     var sid = el.getAttribute('data-k'), fb = $('fb_' + sid).value.trim();
     if (!fb) { toast('เขียนในช่อง “ความเห็น” ก่อน ว่าต้องการให้นักศึกษาแก้ไขอะไร', true); $('fb_' + sid).focus(); return; }
@@ -1799,10 +1980,10 @@ var LMS_ACTIONS = {
   impCopy: function () { var t = S._impMsg || ''; try { navigator.clipboard.writeText(t).then(function () { toast('คัดลอกแล้ว'); }, function () { prompt('คัดลอกข้อความนี้', t); }); } catch (e) { prompt('คัดลอกข้อความนี้', t); } },
   stuEdit: function (p) {
     var st = tStudent(p);
-    openModal('<h3>แก้ไขข้อมูลนักศึกษา</h3>' + fld('se_sid', 'รหัสนักศึกษา', 'text', st.studentId) + fld('se_name', 'ชื่อ-สกุล', 'text', st.name) + '<div class="grid g2">' + fld('se_prog', 'สาขา/ชั้นปี', 'text', st.program) + fld('se_email', 'อีเมล', 'email', st.email) + '</div>' +
+    openModal('<h3>แก้ไขข้อมูลนักศึกษา</h3>' + fld('se_sid', 'รหัสนักศึกษา', 'text', st.studentId) + fld('se_name', 'ชื่อ-สกุล', 'text', st.name) + '<div class="grid g2">' + fld('se_prog', 'สาขา/ชั้นปี', 'text', st.program) + fld('se_email', 'อีเมล', 'email', st.email) + fld('se_phone', 'เบอร์โทร', 'tel', st.phone) + fld('se_line', 'ไอดีไลน์', 'text', st.lineId) + '</div>' +
       '<p class="tag">รหัสผ่านไม่เปลี่ยน (รีเซ็ตได้ที่ปุ่ม รีเซ็ตรหัส) · ถ้าแก้รหัสนักศึกษา นักศึกษาต้องใช้รหัสใหม่เข้าสู่ระบบ</p><div class="row"><span class="sp"></span><button class="btn light" data-act="close">ยกเลิก</button><button class="btn gold" data-act="stuEditSave" data-p="' + p + '">บันทึก</button></div>');
   },
-  stuEditSave: function (p, el) { busy(el, true); call('updateStudent', S.token, p, { studentId: v_('se_sid'), name: v_('se_name'), program: v_('se_prog'), email: v_('se_email') }).then(function () { closeModal(); reLms('บันทึกข้อมูลนักศึกษาแล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
+  stuEditSave: function (p, el) { busy(el, true); call('updateStudent', S.token, p, { studentId: v_('se_sid'), name: v_('se_name'), program: v_('se_prog'), email: v_('se_email'), phone: v_('se_phone'), lineId: v_('se_line') }).then(function () { closeModal(); reLms('บันทึกข้อมูลนักศึกษาแล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
   stuDelete: function (p) {
     var st = tStudent(p), ns = L().subs.filter(function (s) { return s.sid === p; }).length, nc = L().enrollments.filter(function (e) { return e.sid === p; }).length;
     if (!confirm('ลบบัญชี ' + st.studentId + ' ' + st.name + ' ออกจากระบบ?\n- รายวิชาที่ลงทะเบียน ' + nc + ' วิชา\n- งานที่ส่ง/คะแนน ' + ns + ' รายการ\nจะถูกลบทั้งหมด กู้คืนไม่ได้')) return;

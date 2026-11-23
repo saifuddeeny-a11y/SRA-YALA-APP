@@ -27,10 +27,10 @@ var HEADERS = {
   Log: ['at', 'user', 'action', 'detail'],
   Courses: ['id', 'code', 'title', 'description', 'term', 'enrollCode', 'color', 'status', 'createdAt'],
   Lessons: ['id', 'courseId', 'order', 'title', 'content', 'videoUrl', 'files', 'published', 'createdAt'],
-  Items: ['id', 'courseId', 'lessonId', 'order', 'type', 'title', 'instructions', 'maxScore', 'dueDate', 'quiz', 'published', 'createdAt'],
-  Students: ['id', 'studentId', 'name', 'email', 'program', 'salt', 'passHash', 'status', 'createdAt', 'lastLogin'],
+  Items: ['id', 'courseId', 'lessonId', 'order', 'type', 'title', 'instructions', 'maxScore', 'dueDate', 'quiz', 'published', 'createdAt', 'groups'],
+  Students: ['id', 'studentId', 'name', 'email', 'program', 'salt', 'passHash', 'status', 'createdAt', 'lastLogin', 'phone', 'lineId', 'photo', 'shareContact'],
   Enrollments: ['id', 'courseId', 'sid', 'createdAt'],
-  Submissions: ['id', 'itemId', 'courseId', 'sid', 'text', 'files', 'answers', 'autoScore', 'score', 'feedback', 'status', 'submittedAt', 'gradedAt', 'qScores', 'editCount'],
+  Submissions: ['id', 'itemId', 'courseId', 'sid', 'text', 'files', 'answers', 'autoScore', 'score', 'feedback', 'status', 'submittedAt', 'gradedAt', 'qScores', 'editCount', 'groupId', 'lastBy'],
   Progress: ['sid', 'lessonId', 'courseId', 'at']
 };
 
@@ -676,6 +676,26 @@ function studentLogin(studentId, password) {
   try { upsert_(SHEETS_LMS.STUDENTS, 'id', { id: st.id, lastLogin: new Date() }); } catch (e) {}
   return { token: makeToken_('student', st.id, 24), name: st.name };
 }
+/** นักศึกษาแก้โปรไฟล์ตนเอง (ไม่บังคับทุกช่อง): รูป เบอร์โทร ไอดีไลน์ อีเมล สาขา และการแสดงช่องทางติดต่อให้เพื่อนในกลุ่ม
+ *  photo: undefined = ไม่เปลี่ยน, '' = ลบรูป, 'data:image/jpeg;base64,...' (ย่อขนาดจากหน้าเว็บแล้ว) */
+function stuUpdateProfile(token, f) {
+  var st = requireStudent_(token);
+  f = f || {};
+  var phone = String(f.phone || '').replace(/[^\d+\-\s]/g, '').trim().slice(0, 20);
+  var line = String(f.lineId || '').replace(/\s+/g, '').slice(0, 40);
+  if (line && !/^@?[A-Za-z0-9._\-]+$/.test(line)) throw new Error('ไอดีไลน์ใช้ได้เฉพาะ a-z 0-9 . _ -');
+  var email = String(f.email || '').trim().slice(0, 100);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('รูปแบบอีเมลไม่ถูกต้อง');
+  var row = { id: st.id, phone: phone, lineId: line, email: email, program: String(f.program || '').trim().slice(0, 100), shareContact: f.shareContact ? 'TRUE' : 'FALSE' };
+  if (f.photo !== undefined && f.photo !== null) {
+    var ph = String(f.photo);
+    if (ph && !/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(ph)) throw new Error('รูปไม่ถูกต้อง');
+    if (ph.length > 45000) throw new Error('รูปใหญ่เกินไป');
+    row.photo = ph;
+  }
+  upsert_(SHEETS_LMS.STUDENTS, 'id', row);
+  return true;
+}
 function studentChangePassword(token, oldPass, newPass) {
   var st = requireStudent_(token);
   if (hash_(st.salt, oldPass) !== st.passHash) throw new Error('รหัสผ่านเดิมไม่ถูกต้อง');
@@ -701,7 +721,17 @@ function stuData(token) {
   var items = readTable_(SHEETS_LMS.ITEMS).filter(function (i) { return cids.indexOf(i.courseId) >= 0 && isTrue_(i.published); }).map(function (i) { return itemOut_(i, false); });
   var subs = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.sid === st.id; }).map(subOut_);
   var prog = readTable_(SHEETS_LMS.PROG).filter(function (p) { return p.sid === st.id; }).map(function (p) { return p.lessonId; });
-  return { me: { id: st.id, studentId: st.studentId, name: st.name, email: st.email, program: st.program }, courses: courses, lessons: lessons, items: items, subs: subs, progress: prog, gradeScale: GRADE_SCALE };
+  // งานกลุ่ม: ส่งเฉพาะกลุ่มของนักศึกษาคนนี้ (ชื่อ รูป และช่องทางติดต่อของเพื่อนที่ยินยอม)
+  var stuMap = {}; readTable_(SHEETS_LMS.STUDENTS).forEach(function (x) { stuMap[x.id] = x; });
+  var myGroups = {};
+  readTable_(SHEETS_LMS.ITEMS).forEach(function (i) {
+    if (cids.indexOf(i.courseId) < 0 || !isTrue_(i.published)) return;
+    var g = groupOf_(i, st.id); if (!g) return;
+    myGroups[i.id] = { id: g.id, name: g.name, members: g.members.map(function (sid) { var x = stuMap[sid] || {}, share = isTrue_(x.shareContact);
+      return { id: sid, studentId: String(x.studentId || ''), name: x.name || '', photo: x.photo || '', phone: share ? String(x.phone || '') : '', lineId: share ? String(x.lineId || '') : '' }; }) };
+  });
+  return { me: { id: st.id, studentId: String(st.studentId), name: st.name, email: st.email, program: String(st.program || ''), phone: String(st.phone || ''), lineId: String(st.lineId || ''), photo: st.photo || '', shareContact: isTrue_(st.shareContact) },
+    courses: courses, lessons: lessons, items: items, subs: subs, progress: prog, gradeScale: GRADE_SCALE, myGroups: myGroups };
 }
 function stuJoin(token, code) { var st = requireStudent_(token); var c = joinCourse_(st.id, code); return c.title; }
 function stuMarkLesson(token, lessonId) {
@@ -729,15 +759,20 @@ function stuSubmit(token, itemId, payload) {
   if (!it || !isTrue_(it.published)) throw new Error('ไม่พบงานหรือยังไม่เปิดให้ส่ง');
   var enrolled = readTable_(SHEETS_LMS.ENR).some(function (e) { return e.sid === st.id && e.courseId === it.courseId; });
   if (!enrolled) throw new Error('ยังไม่ได้ลงทะเบียนรายวิชานี้');
-  var old = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === itemId && s.sid === st.id; })[0];
-  if (old && old.status === 'graded') throw new Error('งานนี้ตรวจแล้ว ไม่สามารถส่งซ้ำได้ (ติดต่ออาจารย์)');
-  if (old && it.type === 'quiz') throw new Error('ทำแบบทดสอบนี้แล้ว');
   if (it.type === 'activity') throw new Error('กิจกรรมนี้อาจารย์ให้คะแนนในชั้นเรียน ไม่ต้องส่งงาน');
+  var grp = it.type === 'assignment' && itemGroups_(it).length ? groupOf_(it, st.id) : null;
+  if (it.type === 'assignment' && itemGroups_(it).length && !grp) throw new Error('งานนี้เป็นงานกลุ่ม แต่อาจารย์ยังไม่ได้จัดคุณเข้ากลุ่ม (ติดต่ออาจารย์)');
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+  var mine = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === itemId && (grp ? s.groupId === grp.id : s.sid === st.id); });
+  if (mine.some(function (s) { return s.status === 'graded'; })) throw new Error('งานนี้ตรวจแล้ว ไม่สามารถส่งซ้ำได้ (ติดต่ออาจารย์)');
+  var old = grp ? latestRow_(mine) : mine[0];
+  if (old && it.type === 'quiz') throw new Error('ทำแบบทดสอบนี้แล้ว');
   payload = payload || {};
   var files = (payload.files || []).filter(function (f) { return f && f.url; }).map(function (f) { return { name: String(f.name || 'file'), url: String(f.url), fileId: String(f.fileId || '') }; });
   var row = { id: old ? old.id : uid_('U'), itemId: itemId, courseId: it.courseId, sid: st.id, text: String(payload.text || '').slice(0, 20000),
     files: JSON.stringify(files), answers: '', autoScore: '', score: '', feedback: old ? old.feedback || '' : '', status: 'submitted', submittedAt: new Date(), gradedAt: '',
-    qScores: '', editCount: old ? (Number(old.editCount) || 0) + 1 : 0 };
+    qScores: '', editCount: old ? (Number(old.editCount) || 0) + 1 : 0, lastBy: st.id };
   var result = null;
   if (it.type === 'assignment') {
     var nq = safeJson_(it.quiz, []).length;
@@ -758,8 +793,10 @@ function stuSubmit(token, itemId, payload) {
     row.feedback = 'ตรวจอัตโนมัติ: ตอบถูก ' + detail.filter(Boolean).length + '/' + qs.length + ' ข้อ';
     result = { score: score, max: max, correct: detail };
   }
-  upsert_(SHEETS_LMS.SUBS, 'id', row);
-  return result || { submitted: true, edited: !!old };
+  if (grp) { var f = {}; SUB_CONTENT_.forEach(function (k) { f[k] = row[k]; }); writeGroupRows_(it, grp, f); }
+  else upsert_(SHEETS_LMS.SUBS, 'id', row);
+  return result || { submitted: true, edited: !!old, group: grp ? grp.name : '' };
+  } finally { lock.releaseLock(); }
 }
 /** นักศึกษาลบงานที่ส่ง (ได้เฉพาะงานที่อาจารย์ยังไม่ตรวจ) — ไฟล์แนบย้ายไปถังขยะ */
 function stuDeleteSubmission(token, itemId) {
@@ -767,11 +804,14 @@ function stuDeleteSubmission(token, itemId) {
   var it = findRow_(SHEETS_LMS.ITEMS, 'id', itemId);
   if (!it) throw new Error('ไม่พบงาน');
   if (it.type !== 'assignment') throw new Error('ลบได้เฉพาะใบงาน/งานส่ง');
-  var old = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === itemId && s.sid === st.id; })[0];
-  if (!old) throw new Error('ยังไม่มีงานที่ส่ง');
-  if (old.status === 'graded') throw new Error('งานนี้ตรวจแล้ว ลบไม่ได้ (ติดต่ออาจารย์)');
-  safeJson_(old.files, []).forEach(function (f) { if (f.fileId) { try { DriveApp.getFileById(f.fileId).setTrashed(true); } catch (e) {} } });
-  deleteWhere_(SHEETS_LMS.SUBS, 'id', old.id);
+  var grp = itemGroups_(it).length ? groupOf_(it, st.id) : null;
+  var mine = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === itemId && (grp ? s.groupId === grp.id : s.sid === st.id); });
+  if (!mine.length) throw new Error('ยังไม่มีงานที่ส่ง');
+  if (mine.some(function (s) { return s.status === 'graded'; })) throw new Error('งานนี้ตรวจแล้ว ลบไม่ได้ (ติดต่ออาจารย์)');
+  var seen = {};
+  mine.forEach(function (s) { safeJson_(s.files, []).forEach(function (f) { if (f.fileId && !seen[f.fileId]) { seen[f.fileId] = 1; try { DriveApp.getFileById(f.fileId).setTrashed(true); } catch (e) {} } }); });
+  var ids = mine.map(function (s) { return s.id; });
+  deleteRowsWhere_(SHEETS_LMS.SUBS, function (s) { return ids.indexOf(s.id) >= 0; });
   return true;
 }
 function stuReportHtml(token, courseId) { var st = requireStudent_(token); return studentReportHtml_(courseId, st.id, false); }
@@ -784,7 +824,8 @@ function stuReportPdf(token, courseId) {
 /* ---------------------------- Teacher API ---------------------------- */
 function lmsTeacherData(cred) {
   requireAdmin_(cred);
-  var students = readTable_(SHEETS_LMS.STUDENTS).map(function (s) { return { id: s.id, studentId: String(s.studentId), name: s.name, email: s.email, program: String(s.program || ''), status: s.status, createdAt: fmtDate_(s.createdAt), lastLogin: s.lastLogin instanceof Date ? fmtDateTime_(s.lastLogin) : String(s.lastLogin || '') }; });
+  var students = readTable_(SHEETS_LMS.STUDENTS).map(function (s) { return { id: s.id, studentId: String(s.studentId), name: s.name, email: s.email, program: String(s.program || ''), status: s.status, createdAt: fmtDate_(s.createdAt), lastLogin: s.lastLogin instanceof Date ? fmtDateTime_(s.lastLogin) : String(s.lastLogin || ''),
+    phone: String(s.phone || ''), lineId: String(s.lineId || ''), photo: s.photo || '' }; });
   return {
     courses: readTable_(SHEETS_LMS.COURSES).map(cleanRow_),
     lessons: readTable_(SHEETS_LMS.LESSONS).map(lessonOut_),
@@ -880,8 +921,7 @@ function gradeSubmission(cred, g) {
   if (!it) throw new Error('ไม่พบงาน');
   var sc = g.score === '' || g.score == null ? '' : Number(g.score);
   if (sc !== '' && (isNaN(sc) || sc < 0 || sc > Number(it.maxScore))) throw new Error('คะแนนต้องอยู่ระหว่าง 0–' + it.maxScore);
-  var old = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === g.itemId && s.sid === g.sid; })[0];
-  var row = { id: old ? old.id : uid_('U'), itemId: g.itemId, courseId: it.courseId, sid: g.sid, score: sc, feedback: g.feedback || '', status: sc === '' ? (old ? old.status : 'submitted') : 'graded', gradedAt: new Date() };
+  var qsJson;
   if (g.qScores && it.type === 'assignment') {
     var qs = safeJson_(it.quiz, []);
     var qv = qs.map(function (q, k) {
@@ -890,10 +930,24 @@ function gradeSubmission(cred, g) {
       if (Number(q.points) > 0 && x > Number(q.points)) throw new Error('คะแนนข้อ ' + (k + 1) + ' เกินคะแนนเต็มของข้อ (' + q.points + ')');
       return x;
     });
-    row.qScores = JSON.stringify(qv);
+    qsJson = JSON.stringify(qv);
   }
-  if (!old) { row.text = ''; row.files = '[]'; row.answers = ''; row.autoScore = ''; row.submittedAt = ''; row.editCount = 0; }
-  upsert_(SHEETS_LMS.SUBS, 'id', row);
+  var sids = [g.sid], gid = '';
+  if (g.groupId) {
+    var grp = itemGroups_(it).filter(function (x) { return x.id === g.groupId; })[0];
+    if (!grp) throw new Error('ไม่พบกลุ่ม (อาจถูกแก้ไขแล้ว กรุณาโหลดหน้าใหม่)');
+    if (!grp.members.length) throw new Error('กลุ่มนี้ยังไม่มีสมาชิก');
+    sids = grp.members; gid = grp.id;
+  }
+  var subs = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === g.itemId; });
+  sids.forEach(function (sid) {
+    var old = subs.filter(function (s) { return s.sid === sid; })[0];
+    var row = { id: old ? old.id : uid_('U'), itemId: g.itemId, courseId: it.courseId, sid: sid, score: sc, feedback: g.feedback || '', status: sc === '' ? (old ? old.status : 'submitted') : 'graded', gradedAt: new Date() };
+    if (qsJson !== undefined) row.qScores = qsJson;
+    if (gid) row.groupId = gid;
+    if (!old) { row.text = ''; row.files = '[]'; row.answers = ''; row.autoScore = ''; row.submittedAt = ''; row.editCount = 0; row.lastBy = ''; if (!gid) row.groupId = ''; }
+    upsert_(SHEETS_LMS.SUBS, 'id', row);
+  });
   return true;
 }
 /** อาจารย์ส่งงานคืนให้นักศึกษาแก้ไข (เก็บคำตอบเดิมไว้ นักศึกษาแก้แล้วส่งใหม่ได้) */
@@ -902,10 +956,18 @@ function returnSubmission(cred, subId, feedback) {
   var sb = findRow_(SHEETS_LMS.SUBS, 'id', subId);
   if (!sb) throw new Error('ไม่พบงานที่ส่ง');
   if (!String(feedback || '').trim()) throw new Error('กรุณาเขียนความเห็นบอกนักศึกษาว่าต้องแก้ไขอะไร');
-  upsert_(SHEETS_LMS.SUBS, 'id', { id: subId, status: 'returned', score: '', feedback: String(feedback).slice(0, 5000), gradedAt: new Date() });
+  var rows = sb.groupId ? readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === sb.itemId && s.groupId === sb.groupId; }) : [sb];
+  rows.forEach(function (r) { upsert_(SHEETS_LMS.SUBS, 'id', { id: r.id, status: 'returned', score: '', feedback: String(feedback).slice(0, 5000), gradedAt: new Date() }); });
   return true;
 }
-function resetSubmission(cred, subId) { requireAdmin_(cred); deleteWhere_(SHEETS_LMS.SUBS, 'id', subId); return true; }
+/** ลบงานที่ส่ง ให้ส่งใหม่ (งานกลุ่ม = ลบของทั้งกลุ่ม) */
+function resetSubmission(cred, subId) {
+  requireAdmin_(cred);
+  var sb = findRow_(SHEETS_LMS.SUBS, 'id', subId); if (!sb) return true;
+  if (sb.groupId) deleteRowsWhere_(SHEETS_LMS.SUBS, function (s) { return s.itemId === sb.itemId && s.groupId === sb.groupId; });
+  else deleteWhere_(SHEETS_LMS.SUBS, 'id', subId);
+  return true;
+}
 function enrollStudentByTeacher(cred, courseId, studentRowId) {
   requireAdmin_(cred);
   var has = readTable_(SHEETS_LMS.ENR).some(function (e) { return e.courseId === courseId && e.sid === studentRowId; });
@@ -967,7 +1029,10 @@ function updateStudent(cred, sid, f) {
   if (name.length < 2) throw new Error('กรุณากรอกชื่อ-สกุล');
   var dup = readTable_(SHEETS_LMS.STUDENTS).some(function (x) { return x.id !== sid && String(x.studentId).trim() === sidTxt; });
   if (dup) throw new Error('รหัสนักศึกษานี้มีในระบบแล้ว');
-  upsert_(SHEETS_LMS.STUDENTS, 'id', { id: sid, studentId: sidTxt, name: name, program: String(f.program || ''), email: String(f.email || '') });
+  var row = { id: sid, studentId: sidTxt, name: name, program: String(f.program || ''), email: String(f.email || '') };
+  if (f.phone !== undefined) row.phone = String(f.phone || '').replace(/[^\d+\-\s]/g, '').trim().slice(0, 20);
+  if (f.lineId !== undefined) row.lineId = String(f.lineId || '').trim().slice(0, 40);
+  upsert_(SHEETS_LMS.STUDENTS, 'id', row);
   return true;
 }
 /** ลบบัญชีนักศึกษาออกจากระบบ พร้อมการลงทะเบียน งานที่ส่ง และประวัติการเรียน (เช่น บัญชีทดสอบ/ลงทะเบียนซ้ำ) */
@@ -1116,6 +1181,68 @@ function aiTeach(cred, kind, input) {
   return text;
 }
 
+/* ---------------------------- งานกลุ่ม ---------------------------- */
+function itemGroups_(it) { return it ? safeJson_(it.groups, []) : []; }
+function groupOf_(it, sid) { var gs = itemGroups_(it); for (var i = 0; i < gs.length; i++) if ((gs[i].members || []).indexOf(sid) >= 0) return gs[i]; return null; }
+function deleteRowsWhere_(name, fn) {
+  dirty_();
+  var sh = sheet_(name), v = sh.getDataRange().getValues(), h = v[0];
+  for (var i = v.length - 1; i >= 1; i--) { var o = {}; h.forEach(function (k, j) { o[k] = v[i][j]; }); if (fn(o)) sh.deleteRow(i + 1); }
+}
+var SUB_CONTENT_ = ['text', 'files', 'answers', 'autoScore', 'score', 'feedback', 'status', 'submittedAt', 'gradedAt', 'qScores', 'editCount', 'lastBy'];
+var SUB_BLANK_ = { text: '', files: '[]', answers: '', autoScore: '', score: '', feedback: '', status: 'submitted', submittedAt: '', gradedAt: '', qScores: '', editCount: 0, lastBy: '' };
+/** เขียนข้อมูลชุดเดียวกันลงแถวของสมาชิกทุกคนในกลุ่ม (สมุดคะแนน/รายงานรายบุคคลจึงใช้ได้ตามเดิม) */
+function writeGroupRows_(it, g, fields, sids) {
+  var rows = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === it.id; });
+  (sids || g.members).forEach(function (sid) {
+    var old = rows.filter(function (s) { return s.sid === sid; })[0], row = {};
+    Object.keys(fields).forEach(function (k) { row[k] = fields[k]; });
+    row.id = old ? old.id : uid_('U'); row.itemId = it.id; row.courseId = it.courseId; row.sid = sid; row.groupId = g.id;
+    if (!old) Object.keys(SUB_BLANK_).forEach(function (k) { if (row[k] === undefined) row[k] = SUB_BLANK_[k]; });
+    upsert_(SHEETS_LMS.SUBS, 'id', row);
+  });
+}
+function latestRow_(rows) { return rows.slice().sort(function (a, b) { return String(fmtDateTime_(b.submittedAt)).localeCompare(String(fmtDateTime_(a.submittedAt))); })[0] || null; }
+/** อาจารย์กำหนดกลุ่มของงาน groups: [{id?, name, members:[sid]}] — สมาชิก 1 คนอยู่ได้ 1 กลุ่ม */
+function saveItemGroups(cred, itemId, groups) {
+  requireAdmin_(cred);
+  var it = findRow_(SHEETS_LMS.ITEMS, 'id', itemId);
+  if (!it) throw new Error('ไม่พบงาน');
+  if (it.type === 'quiz') throw new Error('แบบทดสอบเป็นงานกลุ่มไม่ได้');
+  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    var enr = {}; readTable_(SHEETS_LMS.ENR).forEach(function (e) { if (e.courseId === it.courseId) enr[e.sid] = 1; });
+    var used = {}, oldIds = {};
+    itemGroups_(it).forEach(function (g) { oldIds[g.id] = 1; });
+    var clean = (groups || []).slice(0, 200).map(function (g, k) {
+      var name = String(g.name || '').trim().slice(0, 60) || ('กลุ่ม ' + (k + 1));
+      var mem = (g.members || []).filter(function (sid) { if (!enr[sid] || used[sid]) return false; used[sid] = 1; return true; });
+      return { id: /^G[0-9a-f]{10}$/.test(String(g.id || '')) ? String(g.id) : uid_('G'), name: name, members: mem };
+    });
+    upsert_(SHEETS_LMS.ITEMS, 'id', { id: itemId, groups: clean.length ? JSON.stringify(clean) : '' });
+    it = findRow_(SHEETS_LMS.ITEMS, 'id', itemId);
+    var byId = {}; clean.forEach(function (g) { byId[g.id] = g; });
+    var subs = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === itemId && s.groupId; });
+    // 1) แถวของกลุ่มที่ถูกยกเลิก → กลายเป็นงานรายบุคคล
+    subs.filter(function (s) { return !byId[s.groupId]; }).forEach(function (s) { upsert_(SHEETS_LMS.SUBS, 'id', { id: s.id, groupId: '' }); });
+    // 2) สมาชิกที่ย้ายออกจากกลุ่ม → ลบแถวงานของกลุ่มเดิม
+    var tmpl = {};
+    clean.forEach(function (g) { var rs = subs.filter(function (s) { return s.groupId === g.id; }); if (rs.length) tmpl[g.id] = latestRow_(rs); });
+    deleteRowsWhere_(SHEETS_LMS.SUBS, function (s) { return s.itemId === itemId && s.groupId && byId[s.groupId] && byId[s.groupId].members.indexOf(s.sid) < 0; });
+    // 3) สมาชิกใหม่ของกลุ่มที่ส่งงานแล้ว → คัดลอกงานของกลุ่มให้
+    clean.forEach(function (g) {
+      var t = tmpl[g.id]; if (!t) return;
+      var have = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === itemId && s.groupId === g.id; }).map(function (s) { return s.sid; });
+      var add = g.members.filter(function (sid) { return have.indexOf(sid) < 0; });
+      if (!add.length) return;
+      var f = {}; SUB_CONTENT_.forEach(function (k) { f[k] = t[k] === undefined ? SUB_BLANK_[k] : t[k]; });
+      writeGroupRows_(it, g, f, add);
+    });
+    log_('จัดกลุ่มงาน', itemId + ' ' + clean.length + ' กลุ่ม');
+    return clean;
+  } finally { lock.releaseLock(); }
+}
+
 /* ---------------------------- helpers ---------------------------- */
 function isTrue_(v) { return v === true || String(v).toUpperCase() === 'TRUE'; }
 function randCode_() { var c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', s = ''; for (var i = 0; i < 6; i++) s += c.charAt(Math.floor(Math.random() * c.length)); return s; }
@@ -1125,9 +1252,11 @@ function itemOut_(i, withAnswer) {
   var o = cleanRow_(i); o.published = isTrue_(i.published); o.maxScore = Number(i.maxScore) || 0; o.order = Number(i.order) || 0;
   var q = safeJson_(i.quiz, []);
   o.quiz = withAnswer ? q : q.map(function (x) { return { q: x.q, choices: x.choices, points: x.points }; });
+  var gs = itemGroups_(i); o.isGroup = gs.length > 0;
+  if (withAnswer) o.groups = gs; else delete o.groups;
   return o;
 }
-function subOut_(s) { var o = cleanRow_(s); o.files = safeJson_(s.files, []); o.answers = safeJson_(s.answers, []); o.qScores = safeJson_(s.qScores, []); o.editCount = Number(s.editCount) || 0; o.submittedAt = s.submittedAt instanceof Date ? fmtDateTime_(s.submittedAt) : s.submittedAt; o.gradedAt = s.gradedAt instanceof Date ? fmtDateTime_(s.gradedAt) : s.gradedAt; return o; }
+function subOut_(s) { var o = cleanRow_(s); o.files = safeJson_(s.files, []); o.answers = safeJson_(s.answers, []); o.qScores = safeJson_(s.qScores, []); o.editCount = Number(s.editCount) || 0; o.groupId = String(s.groupId || ''); o.lastBy = String(s.lastBy || ''); o.submittedAt = s.submittedAt instanceof Date ? fmtDateTime_(s.submittedAt) : s.submittedAt; o.gradedAt = s.gradedAt instanceof Date ? fmtDateTime_(s.gradedAt) : s.gradedAt; return o; }
 function lmsShare_(f) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) { applySharing_(f); } }
 function saveExportLms_(blob, forStudent) {
   var folder = subFolder_(subFolder_(ensureRootFolder_(), '_ห้องเรียน'), '_exports');
