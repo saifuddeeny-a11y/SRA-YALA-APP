@@ -229,6 +229,9 @@ textarea.qin.qans{min-height:90px}
 .qa-a.empty{color:var(--muted);font-style:italic;border-left-color:#cdd5e3}
 .qsc input{width:64px;border:1px solid #cdd5e3;border-radius:7px;padding:3px 5px}
 td.subcell{min-width:300px}
+.imp-tbl{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0}
+.imp-tbl table{margin:0}
+tr.imp-bad td{color:var(--bad)}
 .aibar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:linear-gradient(90deg,#eef0ff,#fff6dc);border:1px solid #d9dcff;border-radius:12px;padding:8px 10px;margin:4px 0 10px}
 .aibar b{color:#3b3fb6;font-size:13.5px}
 .aibar input{border:1px solid #cdd5e3;border-radius:8px;padding:6px 9px;flex:1;min-width:140px}
@@ -1342,12 +1345,14 @@ function vTCourse(cid) {
     });
   } else if (t === 'students') {
     var all = L().students.filter(function (s) { return studs.indexOf(s) < 0; });
+    h.push('<div class="card" style="margin-bottom:12px"><div class="row"><button class="btn gold" data-act="impOpen" data-p="' + cid + '">นำเข้ารายชื่อนักศึกษา (Excel/วางรายชื่อ)</button><span class="tag">ตรวจว่าใครลงทะเบียนแล้ว/ยังไม่ลงทะเบียน และสร้างบัญชีให้คนที่ยังไม่มี</span></div></div>');
     h.push('<div class="card" style="margin-bottom:12px"><div class="row"><b>เพิ่มนักศึกษาที่ลงทะเบียนในระบบแล้ว</b><select id="addStu" style="min-width:260px;border:1px solid #cdd5e3;border-radius:9px;padding:6px"><option value="">— เลือก —</option>' + all.map(function (s) { return '<option value="' + s.id + '">' + esc(s.studentId + ' ' + s.name) + '</option>'; }).join('') + '</select><button class="btn sm" data-act="enrollAdd" data-p="' + cid + '">เพิ่ม</button><span class="sp"></span><span class="tag">หรือให้นักศึกษาลงทะเบียนเองด้วยรหัส <b>' + esc(c.enrollCode) + '</b></span></div></div>');
-    h.push('<div class="card tblwrap"><table class="t"><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>สาขา</th><th class="n">บทเรียน</th><th class="n">คะแนน</th><th class="c">เกรด</th><th></th></tr>' + studs.map(function (s) {
+    var dn = dupNames();
+    h.push('<div class="card tblwrap"><table class="t"><tr><th class="n">#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>สาขา</th><th>เข้าระบบล่าสุด</th><th class="n">บทเรียน</th><th class="n">คะแนน</th><th class="c">เกรด</th><th></th></tr>' + studs.map(function (s, k) {
       var sc = tScore(cid, s.id);
-      return '<tr><td>' + esc(s.studentId) + '</td><td>' + esc(s.name) + (s.status === 'disabled' ? ' <span class="chip c-noevidence">ระงับ</span>' : '') + '</td><td>' + esc(s.program) + '</td><td class="n">' + sc.lsDone + '/' + tLessons(cid).length + '</td><td class="n">' + fx(sc.got) + '/' + sc.max + '</td><td class="c"><b>' + sc.grade + '</b></td>' +
-        '<td class="n"><button class="btn sm light" data-act="stuRpt" data-p="' + s.id + '">รายงานรายบุคคล</button> <button class="btn sm light" data-act="stuPw" data-p="' + s.id + '">รีเซ็ตรหัส</button> <button class="btn sm danger" data-act="enrollDel" data-p="' + s.id + '">นำออก</button></td></tr>';
-    }).join('') + (studs.length ? '' : '<tr><td colspan="7" class="tag">ยังไม่มีนักศึกษา</td></tr>') + '</table></div>');
+      return '<tr><td class="n">' + (k + 1) + '</td><td>' + esc(s.studentId) + '</td><td>' + esc(s.name) + (s.status === 'disabled' ? ' <span class="chip c-noevidence">ระงับ</span>' : '') + (dn[normName(s.name)] > 1 ? ' <span class="chip c-partial" title="มีบัญชีชื่อเดียวกันมากกว่า 1 บัญชี">ชื่อซ้ำ</span>' : '') + '</td><td>' + esc(s.program) + '</td><td class="tag">' + esc(s.lastLogin || '–') + '</td><td class="n">' + sc.lsDone + '/' + tLessons(cid).length + '</td><td class="n">' + fx(sc.got) + '/' + sc.max + '</td><td class="c"><b>' + sc.grade + '</b></td>' +
+        '<td class="n"><button class="btn sm light" data-act="stuRpt" data-p="' + s.id + '">รายงานรายบุคคล</button> <button class="btn sm light" data-act="stuEdit" data-p="' + s.id + '">แก้ไข</button> <button class="btn sm light" data-act="stuPw" data-p="' + s.id + '">รีเซ็ตรหัส</button> <button class="btn sm danger" data-act="enrollDel" data-p="' + s.id + '">นำออก</button></td></tr>';
+    }).join('') + (studs.length ? '' : '<tr><td colspan="9" class="tag">ยังไม่มีนักศึกษา</td></tr>') + '</table></div><p class="tag">เข้าระบบล่าสุด: บันทึกตั้งแต่เวอร์ชันนี้เป็นต้นไป · “ชื่อซ้ำ” = มีหลายบัญชีชื่อเดียวกัน (เช่น บัญชีทดสอบ/ลงทะเบียนซ้ำ) ลบได้ที่เมนู นักศึกษาทั้งหมด</p>');
   } else if (t === 'grades') {
     var its2 = tItems(cid);
     h.push('<div class="row" style="margin-bottom:10px"><button class="btn" style="background:#1d6f42;border-color:#1d6f42" data-act="gbXlsx" data-p="' + cid + '">ส่งออกสมุดคะแนน Excel</button><span class="tag">คลิกช่องคะแนนเพื่อให้/แก้คะแนน · คลิกชื่อเพื่อดูรายงานรายบุคคล</span></div>');
@@ -1387,6 +1392,7 @@ function vTItem(iid) {
   h.push('<p class="lead">คะแนนเต็ม ' + i.maxScore + ' · ' + (i.published ? 'เผยแพร่แล้ว' : 'ฉบับร่าง (นักศึกษายังไม่เห็น)') + ' ' + dueTxt(i.dueDate) + (i.type === 'quiz' ? ' · ' + i.quiz.length + ' ข้อ ตรวจอัตโนมัติ' : '') + (subQs(i).length ? ' · คำถาม ' + subQs(i).length + ' ข้อ (ให้คะแนนรายข้อได้)' : '') + '</p>');
   if (i.instructions || subQs(i).length) h.push('<details class="card"><summary><b>คำสั่งงาน' + (subQs(i).length ? '/คำถาม' : '') + '</b></summary>' + md(i.instructions || '') +
     (subQs(i).length ? '<ol>' + subQs(i).map(function (q) { return '<li style="white-space:pre-wrap">' + esc(q.q) + (q.points ? ' <span class="tag">(' + q.points + ' คะแนน)</span>' : '') + '</li>'; }).join('') + '</ol>' : '') + '</details>');
+  if (i.type === 'activity' && /^\s*(?:ข้อ\s*)?\d{1,2}\s*[.)]/m.test(i.instructions || '')) h.push('<div class="box gap" style="margin-top:12px"><b>งานนี้เป็น “กิจกรรม” นักศึกษาจึงพิมพ์คำตอบส่งในระบบไม่ได้</b><div>ถ้าต้องการให้นักศึกษาตอบคำถามในระบบ: กด แก้ไขงาน > เปลี่ยนประเภทเป็น “ใบงาน” > กด “ดึงคำถามจากช่องคำชี้แจง”</div><button class="btn sm" style="margin-top:6px" data-act="itemEdit" data-p="' + iid + '">แก้ไขงาน / เปลี่ยนเป็นใบงาน</button></div>');
   h.push('<div class="card tblwrap" style="margin-top:12px"><h3>ตรวจงานและให้คะแนน (' + studs.length + ' คน)</h3><table class="t"><tr><th>นักศึกษา</th><th>ผลงานที่ส่ง</th><th style="width:90px">คะแนน</th><th>ความเห็น</th><th></th></tr>');
   studs.forEach(function (s) {
     var sb = tSub(iid, s.id);
@@ -1403,13 +1409,123 @@ function vTItem(iid) {
   return h.join('');
 }
 function vTStudents() {
-  var st = L().students;
+  var st = L().students, dn = dupNames();
   return '<h2 class="pg">นักศึกษาทั้งหมด (' + st.length + ')</h2><p class="lead">นักศึกษาลงทะเบียนเองที่หน้า “ห้องเรียนออนไลน์” · อาจารย์รีเซ็ตรหัสผ่านหรือระงับบัญชีได้</p><div class="f" style="max-width:360px"><input id="stuQ" placeholder="ค้นหารหัส/ชื่อ" oninput="var q=this.value.toLowerCase();Array.prototype.forEach.call(document.querySelectorAll(\'#stuT tr[data-q]\'),function(r){r.style.display=r.getAttribute(\'data-q\').indexOf(q)>=0?\'\':\'none\'})"></div>' +
-    '<div class="card tblwrap"><table class="t" id="stuT"><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>สาขา</th><th>อีเมล</th><th>รายวิชา</th><th>ลงทะเบียน</th><th></th></tr>' + st.map(function (s) {
+    '<div class="card tblwrap"><table class="t" id="stuT"><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>สาขา</th><th>อีเมล</th><th>รายวิชา</th><th>ลงทะเบียน</th><th>เข้าระบบล่าสุด</th><th></th></tr>' + st.slice().sort(function (a, b) { return String(a.studentId).localeCompare(String(b.studentId)); }).map(function (s) {
       var cs = L().enrollments.filter(function (e) { return e.sid === s.id; }).map(function (e) { var c = tCourse(e.courseId); return c ? c.code || c.title : ''; });
-      return '<tr data-q="' + esc((s.studentId + ' ' + s.name).toLowerCase()) + '"><td>' + esc(s.studentId) + '</td><td>' + esc(s.name) + '</td><td>' + esc(s.program) + '</td><td>' + esc(s.email) + '</td><td>' + esc(cs.join(', ')) + '</td><td>' + esc(s.createdAt) + '</td>' +
-        '<td class="n"><button class="btn sm light" data-act="stuPw" data-p="' + s.id + '">รีเซ็ตรหัส</button> <button class="btn sm ' + (s.status === 'disabled' ? 'light' : 'danger') + '" data-act="stuToggle" data-p="' + s.id + '">' + (s.status === 'disabled' ? 'เปิดใช้งาน' : 'ระงับ') + '</button></td></tr>';
-    }).join('') + '</table></div>';
+      return '<tr data-q="' + esc((s.studentId + ' ' + s.name).toLowerCase()) + '"><td>' + esc(s.studentId) + '</td><td>' + esc(s.name) + (dn[normName(s.name)] > 1 ? ' <span class="chip c-partial">ชื่อซ้ำ</span>' : '') + (s.status === 'disabled' ? ' <span class="chip c-noevidence">ระงับ</span>' : '') + '</td><td>' + esc(s.program) + '</td><td>' + esc(s.email) + '</td><td>' + esc(cs.join(', ')) + '</td><td>' + esc(s.createdAt) + '</td><td class="tag">' + esc(s.lastLogin || '–') + '</td>' +
+        '<td class="n"><button class="btn sm light" data-act="stuEdit" data-p="' + s.id + '">แก้ไข</button> <button class="btn sm light" data-act="stuPw" data-p="' + s.id + '">รีเซ็ตรหัส</button> <button class="btn sm ' + (s.status === 'disabled' ? 'light' : 'danger') + '" data-act="stuToggle" data-p="' + s.id + '">' + (s.status === 'disabled' ? 'เปิดใช้งาน' : 'ระงับ') + '</button> <button class="btn sm danger" data-act="stuDelete" data-p="' + s.id + '">ลบ</button></td></tr>';
+    }).join('') + '</table></div><p class="tag">นำเข้ารายชื่อจาก Excel: เข้ารายวิชา > แท็บ นักศึกษา > นำเข้ารายชื่อนักศึกษา · “ลบ” = ลบบัญชีพร้อมงานที่ส่งและคะแนน (ใช้กับบัญชีทดสอบ/ลงทะเบียนซ้ำ) · ถ้าแค่ไม่ให้เข้าใช้ ให้กด “ระงับ”</p>';
+}
+
+/* ---------------- รายชื่อนักศึกษา: นำเข้า/ตรวจ ---------------- */
+function normName(n) { return String(n || '').replace(/^\s*(นางสาว|นาง|นาย|น\.ส\.|ด\.ช\.|ด\.ญ\.|mr\.?|mrs\.?|ms\.?|miss)\s*/i, '').replace(/\s+/g, '').toLowerCase(); }
+function dupNames() { var m = {}; L().students.forEach(function (s) { var k = normName(s.name); if (k) m[k] = (m[k] || 0) + 1; }); return m; }
+function cellTxt(c) { if (c == null) return ''; if (typeof c === 'number') return Number.isInteger(c) ? String(c) : String(c); return String(c).replace(/\s+/g, ' ').trim(); }
+function splitCsvLine(line) { var out = [], cur = '', q = false; for (var i = 0; i < line.length; i++) { var ch = line.charAt(i); if (q) { if (ch === '"' && line.charAt(i + 1) === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; } else if (ch === '"') q = true; else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out; }
+function textToGrid(txt) {
+  return String(txt || '').replace(/\r/g, '').split('\n').filter(function (l) { return l.trim(); }).map(function (l) {
+    if (l.indexOf('\t') >= 0) return l.split('\t');
+    if (l.indexOf(',') >= 0) return splitCsvLine(l);
+    var m = l.match(/^\s*(?:\d{1,3}[.)]?\s+)?([0-9A-Za-z\-]{5,20})\s+(.+)$/);
+    return m ? [m[1], m[2]] : [l];
+  });
+}
+/** แปลงตาราง (จาก Excel/CSV/การวาง) เป็นรายชื่อ [{studentId,name,program,email}] — หาแถวหัวตารางอัตโนมัติ */
+function parseRoster(grid) {
+  var rows = grid.map(function (r) { return r.map(cellTxt); }).filter(function (r) { return r.some(Boolean); }), hi = -1, mp = {};
+  for (var i = 0; i < Math.min(rows.length, 20); i++) {
+    var m = {};
+    rows[i].forEach(function (c, j) {
+      var x = c.replace(/\s/g, '').toLowerCase();
+      if (!x) return;
+      if (/รหัส|studentid|^id$|^รหัสนักศึกษา/.test(x)) { if (m.sid == null) m.sid = j; }
+      else if (/คำนำหน้า|prefix|^title$/.test(x)) m.pre = j;
+      else if (/นามสกุล|surname|lastname/.test(x)) m.last = j;
+      else if (/ชื่อ|name/.test(x)) { if (m.name == null) m.name = j; }
+      else if (/สาขา|program|major|หลักสูตร|ชั้นปี/.test(x)) m.prog = j;
+      else if (/อีเมล|e-?mail/.test(x)) m.email = j;
+    });
+    if (m.sid != null && m.name != null) { hi = i; mp = m; break; }
+  }
+  var out = [];
+  rows.slice(hi + 1).forEach(function (r) {
+    var o = {};
+    if (hi >= 0) {
+      o.studentId = (r[mp.sid] || '').replace(/\s+/g, '');
+      o.name = ((mp.pre != null ? r[mp.pre] : '') + [r[mp.name] || '', mp.last != null ? r[mp.last] : ''].filter(Boolean).join(' ')).replace(/\s+/g, ' ').trim();
+      o.program = mp.prog != null ? r[mp.prog] || '' : '';
+      o.email = mp.email != null ? r[mp.email] || '' : '';
+    } else {
+      var k = -1;
+      r.forEach(function (c, j) { if (k < 0 && /^[0-9]{6,13}$/.test(c.replace(/[\s\-]/g, ''))) k = j; });
+      if (k < 0) return;
+      o.studentId = r[k].replace(/[\s\-]/g, '');
+      var txt = r.filter(function (c, j) { return j !== k && c && !/^\d+$/.test(c); });
+      var prog = txt.filter(function (c) { return /สาขา|ชั้นปี|ปีที่/.test(c); });
+      o.name = txt.filter(function (c) { return prog.indexOf(c) < 0 && !/@/.test(c); }).join(' ').replace(/\s+/g, ' ').trim();
+      o.program = prog.join(' ');
+      o.email = txt.filter(function (c) { return /@/.test(c); })[0] || '';
+    }
+    if (o.studentId || o.name) out.push(o);
+  });
+  return out;
+}
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise(function (ok, no) {
+    var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = function () { ok(window.XLSX); }; sc.onerror = function () { no(new Error('โหลดตัวอ่านไฟล์ Excel ไม่ได้ — ใช้วิธีคัดลอกจาก Excel แล้ววางในช่องด้านล่างแทน')); };
+    document.head.appendChild(sc);
+  });
+}
+function readGridFromFile(file) {
+  if (/\.(csv|txt)$/i.test(file.name)) return file.text().then(textToGrid);
+  return loadXLSX().then(function (X) { return file.arrayBuffer().then(function (buf) {
+    var wb = X.read(new Uint8Array(buf), { type: 'array' }), best = null;
+    wb.SheetNames.forEach(function (n) { var g = X.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }); if (!best || g.length > best.length) best = g; });
+    return best || [];
+  }); });
+}
+function importModal(cid) {
+  var c = tCourse(cid);
+  S._imp = { cid: cid, grid: null, rows: [] };
+  openModal('<h3>นำเข้ารายชื่อนักศึกษา — ' + esc(c.title) + '</h3>' +
+    '<div class="box warn" style="margin-top:0">ใช้ไฟล์รายชื่อจากระบบทะเบียน หรือคัดลอกคอลัมน์ <b>รหัสนักศึกษา</b> และ <b>ชื่อ-สกุล</b> จาก Excel มาวาง<br>• คนที่ลงทะเบียนเองแล้ว → เพิ่มเข้ารายวิชา (รหัสผ่านเดิมไม่เปลี่ยน)<br>• คนที่ยังไม่มีบัญชี → ระบบสร้างให้ <b>รหัสผ่านเริ่มต้น = 6 หลักท้ายของรหัสนักศึกษา</b> (เข้าสู่ระบบแล้วเปลี่ยนเองได้)</div>' +
+    '<div class="grid g2"><div class="f"><label>เลือกไฟล์ Excel (.xlsx) หรือ CSV</label><input id="imp_file" type="file" accept=".xlsx,.xls,.csv,.txt"></div>' + fld('imp_prog', 'สาขา/ชั้นปี (ใส่ให้คนที่ไฟล์ไม่มีข้อมูลสาขา)', 'text', '') + '</div>' +
+    '<div class="f"><label>หรือวางรายชื่อ (1 บรรทัด = 1 คน: รหัส ตามด้วยชื่อ-สกุล)</label><textarea id="imp_text" placeholder="406917001&#9;นายตัวอย่าง ใจดี&#10;406917002&#9;นางสาวตัวอย่าง รักเรียน"></textarea></div>' +
+    '<div class="row"><button class="btn" data-act="impCheck">ตรวจรายชื่อ</button><label class="chk"><input type="checkbox" id="imp_upd"> แก้ชื่อในบัญชีที่มีอยู่ให้ตรงตามรายชื่อนี้</label><span class="tag" id="impMsg"></span></div><div id="impBox"></div>' +
+    '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ปิด</button><button class="btn gold" id="impGo" data-act="impGo" data-p="' + cid + '" disabled>นำเข้า</button></div>', c.color);
+  $('imp_file').onchange = function () {
+    var f = this.files[0]; if (!f) return;
+    $('impMsg').textContent = 'กำลังอ่านไฟล์…';
+    readGridFromFile(f).then(function (g) { S._imp.grid = g; $('impMsg').textContent = 'อ่านไฟล์แล้ว ' + g.length + ' แถว'; ACTIONS.impCheck(); }).catch(function (x) { $('impMsg').textContent = ''; fail(x); });
+  };
+}
+function importPreview() {
+  var imp = S._imp, cid = imp.cid, txt = $('imp_text').value.trim();
+  var rows = parseRoster(txt ? textToGrid(txt) : (imp.grid || []));
+  var byId = {}; L().students.forEach(function (s) { byId[String(s.studentId).trim()] = s; });
+  var inC = {}; tEnrolled(cid).forEach(function (s) { inC[s.id] = 1; });
+  var cnt = { new: 0, add: 0, in: 0, bad: 0 }, seen = {}, ids = {};
+  rows.forEach(function (r) {
+    var ok = /^[0-9A-Za-z\-]{5,20}$/.test(r.studentId), st = ok ? byId[r.studentId] : null;
+    r.st = st; r.state = !ok || (!st && r.name.length < 2) ? 'bad' : seen[r.studentId] ? 'dup' : !st ? 'new' : inC[st.id] ? 'in' : 'add';
+    if (ok) { seen[r.studentId] = 1; ids[r.studentId] = 1; }
+    if (cnt[r.state] != null) cnt[r.state]++;
+  });
+  imp.rows = rows;
+  var lbl = { new: '<span class="chip c-partial">ยังไม่ลงทะเบียน → สร้างบัญชี</span>', add: '<span class="chip c-full">ลงทะเบียนแล้ว → เพิ่มเข้าวิชา</span>', in: '<span class="chip c-none">อยู่ในรายวิชาแล้ว</span>', bad: '<span class="chip c-noevidence">ข้อมูลไม่ครบ (ข้าม)</span>', dup: '<span class="chip c-noevidence">ซ้ำในรายชื่อ (ข้าม)</span>' };
+  var extra = tEnrolled(cid).filter(function (s) { return !ids[String(s.studentId).trim()]; });
+  var h = '<div class="row" style="margin-top:8px"><b>พบ ' + rows.length + ' รายชื่อ</b><span class="chip c-partial">สร้างบัญชีใหม่ ' + cnt.new + '</span><span class="chip c-full">เพิ่มเข้าวิชา ' + cnt.add + '</span><span class="chip c-none">อยู่ในวิชาแล้ว ' + cnt.in + '</span>' + (cnt.bad ? '<span class="chip c-noevidence">ข้าม ' + cnt.bad + '</span>' : '') + '</div>' +
+    (rows.length ? '<div class="imp-tbl"><table class="t"><tr><th class="n">#</th><th>รหัส</th><th>ชื่อ-สกุล (ตามรายชื่อ)</th><th>สาขา</th><th>สถานะ</th></tr>' + rows.map(function (r, k) {
+      var diff = r.st && normName(r.st.name) !== normName(r.name) ? '<div class="tag">ชื่อในระบบ: ' + esc(r.st.name) + '</div>' : '';
+      return '<tr class="' + (r.state === 'bad' || r.state === 'dup' ? 'imp-bad' : '') + '"><td class="n">' + (k + 1) + '</td><td>' + esc(r.studentId) + '</td><td>' + esc(r.name) + diff + '</td><td>' + esc(r.program) + '</td><td>' + lbl[r.state] + '</td></tr>';
+    }).join('') + '</table></div>' : '<p class="tag">ไม่พบรายชื่อ — ตรวจว่ามีคอลัมน์รหัสนักศึกษา (ตัวเลข 6–13 หลัก) และชื่อ-สกุล</p>') +
+    (rows.length && extra.length ? '<div class="box gap"><b>อยู่ในรายวิชาแต่ไม่มีในรายชื่อนี้ ' + extra.length + ' คน</b> (อาจเป็นบัญชีทดสอบ ลงทะเบียนผิดรหัส หรือนักศึกษาต่างกลุ่ม)<div>' + extra.map(function (s) { return esc(s.studentId + ' ' + s.name); }).join(' · ') + '</div><div class="tag">นำออกจากรายวิชาได้ที่ตารางนักศึกษา · ลบบัญชีได้ที่เมนู นักศึกษาทั้งหมด</div></div>' : '');
+  $('impBox').innerHTML = h;
+  var n = cnt.new + cnt.add + ($('imp_upd').checked ? rows.filter(function (r) { return r.st && r.state !== 'bad' && normName(r.st.name) !== normName(r.name); }).length : 0);
+  $('impGo').disabled = !n; $('impGo').textContent = n ? 'นำเข้า ' + n + ' รายการ' : 'นำเข้า';
 }
 
 /* ---------------- Teacher modals ---------------- */
@@ -1438,19 +1554,26 @@ function itemForm(cid, it, type) {
   S._quiz = JSON.parse(JSON.stringify(it.quiz || []));
   S._aq = it.type === 'assignment' ? JSON.parse(JSON.stringify(it.quiz || [])) : [];
   openModal('<h3>' + (it.id ? 'แก้ไข' : 'สร้าง') + ' ' + { assignment: 'ใบงาน/งานส่ง', quiz: 'แบบทดสอบ', activity: 'กิจกรรม' }[it.type] + ' — ' + esc(c.title) + '</h3>' +
-    '<input type="hidden" id="i_type" value="' + it.type + '">' + fld('i_title', 'ชื่องาน *', 'text', it.title) +
+    (it.type === 'quiz' ? '<input type="hidden" id="i_type" value="quiz">' : '<div class="f"><label>ประเภท</label><select id="i_type" onchange="itemTypeSwitch(this.value)"><option value="assignment"' + (it.type === 'assignment' ? ' selected' : '') + '>ใบงาน/งานส่ง — นักศึกษาพิมพ์ตอบคำถาม/ส่งไฟล์ในระบบ</option><option value="activity"' + (it.type === 'activity' ? ' selected' : '') + '>กิจกรรม — อาจารย์ให้คะแนนในชั้นเรียน (นักศึกษาไม่ต้องส่ง)</option></select></div>') +
+    fld('i_title', 'ชื่องาน *', 'text', it.title) +
     '<div class="grid g3"><div class="f"><label>คะแนนเต็ม</label><input id="i_max" type="number" min="0" step="0.5" value="' + esc(it.maxScore) + '"></div>' + fld('i_due', 'กำหนดส่ง', 'date', it.dueDate) +
     '<div class="f"><label>ผูกกับบทเรียน</label><select id="i_lesson"><option value="">— ไม่ผูก —</option>' + tLessons(cid).map(function (l) { return '<option value="' + l.id + '"' + (l.id === it.lessonId ? ' selected' : '') + '>' + esc(l.title) + '</option>'; }).join('') + '</select></div></div>' +
     (it.type === 'quiz' ? '' : aiBar(it.type === 'assignment' ? 'worksheet' : 'activity', it.type === 'assignment' ? 'ออกแบบใบงาน' : 'ออกแบบกิจกรรม')) +
     '<div class="f"><label>คำชี้แจง/คำสั่งงาน/เกณฑ์ ' + (S.boot.aiReady && it.type !== 'quiz' ? '<a href="javascript:void 0" data-act="aiRubric">+ AI สร้าง rubric</a>' : '') + '</label><textarea id="i_ins" style="min-height:140px">' + esc(it.instructions || '') + '</textarea></div>' +
     (it.type === 'quiz' ? aiBar('quiz', 'ออกข้อสอบ') + '<div id="qzBox"></div><button class="btn sm light" data-act="qzAdd">+ เพิ่มข้อ</button>' : '') +
     (it.type === 'assignment' ? '<div class="hr"></div><h4 style="margin:4px 0">คำถามให้นักศึกษาพิมพ์ตอบ</h4><p class="tag">ไม่บังคับ — ถ้าตั้งคำถาม นักศึกษาจะมีช่องพิมพ์คำตอบใต้แต่ละข้อ และอาจารย์ให้คะแนนรายข้อได้ · ถ้าไม่ตั้ง นักศึกษาตอบในช่องข้อความ/แนบไฟล์ตามเดิม · ใส่คะแนนรายข้อหรือเว้นว่างก็ได้</p>' +
-      '<div id="aqBox"></div><div class="row"><button class="btn sm light" data-act="aqAdd">+ เพิ่มคำถาม</button><span class="tag" id="aqSum"></span></div><div class="hr"></div>' : '') +
+      '<div id="aqBox"></div><div class="row"><button class="btn sm light" data-act="aqAdd">+ เพิ่มคำถาม</button><button class="btn sm light" data-act="aqFromIns" title="แยกบรรทัดที่ขึ้นต้นด้วย 1. 2. 3. ในช่องคำชี้แจงมาเป็นคำถาม">ดึงคำถามจากช่องคำชี้แจง</button><span class="tag" id="aqSum"></span></div><div class="hr"></div>' : '') +
     '<label class="chk"><input type="checkbox" id="i_pub"' + (it.published ? ' checked' : '') + '> เผยแพร่ให้นักศึกษาเห็น</label>' +
     '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ปิด</button><button class="btn gold" data-act="itemSave" data-p="' + (it.id || '') + '">บันทึก</button></div>', c.color);
   S._editing = { kind: 'item', courseId: cid, id: it.id, type: it.type };
   if (it.type === 'quiz') qzRender();
   if (it.type === 'assignment') { aqRender(); $('i_max').addEventListener('input', aqSumTxt); }
+}
+function itemTypeSwitch(t) {
+  var e = S._editing; if (!e) return;
+  if (t === 'activity' && S._aq && S._aq.length) S._aqStash = S._aq;
+  var aq = S._aq && S._aq.length ? S._aq : (S._aqStash || []);
+  itemForm(e.courseId, { id: e.id, courseId: e.courseId, type: t, title: v_('i_title'), maxScore: v_('i_max') || 10, dueDate: v_('i_due'), lessonId: $('i_lesson').value, instructions: $('i_ins').value, published: $('i_pub').checked, quiz: t === 'assignment' ? aq : [] });
 }
 function aqRender() {
   var box = $('aqBox'); if (!box) return;
@@ -1564,6 +1687,14 @@ var LMS_ACTIONS = {
   aqAdd: function () { S._aq.push({ q: '', points: 0 }); aqRender(); var t = document.querySelectorAll('#aqBox textarea'); if (t.length) t[t.length - 1].focus(); },
   aqDel: function (p) { var q = S._aq[Number(p)]; if (q && String(q.q || '').trim() && !confirm('ลบคำถามข้อ ' + (Number(p) + 1) + '?')) return; S._aq.splice(Number(p), 1); aqRender(); },
   aqUp: function (p) { var k = Number(p); if (k < 1) return; var x = S._aq[k]; S._aq[k] = S._aq[k - 1]; S._aq[k - 1] = x; aqRender(); },
+  aqFromIns: function () {
+    var keep = [], qs = [];
+    $('i_ins').value.split('\n').forEach(function (l) { var m = l.match(/^\s*(?:ข้อ\s*)?\d{1,2}\s*[.)]\s*(.+)$/); if (m && m[1].trim()) qs.push(m[1].trim()); else keep.push(l); });
+    if (!qs.length) return toast('ไม่พบบรรทัดที่ขึ้นต้นด้วยเลขข้อ เช่น “1. …” ในช่องคำชี้แจง', true);
+    qs.forEach(function (q) { S._aq.push({ q: q, points: 0 }); });
+    if (confirm('เพิ่ม ' + qs.length + ' คำถามแล้ว\nลบคำถามเหล่านี้ออกจากช่องคำชี้แจงด้วยหรือไม่? (กันแสดงซ้ำ)')) $('i_ins').value = keep.join('\n').trim();
+    aqRender(); toast('ดึงคำถาม ' + qs.length + ' ข้อแล้ว — ใส่คะแนนรายข้อได้ แล้วกดบันทึก');
+  },
   aqUseSum: function () { $('i_max').value = S._aq.reduce(function (a, q) { return a + (Number(q.points) || 0); }, 0); aqSumTxt(); },
   qzAdd: function () { S._quiz.push({ q: '', choices: ['', '', '', ''], answer: 0, points: 1 }); qzRender(); },
   qzDel: function (p) { S._quiz.splice(Number(p), 1); qzRender(); },
@@ -1635,6 +1766,37 @@ var LMS_ACTIONS = {
     openModal('<h3>รีเซ็ตรหัสผ่าน: ' + esc(st.name) + '</h3>' + fld('rp_pw', 'รหัสผ่านใหม่ (≥ 6 ตัว)', 'text', String(st.studentId).slice(-6)) + '<p class="tag">ค่าเริ่มต้น = 6 หลักท้ายของรหัสนักศึกษา แจ้งนักศึกษาให้เปลี่ยนหลังเข้าสู่ระบบ</p><div class="row"><span class="sp"></span><button class="btn light" data-act="close">ยกเลิก</button><button class="btn" data-act="stuPwSave" data-p="' + p + '">บันทึก</button></div>');
   },
   stuPwSave: function (p, el) { busy(el, true); call('resetStudentPassword', S.token, p, v_('rp_pw')).then(function () { closeModal(); toast('รีเซ็ตรหัสผ่านแล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
+  impOpen: function (p) { importModal(p); },
+  impCheck: function () { importPreview(); },
+  impGo: function (p, el) {
+    var rows = (S._imp.rows || []).filter(function (r) { return r.state === 'new' || r.state === 'add' || (r.state === 'in' && $('imp_upd').checked); })
+      .map(function (r) { return { studentId: r.studentId, name: r.name, program: r.program, email: r.email }; });
+    if (!rows.length) return;
+    busy(el, true); el.textContent = 'กำลังนำเข้า…';
+    call('importStudents', S.token, p, rows, { program: v_('imp_prog'), updateNames: $('imp_upd').checked }).then(function (r) {
+      return loadLms().then(function () {
+        render();
+        var c = tCourse(p), msg = 'ลงทะเบียนเข้ารายวิชา ' + c.title + '\nเข้าเว็บ: ' + (S.boot.url || '') + '\nกด “นักศึกษาเข้าสู่ระบบ” ใช้รหัสนักศึกษา\nรหัสผ่านเริ่มต้น = 6 หลักท้ายของรหัสนักศึกษา (ถ้าเคยลงทะเบียนเองแล้ว ใช้รหัสผ่านเดิม) แล้วเปลี่ยนรหัสผ่านที่หน้าแรก';
+        S._impMsg = msg;
+        openModal('<h3>นำเข้ารายชื่อเรียบร้อย</h3><div class="grid g4">' + kpi('สร้างบัญชีใหม่', r.created) + kpi('เพิ่มเข้ารายวิชา', r.enrolled) + kpi('อยู่ในวิชาแล้ว', r.already) + kpi('แก้ชื่อ', r.updated) + '</div>' +
+          (r.skipped.length ? '<div class="box gap">ข้าม ' + r.skipped.length + ' รายการ (รหัส/ชื่อไม่ครบ): ' + esc(r.skipped.join(' · ')) + '</div>' : '') +
+          '<div class="box warn"><b>แจ้งนักศึกษา</b><div style="white-space:pre-wrap">' + esc(msg) + '</div></div>' +
+          '<div class="row"><span class="sp"></span><button class="btn light" data-act="impCopy">คัดลอกข้อความแจ้งนักศึกษา</button><button class="btn" data-act="close">ปิด</button></div>', c.color);
+      });
+    }).catch(function (x) { busy(el, false); el.textContent = 'นำเข้า'; fail(x); });
+  },
+  impCopy: function () { var t = S._impMsg || ''; try { navigator.clipboard.writeText(t).then(function () { toast('คัดลอกแล้ว'); }, function () { prompt('คัดลอกข้อความนี้', t); }); } catch (e) { prompt('คัดลอกข้อความนี้', t); } },
+  stuEdit: function (p) {
+    var st = tStudent(p);
+    openModal('<h3>แก้ไขข้อมูลนักศึกษา</h3>' + fld('se_sid', 'รหัสนักศึกษา', 'text', st.studentId) + fld('se_name', 'ชื่อ-สกุล', 'text', st.name) + '<div class="grid g2">' + fld('se_prog', 'สาขา/ชั้นปี', 'text', st.program) + fld('se_email', 'อีเมล', 'email', st.email) + '</div>' +
+      '<p class="tag">รหัสผ่านไม่เปลี่ยน (รีเซ็ตได้ที่ปุ่ม รีเซ็ตรหัส) · ถ้าแก้รหัสนักศึกษา นักศึกษาต้องใช้รหัสใหม่เข้าสู่ระบบ</p><div class="row"><span class="sp"></span><button class="btn light" data-act="close">ยกเลิก</button><button class="btn gold" data-act="stuEditSave" data-p="' + p + '">บันทึก</button></div>');
+  },
+  stuEditSave: function (p, el) { busy(el, true); call('updateStudent', S.token, p, { studentId: v_('se_sid'), name: v_('se_name'), program: v_('se_prog'), email: v_('se_email') }).then(function () { closeModal(); reLms('บันทึกข้อมูลนักศึกษาแล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
+  stuDelete: function (p) {
+    var st = tStudent(p), ns = L().subs.filter(function (s) { return s.sid === p; }).length, nc = L().enrollments.filter(function (e) { return e.sid === p; }).length;
+    if (!confirm('ลบบัญชี ' + st.studentId + ' ' + st.name + ' ออกจากระบบ?\n- รายวิชาที่ลงทะเบียน ' + nc + ' วิชา\n- งานที่ส่ง/คะแนน ' + ns + ' รายการ\nจะถูกลบทั้งหมด กู้คืนไม่ได้')) return;
+    call('deleteStudent', S.token, p).then(function () { reLms('ลบบัญชีนักศึกษาแล้ว'); }).catch(fail);
+  },
   stuToggle: function (p) { var st = tStudent(p); call('setStudentStatus', S.token, p, st.status === 'disabled' ? 'active' : 'disabled').then(function () { reLms('อัปเดตแล้ว'); }).catch(fail); }
 };
 function lessonReopen(lid, msg) {

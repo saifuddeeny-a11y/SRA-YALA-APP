@@ -28,7 +28,7 @@ var HEADERS = {
   Courses: ['id', 'code', 'title', 'description', 'term', 'enrollCode', 'color', 'status', 'createdAt'],
   Lessons: ['id', 'courseId', 'order', 'title', 'content', 'videoUrl', 'files', 'published', 'createdAt'],
   Items: ['id', 'courseId', 'lessonId', 'order', 'type', 'title', 'instructions', 'maxScore', 'dueDate', 'quiz', 'published', 'createdAt'],
-  Students: ['id', 'studentId', 'name', 'email', 'program', 'salt', 'passHash', 'status', 'createdAt'],
+  Students: ['id', 'studentId', 'name', 'email', 'program', 'salt', 'passHash', 'status', 'createdAt', 'lastLogin'],
   Enrollments: ['id', 'courseId', 'sid', 'createdAt'],
   Submissions: ['id', 'itemId', 'courseId', 'sid', 'text', 'files', 'answers', 'autoScore', 'score', 'feedback', 'status', 'submittedAt', 'gradedAt', 'qScores', 'editCount'],
   Progress: ['sid', 'lessonId', 'courseId', 'at']
@@ -100,13 +100,13 @@ function setup() {
   var st = sheet_(SHEETS.SETTINGS);
   var cur = settingsMap_();
   DEFAULT_SETTINGS.forEach(function (row) {
-    if (!(row[0] in cur)) st.appendRow(row);
+    if (!(row[0] in cur)) st.appendRow(rowCells_(HEADERS.Settings, row));
     else if (!cur[row[0]] && row[1]) setSetting_(row[0], row[1]);   // เติมค่าเริ่มต้นเมื่อช่องยังว่าง
   });
   var props = PropertiesService.getScriptProperties();
   if (!props.getProperty('ADMIN_PIN')) props.setProperty('ADMIN_PIN', DEFAULT_PIN);
   var ps = sheet_(SHEETS.PERIODS);
-  if (ps.getLastRow() < 2) ps.getRange(2, 1, DEFAULT_PERIODS.length, 4).setValues(DEFAULT_PERIODS);
+  if (ps.getLastRow() < 2) ps.getRange(2, 1, DEFAULT_PERIODS.length, 4).setValues(DEFAULT_PERIODS.map(function (r) { return rowCells_(HEADERS.Periods, r); }));
   seedIndicators_();
   ensureRootFolder_();
   var def = ss.getSheetByName('Sheet1') || ss.getSheetByName('ชีต1');
@@ -195,6 +195,7 @@ function checkPin(pin) { return isAdmin_(pin); }
 /* ============================ Read API ============================ */
 
 function getBootstrap() {
+  try { fixData_(); } catch (e) { log_('fixData error', String(e)); }
   var s = settingsMap_();
   var props = PropertiesService.getScriptProperties();
   return {
@@ -221,6 +222,52 @@ function getBootstrap() {
   };
 }
 
+/* ---- ซ่อมข้อมูลเดิมที่ Google Sheets แปลงอัตโนมัติ (ทำครั้งเดียว) ----
+ * รอบประเมิน "2570-1" ที่กลายเป็นวันที่ 1 ม.ค. 2570 → "2570-1"
+ * ภาคเรียน "2/2569" ที่กลายเป็นวันที่ 1 ก.พ. 2569 → "2/2569"
+ * รหัสวิชา/รหัสนักศึกษา/รหัสตัวชี้วัดที่กลายเป็นตัวเลข → ข้อความ */
+var MON_ = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function ymd_(d) {
+  var tz = (ss_().getSpreadsheetTimeZone && ss_().getSpreadsheetTimeZone()) || 'Asia/Bangkok';
+  return Utilities.formatDate(d, tz, 'yyyy-MM-dd').split('-').map(Number);
+}
+function periodKey_(v) {
+  if (v instanceof Date) { var p = ymd_(v); return p[0] + '-' + p[1]; }
+  var s = String(v == null ? '' : v).trim(), m = s.match(/^[A-Za-z]{3} ([A-Za-z]{3}) \d{1,2} (\d{4})/);
+  if (m && MON_.indexOf(m[1]) >= 0) return m[2] + '-' + (MON_.indexOf(m[1]) + 1);
+  return s;
+}
+function termKey_(v) { if (v instanceof Date) { var p = ymd_(v); return p[1] + '/' + p[0]; } return v; }
+function txt_(v) { return typeof v === 'number' ? String(v) : v; }
+function fixColumn_(name, col, fn) {
+  var sh = ss_().getSheetByName(name); if (!sh || sh.getLastRow() < 2) return 0;
+  var v = sh.getDataRange().getValues(), c = v[0].indexOf(col); if (c < 0) return 0;
+  var n = 0, out = v.slice(1).map(function (r) { var x = r[c], y = (x === '' || x == null) ? x : fn(x); if (y !== x) n++; return [cell_(col, y)]; });
+  if (n) sh.getRange(2, c + 1, out.length, 1).setValues(out);
+  return n;
+}
+function fixData_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('DATA_FIX_V1') === '1') return;
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (e) { return; }
+  try {
+    if (props.getProperty('DATA_FIX_V1') === '1') return;
+    var n = 0, carry = function (x) { return String(x).split(',').map(function (t) { return periodKey_(t); }).filter(Boolean).join(','); };
+    n += fixColumn_(SHEETS.PERIODS, 'id', periodKey_);
+    n += fixColumn_(SHEETS.WORKS, 'period', periodKey_) + fixColumn_(SHEETS.WORKS, 'carry', carry) + fixColumn_(SHEETS.WORKS, 'code', txt_);
+    n += fixColumn_(SHEETS.SCORES, 'period', periodKey_) + fixColumn_(SHEETS.SCORES, 'code', txt_);
+    n += fixColumn_(SHEETS.AILOG, 'period', periodKey_) + fixColumn_(SHEETS.AILOG, 'code', txt_);
+    n += fixColumn_(SHEETS_LMS.COURSES, 'term', termKey_) + fixColumn_(SHEETS_LMS.COURSES, 'code', txt_) + fixColumn_(SHEETS_LMS.COURSES, 'enrollCode', txt_);
+    n += fixColumn_(SHEETS_LMS.STUDENTS, 'studentId', txt_) + fixColumn_(SHEETS_LMS.STUDENTS, 'program', txt_);
+    dirty_();
+    var ap = getSetting_('ACTIVE_PERIOD'), apk = periodKey_(ap);
+    if (ap && apk !== ap) { setSetting_('ACTIVE_PERIOD', apk); n++; }
+    props.setProperty('DATA_FIX_V1', '1');
+    if (n) log_('ซ่อมข้อมูล', 'แก้ข้อมูลที่ Google Sheets แปลงอัตโนมัติ ' + n + ' ช่อง');
+  } finally { lock.releaseLock(); dirty_(); }
+}
+
 /** ข้อมูลทั้งหมดของรอบ + ผลวิเคราะห์ */
 /** ผู้มีสิทธิ์ดูแฟ้มประเมิน: อาจารย์ หรือ ผู้ประเมินที่ใช้รหัสเข้าถึง (ดูอย่างเดียว) */
 function canViewPf_(cred) {
@@ -245,7 +292,7 @@ function getPeriodData_(period) {
   var ids = {};
   works.forEach(function (w) { ids[w.id] = true; });
   var evidence = readTable_(SHEETS.EVIDENCE).filter(function (e) { return ids[e.workId]; }).map(cleanRow_);
-  var scores = readTable_(SHEETS.SCORES).filter(function (s) { return String(s.period) === String(period); }).map(cleanRow_);
+  var scores = readTable_(SHEETS.SCORES).filter(function (s) { return String(s.period) === String(period); }).map(function (s) { var o = cleanRow_(s); o.code = String(s.code); o.period = String(s.period); return o; });
   var ai = readTable_(SHEETS.AILOG).filter(function (a) { return String(a.period) === String(period); });
   var aiLatest = {};
   ai.forEach(function (a) { aiLatest[a.code] = { at: fmtDateTime_(a.at), provider: a.provider, result: safeJson_(a.result, null) }; });
@@ -259,6 +306,7 @@ function worksForPeriod_(period) {
     return String(w.carry || '').split(',').map(function (x) { return x.trim(); }).indexOf(String(period)) >= 0;
   }).map(function (w) {
     var o = cleanRow_(w);
+    o.code = String(w.code); o.period = String(w.period);
     o.items = safeJson_(w.items, []);
     o.claimLevel = Number(w.claimLevel) || 0;
     o.value = w.value === '' ? '' : Number(w.value);
@@ -361,7 +409,7 @@ function setFinalLevel(pin, period, code, level, note) {
       return true;
     }
   }
-  if (level !== '' && level != null) sh.appendRow([period, code, Number(level), note || '', currentEmail_() || 'PIN', new Date()]);
+  if (level !== '' && level != null) sh.appendRow([cell_('period', String(period)), cell_('code', String(code)), Number(level), note || '', currentEmail_() || 'PIN', new Date()]);
   log_('ยืนยันระดับ', period + ' ' + code + ' = ' + level);
   return true;
 }
@@ -385,7 +433,7 @@ function addPeriod(pin, p) {
   requireAdmin_(pin);
   if (!p.id || !p.label) throw new Error('กรุณาระบุรหัสและชื่อรอบ');
   if (findRow_(SHEETS.PERIODS, 'id', p.id)) throw new Error('มีรหัสรอบนี้แล้ว');
-  dirty_(); sheet_(SHEETS.PERIODS).appendRow([p.id, p.label, p.start || '', p.end || '']);
+  dirty_(); sheet_(SHEETS.PERIODS).appendRow(rowCells_(HEADERS.Periods, [String(p.id).trim(), p.label, p.start || '', p.end || '']));
   return true;
 }
 
@@ -458,8 +506,8 @@ function sheet_(name) {
   var h = HEADERS[name];
   sh.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold').setBackground('#1f3a5f').setFontColor('#ffffff');
   sh.setFrozenRows(1);
-  if (name === SHEETS.SETTINGS) sh.getRange(2, 1, DEFAULT_SETTINGS.length, 3).setValues(DEFAULT_SETTINGS);
-  if (name === SHEETS.PERIODS) sh.getRange(2, 1, DEFAULT_PERIODS.length, 4).setValues(DEFAULT_PERIODS);
+  if (name === SHEETS.SETTINGS) sh.getRange(2, 1, DEFAULT_SETTINGS.length, 3).setValues(DEFAULT_SETTINGS.map(function (r) { return rowCells_(h, r); }));
+  if (name === SHEETS.PERIODS) sh.getRange(2, 1, DEFAULT_PERIODS.length, 4).setValues(DEFAULT_PERIODS.map(function (r) { return rowCells_(h, r); }));
   return sh;
 }
 
@@ -485,10 +533,21 @@ function readTable_(name) {
   return readTable_(name);
 }
 
+/* ---- ป้องกัน Google Sheets แปลงข้อความเป็นวันที่/ตัวเลข/สูตรเอง ----
+ * เช่น ภาคเรียน "2/2569" กลายเป็นวันที่, รอบ "2570-1" กลายเป็นวันที่, รหัสวิชา "2.10" กลายเป็น 2.1,
+ * คำตอบที่ขึ้นต้นด้วย "-" หรือ "=" กลายเป็นสูตร (#ERROR) → ใส่ ' นำหน้า (Sheets เก็บเป็นข้อความ ไม่แสดง ') */
+var DATE_COLS_ = { dueDate: 1, workDate: 1, docDate: 1, start: 1, end: 1 };
+function cell_(k, v) {
+  if (typeof v !== 'string' || !v || DATE_COLS_[k]) return v;
+  if (/^[=+\-@']/.test(v) || (/\d/.test(v) && /^[\s\d.,\/:\-+%$()eE]+$/.test(v))) return "'" + v;
+  return v;
+}
+function rowCells_(h, row) { return row.map(function (v, j) { return cell_(h[j], v); }); }
+
 function appendObj_(name, obj) {
   dirty_();
   var h = HEADERS[name];
-  sheet_(name).appendRow(h.map(function (k) { return obj[k] === undefined ? '' : obj[k]; }));
+  sheet_(name).appendRow(h.map(function (k) { return cell_(k, obj[k] === undefined ? '' : obj[k]); }));
 }
 
 function upsert_(name, key, obj) {
@@ -496,7 +555,7 @@ function upsert_(name, key, obj) {
   var sh = sheet_(name), v = sh.getDataRange().getValues(), h = v[0], ki = h.indexOf(key);
   for (var i = 1; i < v.length; i++) {
     if (String(v[i][ki]) === String(obj[key])) {
-      var row = h.map(function (k, j) { return obj[k] === undefined ? v[i][j] : obj[k]; });
+      var row = h.map(function (k, j) { return cell_(k, obj[k] === undefined ? v[i][j] : obj[k]); });
       sh.getRange(i + 1, 1, 1, h.length).setValues([row]);
       return;
     }
@@ -523,8 +582,8 @@ function getSetting_(k) { return settingsMap_()[k]; }
 function setSetting_(k, v) {
   dirty_();
   var sh = sheet_(SHEETS.SETTINGS), d = sh.getDataRange().getValues();
-  for (var i = 1; i < d.length; i++) if (d[i][0] === k) { sh.getRange(i + 1, 2).setValue(v); return; }
-  sh.appendRow([k, v, '']);
+  for (var i = 1; i < d.length; i++) if (d[i][0] === k) { sh.getRange(i + 1, 2).setValue(cell_('value', v)); return; }
+  sh.appendRow([k, cell_('value', v), '']);
 }
 
 function cleanRow_(r) {
@@ -544,7 +603,7 @@ function fmtDateTime_(d) {
 function safeJson_(s, def) { try { return s ? JSON.parse(s) : def; } catch (e) { return def; } }
 function uid_(p) { return p + Utilities.getUuid().replace(/-/g, '').slice(0, 10); }
 function log_(action, detail) {
-  try { sheet_(SHEETS.LOG).appendRow([new Date(), currentEmail_() || 'PIN/anonymous', action, detail]); } catch (e) {}
+  try { sheet_(SHEETS.LOG).appendRow([new Date(), currentEmail_() || 'PIN/anonymous', action, cell_('detail', String(detail == null ? '' : detail))]); } catch (e) {}
 }
 
 
@@ -604,7 +663,7 @@ function studentRegister(f) {
   try {
     if (findRow_(SHEETS_LMS.STUDENTS, 'studentId', sidTxt)) throw new Error('รหัสนักศึกษานี้ลงทะเบียนแล้ว กรุณาเข้าสู่ระบบ');
     var salt = Utilities.getUuid().slice(0, 12);
-    var row = { id: uid_('S'), studentId: sidTxt, name: name, email: f.email || '', program: f.program || '', salt: salt, passHash: hash_(salt, f.password), status: 'active', createdAt: new Date() };
+    var row = { id: uid_('S'), studentId: sidTxt, name: name, email: f.email || '', program: f.program || '', salt: salt, passHash: hash_(salt, f.password), status: 'active', createdAt: new Date(), lastLogin: new Date() };
     appendObj_(SHEETS_LMS.STUDENTS, row);
     if (f.enrollCode) { try { joinCourse_(row.id, f.enrollCode); } catch (e) {} }
     return { token: makeToken_('student', row.id, 24), name: name };
@@ -614,6 +673,7 @@ function studentLogin(studentId, password) {
   var st = findRow_(SHEETS_LMS.STUDENTS, 'studentId', String(studentId || '').trim());
   if (!st || hash_(st.salt, password) !== st.passHash) throw new Error('รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง');
   if (st.status === 'disabled') throw new Error('บัญชีถูกระงับ กรุณาติดต่ออาจารย์');
+  try { upsert_(SHEETS_LMS.STUDENTS, 'id', { id: st.id, lastLogin: new Date() }); } catch (e) {}
   return { token: makeToken_('student', st.id, 24), name: st.name };
 }
 function studentChangePassword(token, oldPass, newPass) {
@@ -724,7 +784,7 @@ function stuReportPdf(token, courseId) {
 /* ---------------------------- Teacher API ---------------------------- */
 function lmsTeacherData(cred) {
   requireAdmin_(cred);
-  var students = readTable_(SHEETS_LMS.STUDENTS).map(function (s) { return { id: s.id, studentId: s.studentId, name: s.name, email: s.email, program: s.program, status: s.status, createdAt: fmtDate_(s.createdAt) }; });
+  var students = readTable_(SHEETS_LMS.STUDENTS).map(function (s) { return { id: s.id, studentId: String(s.studentId), name: s.name, email: s.email, program: String(s.program || ''), status: s.status, createdAt: fmtDate_(s.createdAt), lastLogin: s.lastLogin instanceof Date ? fmtDateTime_(s.lastLogin) : String(s.lastLogin || '') }; });
   return {
     courses: readTable_(SHEETS_LMS.COURSES).map(cleanRow_),
     lessons: readTable_(SHEETS_LMS.LESSONS).map(lessonOut_),
@@ -855,6 +915,71 @@ function enrollStudentByTeacher(cred, courseId, studentRowId) {
 function removeEnrollment(cred, courseId, sid) {
   requireAdmin_(cred);
   readTable_(SHEETS_LMS.ENR).filter(function (e) { return e.courseId === courseId && e.sid === sid; }).forEach(function (e) { deleteWhere_(SHEETS_LMS.ENR, 'id', e.id); });
+  return true;
+}
+/* ---- รายชื่อนักศึกษา: นำเข้า/แก้ไข/ลบ ---- */
+function defaultStudentPass_(studentId) { return String(studentId).slice(-6); }
+/** นำเข้ารายชื่อ rows [{studentId,name,program,email}] เข้ารายวิชา
+ *  - มีบัญชีแล้ว (รหัสตรง) → เพิ่มเข้ารายวิชา (ไม่แตะรหัสผ่านเดิม)
+ *  - ยังไม่มีบัญชี → สร้างบัญชี รหัสผ่านเริ่มต้น = 6 หลักท้ายของรหัสนักศึกษา */
+function importStudents(cred, courseId, rows, opts) {
+  requireAdmin_(cred);
+  opts = opts || {};
+  if (!findRow_(SHEETS_LMS.COURSES, 'id', courseId)) throw new Error('ไม่พบรายวิชา');
+  rows = (rows || []).slice(0, 1000);
+  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    var byId = {}; readTable_(SHEETS_LMS.STUDENTS).forEach(function (s) { byId[String(s.studentId).trim()] = s; });
+    var enrolled = {}; readTable_(SHEETS_LMS.ENR).forEach(function (e) { if (e.courseId === courseId) enrolled[e.sid] = true; });
+    var res = { created: 0, enrolled: 0, already: 0, updated: 0, skipped: [] }, seen = {}, now = new Date();
+    var stSh = sheet_(SHEETS_LMS.STUDENTS), enSh = sheet_(SHEETS_LMS.ENR), hS = HEADERS.Students, hE = HEADERS.Enrollments;
+    rows.forEach(function (r) {
+      var sid = String(r.studentId == null ? '' : r.studentId).replace(/\s+/g, ''), name = String(r.name || '').replace(/\s+/g, ' ').trim();
+      if (!/^[0-9A-Za-z\-]{5,20}$/.test(sid)) { res.skipped.push((sid || '(ไม่มีรหัส)') + ' ' + name); return; }
+      if (seen[sid]) return; seen[sid] = 1;
+      var st = byId[sid];
+      if (!st) {
+        if (name.length < 2) { res.skipped.push(sid + ' (ไม่มีชื่อ)'); return; }
+        var salt = Utilities.getUuid().slice(0, 12);
+        st = { id: uid_('S'), studentId: sid, name: name, email: String(r.email || ''), program: String(r.program || opts.program || ''), salt: salt,
+          passHash: hash_(salt, defaultStudentPass_(sid)), status: 'active', createdAt: now, lastLogin: '' };
+        stSh.appendRow(hS.map(function (k) { return cell_(k, st[k] === undefined ? '' : st[k]); }));
+        byId[sid] = st; res.created++;
+      } else if (opts.updateNames && name.length >= 2 && name !== st.name) {
+        upsert_(SHEETS_LMS.STUDENTS, 'id', { id: st.id, name: name }); res.updated++;
+      }
+      if (enrolled[st.id]) { res.already++; return; }
+      var e = { id: uid_('N'), courseId: courseId, sid: st.id, createdAt: now };
+      enSh.appendRow(hE.map(function (k) { return cell_(k, e[k]); }));
+      enrolled[st.id] = true; res.enrolled++;
+    });
+    dirty_();
+    log_('นำเข้ารายชื่อนักศึกษา', courseId + ' สร้าง ' + res.created + ' เพิ่มเข้าวิชา ' + res.enrolled);
+    return res;
+  } finally { lock.releaseLock(); }
+}
+function updateStudent(cred, sid, f) {
+  requireAdmin_(cred);
+  f = f || {};
+  var st = findRow_(SHEETS_LMS.STUDENTS, 'id', sid); if (!st) throw new Error('ไม่พบนักศึกษา');
+  var sidTxt = String(f.studentId || '').replace(/\s+/g, ''), name = String(f.name || '').replace(/\s+/g, ' ').trim();
+  if (!/^[0-9A-Za-z\-]{5,20}$/.test(sidTxt)) throw new Error('รหัสนักศึกษาไม่ถูกต้อง');
+  if (name.length < 2) throw new Error('กรุณากรอกชื่อ-สกุล');
+  var dup = readTable_(SHEETS_LMS.STUDENTS).some(function (x) { return x.id !== sid && String(x.studentId).trim() === sidTxt; });
+  if (dup) throw new Error('รหัสนักศึกษานี้มีในระบบแล้ว');
+  upsert_(SHEETS_LMS.STUDENTS, 'id', { id: sid, studentId: sidTxt, name: name, program: String(f.program || ''), email: String(f.email || '') });
+  return true;
+}
+/** ลบบัญชีนักศึกษาออกจากระบบ พร้อมการลงทะเบียน งานที่ส่ง และประวัติการเรียน (เช่น บัญชีทดสอบ/ลงทะเบียนซ้ำ) */
+function deleteStudent(cred, sid) {
+  requireAdmin_(cred);
+  var st = findRow_(SHEETS_LMS.STUDENTS, 'id', sid); if (!st) throw new Error('ไม่พบนักศึกษา');
+  readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.sid === sid; }).forEach(function (s) {
+    safeJson_(s.files, []).forEach(function (f) { if (f.fileId) { try { DriveApp.getFileById(f.fileId).setTrashed(true); } catch (e) {} } });
+  });
+  [SHEETS_LMS.SUBS, SHEETS_LMS.ENR, SHEETS_LMS.PROG].forEach(function (n) { deleteWhere_(n, 'sid', sid); });
+  deleteWhere_(SHEETS_LMS.STUDENTS, 'id', sid);
+  log_('ลบนักศึกษา', st.studentId + ' ' + st.name);
   return true;
 }
 function setStudentStatus(cred, sid, status) { requireAdmin_(cred); upsert_(SHEETS_LMS.STUDENTS, 'id', { id: sid, status: status }); return true; }
@@ -1745,7 +1870,7 @@ function aiAnalyze(pin, period, code) {
   var text = s.AI_PROVIDER === 'gemini' ? callGemini_(key, s.AI_MODEL, prompt) : callAnthropic_(key, s.AI_MODEL, prompt);
   var m = text.match(/\{[\s\S]*\}/);
   var result = m ? safeJson_(m[0], { raw: text }) : { raw: text };
-  dirty_(); sheet_(SHEETS.AILOG).appendRow([period, code, new Date(), s.AI_PROVIDER + ':' + s.AI_MODEL, JSON.stringify(result)]);
+  dirty_(); sheet_(SHEETS.AILOG).appendRow([cell_('period', String(period)), cell_('code', String(code)), new Date(), s.AI_PROVIDER + ':' + s.AI_MODEL, JSON.stringify(result)]);
   return result;
 }
 
