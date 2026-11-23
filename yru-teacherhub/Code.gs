@@ -30,7 +30,7 @@ var HEADERS = {
   Items: ['id', 'courseId', 'lessonId', 'order', 'type', 'title', 'instructions', 'maxScore', 'dueDate', 'quiz', 'published', 'createdAt'],
   Students: ['id', 'studentId', 'name', 'email', 'program', 'salt', 'passHash', 'status', 'createdAt'],
   Enrollments: ['id', 'courseId', 'sid', 'createdAt'],
-  Submissions: ['id', 'itemId', 'courseId', 'sid', 'text', 'files', 'answers', 'autoScore', 'score', 'feedback', 'status', 'submittedAt', 'gradedAt'],
+  Submissions: ['id', 'itemId', 'courseId', 'sid', 'text', 'files', 'answers', 'autoScore', 'score', 'feedback', 'status', 'submittedAt', 'gradedAt', 'qScores', 'editCount'],
   Progress: ['sid', 'lessonId', 'courseId', 'at']
 };
 
@@ -445,8 +445,14 @@ function ss_() {
 }
 
 /** คืนชีตตามชื่อ ถ้ายังไม่มีจะสร้างพร้อมหัวตาราง (และข้อมูลเริ่มต้นของ Settings/Periods) */
+var _hdrChecked = {};
 function sheet_(name) {
   var ss = ss_(), sh = ss.getSheetByName(name);
+  if (sh && HEADERS[name] && !_hdrChecked[name]) {
+    _hdrChecked[name] = true;
+    var props = PropertiesService.getScriptProperties(), hk = 'HDR_' + name, hv = String(HEADERS[name].length);
+    if (props.getProperty(hk) !== hv) { ensureHeaders_(sh, HEADERS[name]); props.setProperty(hk, hv); }
+  }
   if (sh || !HEADERS[name]) return sh;
   sh = ss.insertSheet(name);
   var h = HEADERS[name];
@@ -455,6 +461,15 @@ function sheet_(name) {
   if (name === SHEETS.SETTINGS) sh.getRange(2, 1, DEFAULT_SETTINGS.length, 3).setValues(DEFAULT_SETTINGS);
   if (name === SHEETS.PERIODS) sh.getRange(2, 1, DEFAULT_PERIODS.length, 4).setValues(DEFAULT_PERIODS);
   return sh;
+}
+
+/** เพิ่มคอลัมน์ใหม่ (ที่เพิ่มในเวอร์ชันหลัง) ต่อท้ายหัวตารางของชีตเดิม — ข้อมูลเดิมไม่หาย */
+function ensureHeaders_(sh, h) {
+  var w = sh.getLastColumn();
+  var cur = w ? sh.getRange(1, 1, 1, w).getValues()[0] : [];
+  var miss = h.filter(function (k) { return cur.indexOf(k) < 0; });
+  if (!miss.length) return;
+  sh.getRange(1, cur.length + 1, 1, miss.length).setValues([miss]).setFontWeight('bold').setBackground('#1f3a5f').setFontColor('#ffffff');
 }
 
 var _tbl = {};
@@ -657,10 +672,23 @@ function stuSubmit(token, itemId, payload) {
   var old = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === itemId && s.sid === st.id; })[0];
   if (old && old.status === 'graded') throw new Error('งานนี้ตรวจแล้ว ไม่สามารถส่งซ้ำได้ (ติดต่ออาจารย์)');
   if (old && it.type === 'quiz') throw new Error('ทำแบบทดสอบนี้แล้ว');
+  if (it.type === 'activity') throw new Error('กิจกรรมนี้อาจารย์ให้คะแนนในชั้นเรียน ไม่ต้องส่งงาน');
   payload = payload || {};
+  var files = (payload.files || []).filter(function (f) { return f && f.url; }).map(function (f) { return { name: String(f.name || 'file'), url: String(f.url), fileId: String(f.fileId || '') }; });
   var row = { id: old ? old.id : uid_('U'), itemId: itemId, courseId: it.courseId, sid: st.id, text: String(payload.text || '').slice(0, 20000),
-    files: JSON.stringify(payload.files || []), answers: '', autoScore: '', score: '', feedback: '', status: 'submitted', submittedAt: new Date(), gradedAt: '' };
+    files: JSON.stringify(files), answers: '', autoScore: '', score: '', feedback: old ? old.feedback || '' : '', status: 'submitted', submittedAt: new Date(), gradedAt: '',
+    qScores: '', editCount: old ? (Number(old.editCount) || 0) + 1 : 0 };
   var result = null;
+  if (it.type === 'assignment') {
+    var nq = safeJson_(it.quiz, []).length;
+    var ansT = (payload.answers || []).slice(0, nq).map(function (a) { return String(a == null ? '' : a).slice(0, 10000); });
+    while (ansT.length < nq) ansT.push('');
+    row.answers = nq ? JSON.stringify(ansT) : '';
+    if (!row.text.trim() && !files.length && !ansT.some(function (a) { return a.trim(); })) throw new Error('กรุณาตอบคำถาม พิมพ์คำตอบ หรือแนบไฟล์อย่างน้อย 1 อย่าง');
+    // ไฟล์เดิมที่นักศึกษาเอาออกตอนแก้ไข → ย้ายไปถังขยะ
+    var keep = files.map(function (f) { return f.fileId; });
+    if (old) safeJson_(old.files, []).forEach(function (f) { if (f.fileId && keep.indexOf(f.fileId) < 0) { try { DriveApp.getFileById(f.fileId).setTrashed(true); } catch (e) {} } });
+  }
   if (it.type === 'quiz') {
     var qs = safeJson_(it.quiz, []), ans = payload.answers || [], got = 0, full = 0;
     var detail = qs.map(function (q, k) { var p = Number(q.points) || 1; full += p; var ok = Number(ans[k]) === Number(q.answer); if (ok) got += p; return ok; });
@@ -671,7 +699,20 @@ function stuSubmit(token, itemId, payload) {
     result = { score: score, max: max, correct: detail };
   }
   upsert_(SHEETS_LMS.SUBS, 'id', row);
-  return result || { submitted: true };
+  return result || { submitted: true, edited: !!old };
+}
+/** นักศึกษาลบงานที่ส่ง (ได้เฉพาะงานที่อาจารย์ยังไม่ตรวจ) — ไฟล์แนบย้ายไปถังขยะ */
+function stuDeleteSubmission(token, itemId) {
+  var st = requireStudent_(token);
+  var it = findRow_(SHEETS_LMS.ITEMS, 'id', itemId);
+  if (!it) throw new Error('ไม่พบงาน');
+  if (it.type !== 'assignment') throw new Error('ลบได้เฉพาะใบงาน/งานส่ง');
+  var old = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === itemId && s.sid === st.id; })[0];
+  if (!old) throw new Error('ยังไม่มีงานที่ส่ง');
+  if (old.status === 'graded') throw new Error('งานนี้ตรวจแล้ว ลบไม่ได้ (ติดต่ออาจารย์)');
+  safeJson_(old.files, []).forEach(function (f) { if (f.fileId) { try { DriveApp.getFileById(f.fileId).setTrashed(true); } catch (e) {} } });
+  deleteWhere_(SHEETS_LMS.SUBS, 'id', old.id);
+  return true;
 }
 function stuReportHtml(token, courseId) { var st = requireStudent_(token); return studentReportHtml_(courseId, st.id, false); }
 function stuReportPdf(token, courseId) {
@@ -762,6 +803,8 @@ function saveItem(cred, it) {
   if (!ITEM_TYPES[it.type]) throw new Error('ประเภทงานไม่ถูกต้อง');
   var quiz = it.type === 'quiz' ? (it.quiz || []).filter(function (q) { return q.q && q.choices && q.choices.length >= 2; }) : [];
   if (it.type === 'quiz' && !quiz.length) throw new Error('แบบทดสอบต้องมีอย่างน้อย 1 ข้อ (มีตัวเลือก ≥ 2)');
+  // ใบงาน: คำถามให้นักศึกษาพิมพ์ตอบ (เก็บในคอลัมน์ quiz เดียวกัน รูปแบบ [{q, points}])
+  if (it.type === 'assignment') quiz = (it.questions || []).filter(function (q) { return q && String(q.q || '').trim(); }).map(function (q) { return { q: String(q.q).trim(), points: Math.max(0, Number(q.points) || 0) }; });
   var row = { id: it.id || uid_('I'), courseId: it.courseId, lessonId: it.lessonId || '', order: Number(it.order) || nextOrder_(SHEETS_LMS.ITEMS, it.courseId), type: it.type, title: it.title,
     instructions: it.instructions || '', maxScore: Number(it.maxScore) || 10, dueDate: it.dueDate || '', quiz: JSON.stringify(quiz), published: it.published ? 'TRUE' : 'FALSE' };
   if (!it.id) row.createdAt = new Date();
@@ -779,8 +822,27 @@ function gradeSubmission(cred, g) {
   if (sc !== '' && (isNaN(sc) || sc < 0 || sc > Number(it.maxScore))) throw new Error('คะแนนต้องอยู่ระหว่าง 0–' + it.maxScore);
   var old = readTable_(SHEETS_LMS.SUBS).filter(function (s) { return s.itemId === g.itemId && s.sid === g.sid; })[0];
   var row = { id: old ? old.id : uid_('U'), itemId: g.itemId, courseId: it.courseId, sid: g.sid, score: sc, feedback: g.feedback || '', status: sc === '' ? (old ? old.status : 'submitted') : 'graded', gradedAt: new Date() };
-  if (!old) { row.text = ''; row.files = '[]'; row.answers = ''; row.autoScore = ''; row.submittedAt = ''; }
+  if (g.qScores && it.type === 'assignment') {
+    var qs = safeJson_(it.quiz, []);
+    var qv = qs.map(function (q, k) {
+      var x = g.qScores[k]; if (x === '' || x == null) return '';
+      x = Number(x); if (isNaN(x) || x < 0) throw new Error('คะแนนข้อ ' + (k + 1) + ' ไม่ถูกต้อง');
+      if (Number(q.points) > 0 && x > Number(q.points)) throw new Error('คะแนนข้อ ' + (k + 1) + ' เกินคะแนนเต็มของข้อ (' + q.points + ')');
+      return x;
+    });
+    row.qScores = JSON.stringify(qv);
+  }
+  if (!old) { row.text = ''; row.files = '[]'; row.answers = ''; row.autoScore = ''; row.submittedAt = ''; row.editCount = 0; }
   upsert_(SHEETS_LMS.SUBS, 'id', row);
+  return true;
+}
+/** อาจารย์ส่งงานคืนให้นักศึกษาแก้ไข (เก็บคำตอบเดิมไว้ นักศึกษาแก้แล้วส่งใหม่ได้) */
+function returnSubmission(cred, subId, feedback) {
+  requireAdmin_(cred);
+  var sb = findRow_(SHEETS_LMS.SUBS, 'id', subId);
+  if (!sb) throw new Error('ไม่พบงานที่ส่ง');
+  if (!String(feedback || '').trim()) throw new Error('กรุณาเขียนความเห็นบอกนักศึกษาว่าต้องแก้ไขอะไร');
+  upsert_(SHEETS_LMS.SUBS, 'id', { id: subId, status: 'returned', score: '', feedback: String(feedback).slice(0, 5000), gradedAt: new Date() });
   return true;
 }
 function resetSubmission(cred, subId) { requireAdmin_(cred); deleteWhere_(SHEETS_LMS.SUBS, 'id', subId); return true; }
@@ -884,11 +946,12 @@ function studentReportHtml_(courseId, sid, standalone) {
   items.forEach(function (i) {
     var s = subs.filter(function (x) { return x.itemId === i.id; })[0], m = Number(i.maxScore) || 0; max += m;
     var v = s && s.score !== '' ? Number(s.score) : null; if (v != null) total += v;
-    var stt = !s ? (i.dueDate && new Date(i.dueDate) < new Date() ? '<span class="bad">ไม่ได้ส่ง/เลยกำหนด</span>' : 'ยังไม่ส่ง') : s.status === 'graded' ? 'ตรวจแล้ว' : 'ส่งแล้ว รอตรวจ';
+    var stt = !s ? (i.dueDate && new Date(i.dueDate) < new Date() ? '<span class="bad">ไม่ได้ส่ง/เลยกำหนด</span>' : 'ยังไม่ส่ง') : s.status === 'graded' ? 'ตรวจแล้ว' : s.status === 'returned' ? 'ส่งคืนให้แก้ไข' : 'ส่งแล้ว รอตรวจ';
+    var nq = i.type === 'assignment' ? safeJson_(i.quiz, []).length : 0, ans = s ? safeJson_(s.answers, []) : [];
     var files = s ? safeJson_(s.files, []) : [];
     h.push('<tr><td>' + esc_(i.title) + (i.dueDate ? '<div class="d">กำหนดส่ง ' + esc_(fmtDate_(i.dueDate)) + '</div>' : '') + '</td><td>' + ITEM_TYPES[i.type] + '</td><td class="n">' + m + '</td><td class="n"><b>' + (v == null ? '–' : fx_(v)) + '</b></td><td>' + stt +
       (s && s.submittedAt ? '<div class="d">' + esc_(fmtDateTime_(s.submittedAt instanceof Date ? s.submittedAt : new Date(s.submittedAt))) + '</div>' : '') + '</td><td>' + esc_(s ? s.feedback : '') + '</td><td>' +
-      files.map(function (f) { return '<a href="' + esc_(f.url) + '">' + esc_(f.name) + '</a>'; }).join('<br>') + (s && s.text ? '<div class="d">' + esc_(String(s.text).slice(0, 200)) + '</div>' : '') + '</td></tr>');
+      files.map(function (f) { return '<a href="' + esc_(f.url) + '">' + esc_(f.name) + '</a>'; }).join('<br>') + (s && nq ? '<div class="d">ตอบคำถาม ' + ans.filter(function (a) { return String(a || '').trim(); }).length + '/' + nq + ' ข้อ</div>' : '') + (s && s.text ? '<div class="d">' + esc_(String(s.text).slice(0, 200)) + '</div>' : '') + '</td></tr>');
   });
   var pct = max ? Math.round(total / max * 1000) / 10 : 0;
   h.push('<tr class="hl"><td colspan="2"><b>รวม</b></td><td class="n">' + max + '</td><td class="n"><b>' + fx_(total) + '</b></td><td colspan="3">ร้อยละ ' + pct + ' · เกรด (ประมาณการ) <b>' + grade_(pct) + '</b></td></tr></table>');
@@ -917,7 +980,9 @@ function aiTeach(cred, kind, input) {
     var sub = findRow_(SHEETS_LMS.SUBS, 'id', input.subId), it = sub ? findRow_(SHEETS_LMS.ITEMS, 'id', sub.itemId) : null;
     if (!sub || !it) throw new Error('ไม่พบงานที่ส่ง');
     prompt = ctx + '\nช่วยร่างข้อเสนอแนะ (feedback) เชิงสร้างสรรค์สำหรับงานนักศึกษา และเสนอคะแนน (เต็ม ' + it.maxScore + ') ตอบเป็น JSON เท่านั้น {"score":number,"feedback":"ข้อความ 2-4 ประโยค"}' +
-      '\nคำสั่งงาน: ' + it.instructions + '\nข้อความที่นักศึกษาส่ง: ' + String(sub.text || '(ไม่มีข้อความ ส่งเป็นไฟล์ — ประเมินจากชื่อไฟล์ไม่ได้ ให้ตอบว่าต้องตรวจไฟล์เอง)').slice(0, 6000) +
+      '\nคำสั่งงาน: ' + it.instructions +
+      (it.type === 'assignment' && safeJson_(it.quiz, []).length ? '\nคำถามและคำตอบของนักศึกษา:\n' + safeJson_(it.quiz, []).map(function (q, k) { var a = safeJson_(sub.answers, [])[k]; return 'ข้อ ' + (k + 1) + (q.points ? ' (' + q.points + ' คะแนน)' : '') + ': ' + q.q + '\nคำตอบ: ' + String(a || '(ไม่ได้ตอบ)').slice(0, 2000); }).join('\n') : '') +
+      '\nข้อความที่นักศึกษาส่ง: ' + String(sub.text || '(ไม่มีข้อความ ส่งเป็นไฟล์ — ประเมินจากชื่อไฟล์ไม่ได้ ให้ตอบว่าต้องตรวจไฟล์เอง)').slice(0, 6000) +
       '\nไฟล์: ' + safeJson_(sub.files, []).map(function (f) { return f.name; }).join(', ');
   } else throw new Error('ไม่รู้จักคำสั่ง AI');
   var text = s.AI_PROVIDER === 'gemini' ? callGemini_(key, s.AI_MODEL, prompt) : callAnthropic_(key, s.AI_MODEL, prompt);
@@ -937,7 +1002,7 @@ function itemOut_(i, withAnswer) {
   o.quiz = withAnswer ? q : q.map(function (x) { return { q: x.q, choices: x.choices, points: x.points }; });
   return o;
 }
-function subOut_(s) { var o = cleanRow_(s); o.files = safeJson_(s.files, []); o.answers = safeJson_(s.answers, []); o.submittedAt = s.submittedAt instanceof Date ? fmtDateTime_(s.submittedAt) : s.submittedAt; o.gradedAt = s.gradedAt instanceof Date ? fmtDateTime_(s.gradedAt) : s.gradedAt; return o; }
+function subOut_(s) { var o = cleanRow_(s); o.files = safeJson_(s.files, []); o.answers = safeJson_(s.answers, []); o.qScores = safeJson_(s.qScores, []); o.editCount = Number(s.editCount) || 0; o.submittedAt = s.submittedAt instanceof Date ? fmtDateTime_(s.submittedAt) : s.submittedAt; o.gradedAt = s.gradedAt instanceof Date ? fmtDateTime_(s.gradedAt) : s.gradedAt; return o; }
 function lmsShare_(f) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) { applySharing_(f); } }
 function saveExportLms_(blob, forStudent) {
   var folder = subFolder_(subFolder_(ensureRootFolder_(), '_ห้องเรียน'), '_exports');

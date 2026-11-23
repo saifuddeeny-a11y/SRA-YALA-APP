@@ -219,6 +219,16 @@ div.lrow:not(.card){border:1px solid var(--line);border-left:4px solid var(--c,#
 .qz{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:10px 0;background:#fbfcff}
 .qin{flex:1;border:1px solid #cdd5e3;border-radius:8px;padding:6px 9px;width:100%;margin:4px 0}
 .qz .chk{align-items:center}
+.qz .x{color:var(--bad);cursor:pointer;font-size:13px}
+textarea.qin{min-height:60px;resize:vertical;font:inherit}
+textarea.qin.qans{min-height:90px}
+.qa{margin:6px 0}
+.qa-i{border:1px solid var(--line);border-radius:10px;padding:8px 11px;margin:6px 0;background:#fbfcff}
+.qa-q{white-space:pre-wrap}
+.qa-a{white-space:pre-wrap;background:#fff;border-left:3px solid var(--c,#3b3fb6);padding:6px 10px;margin-top:5px;border-radius:6px;font-size:14px}
+.qa-a.empty{color:var(--muted);font-style:italic;border-left-color:#cdd5e3}
+.qsc input{width:64px;border:1px solid #cdd5e3;border-radius:7px;padding:3px 5px}
+td.subcell{min-width:300px}
 .aibar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:linear-gradient(90deg,#eef0ff,#fff6dc);border:1px solid #d9dcff;border-radius:12px;padding:8px 10px;margin:4px 0 10px}
 .aibar b{color:#3b3fb6;font-size:13.5px}
 .aibar input{border:1px solid #cdd5e3;border-radius:8px;padding:6px 9px;flex:1;min-width:140px}
@@ -1048,6 +1058,31 @@ function readB64(file) { return new Promise(function (ok, no) { var fr = new Fil
 function dueTxt(d) { if (!d) return ''; var late = new Date(d + 'T23:59:59') < new Date(); return '<span class="chip ' + (late ? 'c-noevidence' : 'c-partial') + '">กำหนดส่ง ' + esc(d) + '</span>'; }
 function typeChip(t) { var c = { assignment: '#2563eb', quiz: '#7c3aed', activity: '#0d9488' }[t]; var n = { assignment: 'ใบงาน', quiz: 'แบบทดสอบ', activity: 'กิจกรรม' }[t]; return '<span class="chip" style="background:color-mix(in srgb,' + c + ' 14%,#fff);color:' + c + '">' + n + '</span>'; }
 function gradeOf(pct, scale) { for (var i = 0; i < scale.length; i++) if (pct >= scale[i][0]) return scale[i][1]; return 'F'; }
+/* ---- ใบงานแบบมีคำถาม: คำถาม/คำตอบ/คะแนนรายข้อ ---- */
+function subQs(it) { return it && it.type === 'assignment' ? (it.quiz || []) : []; }
+function isLate(it, s) { return !!(it && it.dueDate && s && s.submittedAt && String(s.submittedAt).slice(0, 10) > it.dueDate); }
+function ansCount(it, s) { var n = subQs(it).length; if (!n || !s) return ''; return 'ตอบ ' + (s.answers || []).filter(function (a) { return String(a || '').trim(); }).length + '/' + n + ' ข้อ'; }
+function subChips(it, s) {
+  if (!s) return '<span class="chip c-none">ยังไม่ส่ง</span>';
+  return (s.status === 'graded' ? '<span class="chip c-full">ตรวจแล้ว</span>' : s.status === 'returned' ? '<span class="chip c-noevidence">ส่งคืนให้แก้ไข</span>' : '<span class="chip c-partial">รอตรวจ</span>') +
+    (isLate(it, s) ? ' <span class="chip c-noevidence">ส่งช้า</span>' : '') + (s.editCount ? ' <span class="chip c-none">แก้ไข ' + s.editCount + ' ครั้ง</span>' : '');
+}
+/** แสดงคำถาม + คำตอบนักศึกษา; grade=true → มีช่องให้คะแนนรายข้อ (อาจารย์) */
+function qaHtml(it, s, grade) {
+  var qs = subQs(it); if (!qs.length || !s) return '';
+  var ans = s.answers || [], qsc = s.qScores || [];
+  return '<div class="qa">' + qs.map(function (q, k) {
+    var a = ans[k] == null ? '' : String(ans[k]), has = qsc[k] !== '' && qsc[k] != null;
+    var sc = grade ? '<label class="tag qsc">คะแนน <input type="number" step="0.5" min="0"' + (q.points ? ' max="' + q.points + '"' : '') + ' id="qs_' + s.sid + '_' + k + '" value="' + esc(has ? qsc[k] : '') + '" oninput="qsSum(\'' + s.sid + '\',' + qs.length + ')">' + (q.points ? ' / ' + q.points : '') + '</label>'
+      : (s.status === 'graded' && has ? '<span class="chip c-full">ได้ ' + fx(qsc[k]) + (q.points ? '/' + q.points : '') + '</span>'
+        : s.status === 'graded' && qsc.some(function (x) { return x !== '' && x != null; }) ? '<span class="chip c-none">– ' + (q.points ? '/ ' + q.points : '') + '</span>'
+        : (q.points ? '<span class="tag">' + q.points + ' คะแนน</span>' : ''));
+    return '<div class="qa-i"><div class="row"><b>ข้อ ' + (k + 1) + '.</b><span class="qa-q">' + esc(q.q) + '</span><span class="sp"></span>' + sc + '</div><div class="qa-a' + (a.trim() ? '' : ' empty') + '">' + (a.trim() ? esc(a) : '(ไม่ได้ตอบ)') + '</div></div>';
+  }).join('') + '</div>';
+}
+function qsSum(sid, n) { var t = 0, any = false; for (var k = 0; k < n; k++) { var e = $('qs_' + sid + '_' + k); if (e && e.value !== '') { any = true; t += Number(e.value) || 0; } } if (any && $('sc_' + sid)) $('sc_' + sid).value = Math.round(t * 100) / 100; }
+function collectQS(sid, n) { if (!n || !$('qs_' + sid + '_0')) return null; var a = []; for (var k = 0; k < n; k++) a.push(v_('qs_' + sid + '_' + k)); return a; }
+function normQS(arr, n) { var a = []; for (var k = 0; k < n; k++) { var x = arr && arr[k]; a.push(x === '' || x == null ? '' : String(Number(x))); } return a; }
 
 /* ---------------- Modal & actions ---------------- */
 function openModal(html, secNo) { $('modal').innerHTML = html; $('modal').style.setProperty('--c', secNo ? (String(secNo).charAt(0) === '#' ? secNo : 'var(--s' + secNo + ')') : '#3b3fb6'); $('modalBg').className = 'modal-bg on'; }
@@ -1113,6 +1148,7 @@ function stuSummary(cid) {
 }
 function subStatus(it, s) {
   if (s && s.status === 'graded') return '<span class="chip c-full">ได้ ' + fx(s.score) + '/' + it.maxScore + '</span>';
+  if (s && s.status === 'returned') return '<span class="chip c-noevidence">ส่งคืนให้แก้ไข</span>';
   if (s) return '<span class="chip c-partial">ส่งแล้ว รอตรวจ</span>';
   if (it.type === 'activity') return '<span class="chip c-none">อาจารย์ให้คะแนนในชั้นเรียน</span>';
   return it.dueDate && new Date(it.dueDate + 'T23:59:59') < new Date() ? '<span class="chip c-noevidence">เลยกำหนด</span>' : '<span class="chip c-none">ยังไม่ส่ง</span>';
@@ -1161,7 +1197,7 @@ function vSCourse(cid) {
     stuItems(cid).forEach(function (i) {
       var s = stuSub(i.id);
       h.push('<tr class="click" data-act="go" data-v="sitem" data-p="' + i.id + '"><td>' + typeChip(i.type) + ' ' + esc(i.title) + '</td><td class="n">' + i.maxScore + '</td><td class="n"><b>' + (s && s.score !== '' ? fx(s.score) : '–') + '</b></td><td>' + subStatus(i, s) + '</td><td>' + esc(s ? s.feedback : '') + '</td><td>' +
-        (s ? s.files.map(function (f) { return '<a href="' + esc(f.url) + '" target="_blank">' + esc(f.name) + '</a>'; }).join('<br>') + (s.text ? '<div class="tag">' + esc(String(s.text).slice(0, 80)) + '…</div>' : '') : '') + '</td></tr>');
+        (s ? s.files.map(function (f) { return '<a href="' + esc(f.url) + '" target="_blank">' + esc(f.name) + '</a>'; }).join('<br>') + (ansCount(i, s) ? '<div class="tag">' + ansCount(i, s) + '</div>' : '') + (s.text ? '<div class="tag">' + esc(String(s.text).slice(0, 80)) + '…</div>' : '') : '') + '</td></tr>');
     });
     h.push('</table><div class="note" style="margin-top:10px"><b>หมายเหตุ</b><ul><li>(1) รายการที่ยังไม่มีคะแนนแสดง “–” และนับเป็น 0</li><li>(2) เกรดเป็นการประมาณการตามเกณฑ์ค่าเริ่มต้น ผลจริงขึ้นกับอาจารย์ผู้สอน</li></ul></div></div>');
   }
@@ -1186,7 +1222,21 @@ function vSItem(iid) {
   h.push('<div style="--c:' + (c.color || '#2563eb') + '"><div class="tag"><a href="javascript:void 0" data-act="go" data-v="scourse" data-p="' + c.id + '">' + esc(c.title) + '</a> › งาน</div>');
   h.push('<h2 class="pg">' + typeChip(i.type) + ' ' + esc(i.title) + '</h2><p class="lead">คะแนนเต็ม ' + i.maxScore + ' ' + dueTxt(i.dueDate) + ' ' + subStatus(i, s) + '</p>');
   if (i.instructions) h.push('<div class="card">' + md(i.instructions) + '</div>');
-  if (s) {
+  if (i.type === 'assignment') {
+    var editing = s && S._sEdit === iid && s.status !== 'graded';
+    if (s && s.status === 'returned') h.push('<div class="box gap" style="margin-top:12px"><b>อาจารย์ส่งงานคืนให้แก้ไข</b>' + (s.feedback ? '<div>ความเห็นอาจารย์: ' + esc(s.feedback) + '</div>' : '') + '<div class="tag">กด “แก้ไขงาน” แก้ตามคำแนะนำ แล้วกดส่งอีกครั้ง</div></div>');
+    if (s && !editing) {
+      var qn = subQs(i).length;
+      h.push('<div class="card accent" style="margin-top:12px"><div class="row"><h3 style="margin:0">ผลงานที่ส่งของฉัน</h3><span class="sp"></span>' +
+        (s.status !== 'graded' ? '<button class="btn" data-act="sEdit" data-p="' + iid + '">แก้ไขงาน</button><button class="btn danger" data-act="sDel" data-p="' + iid + '">ลบงานที่ส่ง</button>' : '') + '</div>' +
+        '<div class="tag">ส่งล่าสุด ' + esc(s.submittedAt || '-') + (s.editCount ? ' · แก้ไขแล้ว ' + s.editCount + ' ครั้ง' : '') + (isLate(i, s) ? ' · <span class="chip c-noevidence">ส่งช้า</span>' : '') + (s.gradedAt && s.status === 'graded' ? ' · ตรวจเมื่อ ' + esc(s.gradedAt) : '') + '</div>' +
+        qaHtml(i, s, false) +
+        (s.text ? (qn ? '<div class="tag" style="margin-top:6px">ข้อความเพิ่มเติม</div>' : '') + '<div class="wd" style="white-space:pre-wrap;margin:8px 0">' + esc(s.text) + '</div>' : '') + fileList(s.files) +
+        (s.status === 'graded' ? '<div class="box ok"><b>คะแนน ' + fx(s.score) + '/' + i.maxScore + '</b>' + (s.feedback ? '<div>ความเห็นอาจารย์: ' + esc(s.feedback) + '</div>' : '') + '</div>'
+          : s.status === 'returned' ? '' : '<div class="box gap">รออาจารย์ตรวจ — แก้ไขหรือลบได้จนกว่าอาจารย์จะตรวจ' + (s.feedback ? '<div>ความเห็นอาจารย์ (ครั้งก่อน): ' + esc(s.feedback) + '</div>' : '') + '</div>') + '</div>');
+    }
+    if (!s || editing) h.push(stuAnswerForm(i, s));
+  } else if (s) {
     h.push('<div class="card accent" style="margin-top:12px"><h3>ผลงานที่ส่งของฉัน</h3><div class="tag">ส่งเมื่อ ' + esc(s.submittedAt || '-') + (s.gradedAt && s.status === 'graded' ? ' · ตรวจเมื่อ ' + esc(s.gradedAt) : '') + '</div>' +
       (s.text ? '<div class="wd" style="white-space:pre-wrap;margin:8px 0">' + esc(s.text) + '</div>' : '') + fileList(s.files) +
       (s.status === 'graded' ? '<div class="box ok"><b>คะแนน ' + fx(s.score) + '/' + i.maxScore + '</b>' + (s.feedback ? '<div>ความเห็นอาจารย์: ' + esc(s.feedback) + '</div>' : '') + '</div>' : '<div class="box gap">รออาจารย์ตรวจ' + (i.type === 'assignment' ? ' — ส่งใหม่ได้จนกว่าจะตรวจ' : '') + '</div>') + '</div>');
@@ -1196,14 +1246,27 @@ function vSItem(iid) {
       return '<div class="qz"><b>' + (k + 1) + '. ' + esc(q.q) + '</b>' + q.choices.map(function (ch, j) { return '<label class="chk"><input type="radio" name="q' + k + '" value="' + j + '"> <span>' + esc(ch) + '</span></label>'; }).join('') + '</div>';
     }).join('') + '<button class="btn gold" data-act="sQuiz" data-p="' + iid + '">ส่งคำตอบ</button></div>');
   }
-  if (i.type === 'assignment' && (!s || s.status !== 'graded')) {
-    h.push('<div class="card" style="margin-top:12px"><h3>' + (s ? 'ส่งงานใหม่ (แทนที่ของเดิม)' : 'ส่งงาน') + '</h3><div class="f"><label>คำตอบ/ข้อความ</label><textarea id="sb_text" style="min-height:140px">' + esc(s ? s.text : '') + '</textarea></div>' +
-      '<div class="f"><label>แนบไฟล์ (ไม่เกิน 15MB/ไฟล์ เลือกได้หลายไฟล์)' + (s && s.files.length ? ' — ถ้าไม่เลือก จะใช้ไฟล์เดิม' : '') + '</label><input id="sb_files" type="file" multiple></div>' +
-      '<button class="btn gold" data-act="sSubmit" data-p="' + iid + '">ส่งงาน</button> <span class="tag" id="sbMsg"></span></div>');
-  }
   if (i.type === 'activity' && !s) h.push('<div class="box warn">กิจกรรมนี้อาจารย์บันทึกคะแนนจากการเข้าร่วม/การปฏิบัติในชั้นเรียน</div>');
   h.push('</div>');
   return h.join('');
+}
+
+/** แบบฟอร์มส่งงาน/แก้ไขงานของนักศึกษา (ใบงาน) */
+function stuAnswerForm(i, s) {
+  var qs = subQs(i), ans = (s && s.answers) || [];
+  return '<div class="card" style="margin-top:12px"><h3>' + (s ? 'แก้ไขงานที่ส่ง' : 'ส่งงาน') + '</h3>' +
+    (qs.length ? '<p class="tag">ตอบคำถาม ' + qs.length + ' ข้อ พิมพ์คำตอบในช่องใต้คำถามแต่ละข้อ</p>' + qs.map(function (q, k) {
+      return '<div class="qz"><div class="row"><b>ข้อ ' + (k + 1) + '.</b><span class="qa-q">' + esc(q.q) + '</span><span class="sp"></span>' + (q.points ? '<span class="tag">' + q.points + ' คะแนน</span>' : '') + '</div>' +
+        '<textarea class="qin qans" id="sb_a' + k + '" placeholder="พิมพ์คำตอบข้อ ' + (k + 1) + '">' + esc(ans[k] || '') + '</textarea></div>';
+    }).join('') : '') +
+    '<div class="f"><label>' + (qs.length ? 'ข้อความเพิ่มเติมถึงอาจารย์ (ไม่บังคับ)' : 'คำตอบ/ข้อความ') + '</label><textarea id="sb_text" style="min-height:' + (qs.length ? 70 : 140) + 'px">' + esc(s ? s.text : '') + '</textarea></div>' +
+    (s ? '<div class="f"><label>ไฟล์ที่แนบไว้ (กด ✕ เพื่อเอาออก)</label><div id="sbFiles">' + sbFilesHtml() + '</div></div>' : '') +
+    '<div class="f"><label>' + (s ? 'แนบไฟล์เพิ่ม' : 'แนบไฟล์') + ' (ไม่บังคับ · ไม่เกิน 15MB/ไฟล์ · เลือกได้หลายไฟล์)</label><input id="sb_files" type="file" multiple></div>' +
+    '<div class="row"><button class="btn gold" data-act="sSubmit" data-p="' + i.id + '">' + (s ? 'บันทึกการแก้ไขและส่ง' : 'ส่งงาน') + '</button>' + (s ? '<button class="btn light" data-act="sCancel">ยกเลิกการแก้ไข</button>' : '') + '<span class="tag" id="sbMsg"></span></div></div>';
+}
+function sbFilesHtml() {
+  var f = S._sFiles || [];
+  return f.length ? '<div class="files">' + f.map(function (x, k) { return '<span class="ev"><a href="' + esc(x.url) + '" target="_blank">' + esc(x.name) + '</a> <span class="x" data-act="sFileDel" data-p="' + k + '" title="เอาไฟล์นี้ออก">✕</span></span>'; }).join('') + '</div>' : '<span class="tag">ไม่มีไฟล์แนบ</span>';
 }
 
 /* ====================== LMS: อาจารย์ ====================== */
@@ -1237,7 +1300,7 @@ function vTHome() {
 function pendRow(s) {
   var it = L().items.filter(function (i) { return i.id === s.itemId; })[0], st = tStudent(s.sid), c = it ? tCourse(it.courseId) : null;
   if (!it || !st) return '';
-  return '<div class="lrow" data-act="go" data-v="titem" data-p="' + it.id + '"><div><b>' + esc(st.name) + '</b> <span class="tag">' + esc(st.studentId) + '</span><div class="tag">' + esc(c ? c.title : '') + ' › ' + esc(it.title) + ' · ส่ง ' + esc(s.submittedAt) + '</div></div><span class="sp"></span><span class="chip c-partial">ตรวจ →</span></div>';
+  return '<div class="lrow" data-act="go" data-v="titem" data-p="' + it.id + '"><div><b>' + esc(st.name) + '</b> <span class="tag">' + esc(st.studentId) + '</span><div class="tag">' + esc(c ? c.title : '') + ' › ' + esc(it.title) + ' · ส่ง ' + esc(s.submittedAt) + (isLate(it, s) ? ' <span class="chip c-noevidence">ส่งช้า</span>' : '') + (s.editCount ? ' <span class="chip c-none">แก้ไข ' + s.editCount + ' ครั้ง</span>' : '') + '</div></div><span class="sp"></span><span class="chip c-partial">ตรวจ →</span></div>';
 }
 function vTPending() {
   var pend = L().subs.filter(function (s) { return s.status === 'submitted'; });
@@ -1292,7 +1355,7 @@ function vTCourse(cid) {
       studs.map(function (s) {
         var sc = tScore(cid, s.id);
         return '<tr><td>' + esc(s.studentId) + '</td><td><a href="javascript:void 0" data-act="stuRpt" data-p="' + s.id + '">' + esc(s.name) + '</a></td>' + its2.map(function (i) {
-          var sb = tSub(i.id, s.id), v = sb && sb.score !== '' ? fx(sb.score) : sb ? '<span class="chip c-partial">รอ</span>' : '·';
+          var sb = tSub(i.id, s.id), v = sb && sb.score !== '' ? fx(sb.score) : sb ? (sb.status === 'returned' ? '<span class="chip c-noevidence">คืน</span>' : '<span class="chip c-partial">รอ</span>') : '·';
           return '<td class="c cell" data-act="gradeCell" data-p="' + i.id + '" data-k="' + s.id + '">' + v + '</td>';
         }).join('') + '<td class="n"><b>' + fx(sc.got) + '</b>/' + sc.max + '</td><td class="n">' + sc.pct + '</td><td class="c"><b>' + sc.grade + '</b></td></tr>';
       }).join('') + '</table></div><p class="tag">หมายเหตุ: “·” = ยังไม่ส่ง/ไม่มีคะแนน (นับเป็น 0) · เกรดคำนวณตามเกณฑ์ค่าเริ่มต้น ' + L().gradeScale.map(function (x) { return x[1] + '≥' + x[0]; }).join(' ') + ' (ประมาณการ)</p>');
@@ -1321,17 +1384,20 @@ function vTItem(iid) {
   var studs = tEnrolled(c.id), h = [];
   h.push('<div style="--c:' + c.color + '"><div class="tag"><a href="javascript:void 0" data-act="go" data-v="tcourse" data-p="' + c.id + '">' + esc(c.title) + '</a> › งาน</div>');
   h.push('<div class="row"><h2 class="pg">' + typeChip(i.type) + ' ' + esc(i.title) + '</h2><span class="sp"></span><button class="btn light" data-act="itemEdit" data-p="' + iid + '">แก้ไขงาน</button><button class="btn danger" data-act="itemDel" data-p="' + iid + '">ลบ</button></div>');
-  h.push('<p class="lead">คะแนนเต็ม ' + i.maxScore + ' · ' + (i.published ? 'เผยแพร่แล้ว' : 'ฉบับร่าง (นักศึกษายังไม่เห็น)') + ' ' + dueTxt(i.dueDate) + (i.type === 'quiz' ? ' · ' + i.quiz.length + ' ข้อ ตรวจอัตโนมัติ' : '') + '</p>');
-  if (i.instructions) h.push('<details class="card"><summary><b>คำสั่งงาน</b></summary>' + md(i.instructions) + '</details>');
+  h.push('<p class="lead">คะแนนเต็ม ' + i.maxScore + ' · ' + (i.published ? 'เผยแพร่แล้ว' : 'ฉบับร่าง (นักศึกษายังไม่เห็น)') + ' ' + dueTxt(i.dueDate) + (i.type === 'quiz' ? ' · ' + i.quiz.length + ' ข้อ ตรวจอัตโนมัติ' : '') + (subQs(i).length ? ' · คำถาม ' + subQs(i).length + ' ข้อ (ให้คะแนนรายข้อได้)' : '') + '</p>');
+  if (i.instructions || subQs(i).length) h.push('<details class="card"><summary><b>คำสั่งงาน' + (subQs(i).length ? '/คำถาม' : '') + '</b></summary>' + md(i.instructions || '') +
+    (subQs(i).length ? '<ol>' + subQs(i).map(function (q) { return '<li style="white-space:pre-wrap">' + esc(q.q) + (q.points ? ' <span class="tag">(' + q.points + ' คะแนน)</span>' : '') + '</li>'; }).join('') + '</ol>' : '') + '</details>');
   h.push('<div class="card tblwrap" style="margin-top:12px"><h3>ตรวจงานและให้คะแนน (' + studs.length + ' คน)</h3><table class="t"><tr><th>นักศึกษา</th><th>ผลงานที่ส่ง</th><th style="width:90px">คะแนน</th><th>ความเห็น</th><th></th></tr>');
   studs.forEach(function (s) {
     var sb = tSub(iid, s.id);
-    h.push('<tr><td><b>' + esc(s.name) + '</b><div class="tag">' + esc(s.studentId) + '</div>' + (sb ? (sb.status === 'graded' ? '<span class="chip c-full">ตรวจแล้ว</span>' : '<span class="chip c-partial">รอตรวจ</span>') : '<span class="chip c-none">ยังไม่ส่ง</span>') + '</td><td>' +
-      (sb ? '<div class="tag">' + esc(sb.submittedAt || '') + '</div>' + (sb.text ? '<div class="wd" style="white-space:pre-wrap;max-height:120px;overflow:auto">' + esc(sb.text) + '</div>' : '') + fileList(sb.files) + (i.type === 'quiz' ? '<div class="tag">' + esc(sb.feedback) + '</div>' : '') : '') + '</td>' +
+    h.push('<tr><td><b>' + esc(s.name) + '</b><div class="tag">' + esc(s.studentId) + '</div>' + subChips(i, sb) + '</td><td class="subcell">' +
+      (sb ? '<div class="tag">' + esc(sb.submittedAt || '') + (ansCount(i, sb) ? ' · ' + ansCount(i, sb) : '') + '</div>' + qaHtml(i, sb, true) + (sb.text ? (subQs(i).length ? '<div class="tag">ข้อความเพิ่มเติม</div>' : '') + '<div class="wd" style="white-space:pre-wrap;max-height:120px;overflow:auto">' + esc(sb.text) + '</div>' : '') + fileList(sb.files) + (i.type === 'quiz' ? '<div class="tag">' + esc(sb.feedback) + '</div>' : '') : '') + '</td>' +
       '<td><input type="number" step="0.5" min="0" max="' + i.maxScore + '" id="sc_' + s.id + '" value="' + esc(sb && sb.score !== '' ? sb.score : '') + '" style="width:80px;border:1px solid #cdd5e3;border-radius:8px;padding:5px"></td>' +
       '<td><textarea id="fb_' + s.id + '" style="width:100%;min-height:46px;border:1px solid #cdd5e3;border-radius:8px;padding:5px">' + esc(sb ? sb.feedback : '') + '</textarea></td>' +
-      '<td class="n"><button class="btn sm" data-act="gradeSave" data-p="' + iid + '" data-k="' + s.id + '">บันทึก</button>' + (sb && sb.text && S.boot.aiReady ? '<br><button class="btn sm light" style="margin-top:4px" data-act="aiFb" data-p="' + sb.id + '" data-k="' + s.id + '">AI ช่วยร่าง</button>' : '') +
-      (sb ? '<br><button class="btn sm danger" style="margin-top:4px" data-act="subReset" data-p="' + sb.id + '">ให้ส่งใหม่</button>' : '') + '</td></tr>');
+      '<td class="n"><button class="btn sm" data-act="gradeSave" data-p="' + iid + '" data-k="' + s.id + '">บันทึก</button>' +
+        (sb && i.type === 'assignment' && sb.status !== 'returned' ? '<br><button class="btn sm light" style="margin-top:4px" data-act="returnSub" data-p="' + sb.id + '" data-k="' + s.id + '" title="ส่งคืนพร้อมความเห็น ให้นักศึกษาแก้ไขแล้วส่งใหม่">ส่งคืนให้แก้ไข</button>' : '') +
+        (sb && (sb.text || ansCount(i, sb)) && S.boot.aiReady ? '<br><button class="btn sm light" style="margin-top:4px" data-act="aiFb" data-p="' + sb.id + '" data-k="' + s.id + '">AI ช่วยร่าง</button>' : '') +
+      (sb ? '<br><button class="btn sm danger" style="margin-top:4px" data-act="subReset" data-p="' + sb.id + '" title="ลบงานที่ส่งทิ้ง ให้นักศึกษาเริ่มส่งใหม่">ลบ/ให้ส่งใหม่</button>' : '') + '</td></tr>');
   });
   h.push('</table>' + (studs.length ? '<button class="btn gold" style="margin-top:8px" data-act="gradeAll" data-p="' + iid + '">บันทึกคะแนนทั้งหมด</button>' : '<p class="tag">ยังไม่มีนักศึกษาในรายวิชา</p>') + '</div></div>');
   return h.join('');
@@ -1370,6 +1436,7 @@ function itemForm(cid, it, type) {
   it = it || { courseId: cid, type: type || 'assignment', maxScore: 10, published: true, quiz: [] };
   var c = tCourse(cid);
   S._quiz = JSON.parse(JSON.stringify(it.quiz || []));
+  S._aq = it.type === 'assignment' ? JSON.parse(JSON.stringify(it.quiz || [])) : [];
   openModal('<h3>' + (it.id ? 'แก้ไข' : 'สร้าง') + ' ' + { assignment: 'ใบงาน/งานส่ง', quiz: 'แบบทดสอบ', activity: 'กิจกรรม' }[it.type] + ' — ' + esc(c.title) + '</h3>' +
     '<input type="hidden" id="i_type" value="' + it.type + '">' + fld('i_title', 'ชื่องาน *', 'text', it.title) +
     '<div class="grid g3"><div class="f"><label>คะแนนเต็ม</label><input id="i_max" type="number" min="0" step="0.5" value="' + esc(it.maxScore) + '"></div>' + fld('i_due', 'กำหนดส่ง', 'date', it.dueDate) +
@@ -1377,10 +1444,27 @@ function itemForm(cid, it, type) {
     (it.type === 'quiz' ? '' : aiBar(it.type === 'assignment' ? 'worksheet' : 'activity', it.type === 'assignment' ? 'ออกแบบใบงาน' : 'ออกแบบกิจกรรม')) +
     '<div class="f"><label>คำชี้แจง/คำสั่งงาน/เกณฑ์ ' + (S.boot.aiReady && it.type !== 'quiz' ? '<a href="javascript:void 0" data-act="aiRubric">+ AI สร้าง rubric</a>' : '') + '</label><textarea id="i_ins" style="min-height:140px">' + esc(it.instructions || '') + '</textarea></div>' +
     (it.type === 'quiz' ? aiBar('quiz', 'ออกข้อสอบ') + '<div id="qzBox"></div><button class="btn sm light" data-act="qzAdd">+ เพิ่มข้อ</button>' : '') +
+    (it.type === 'assignment' ? '<div class="hr"></div><h4 style="margin:4px 0">คำถามให้นักศึกษาพิมพ์ตอบ</h4><p class="tag">ไม่บังคับ — ถ้าตั้งคำถาม นักศึกษาจะมีช่องพิมพ์คำตอบใต้แต่ละข้อ และอาจารย์ให้คะแนนรายข้อได้ · ถ้าไม่ตั้ง นักศึกษาตอบในช่องข้อความ/แนบไฟล์ตามเดิม · ใส่คะแนนรายข้อหรือเว้นว่างก็ได้</p>' +
+      '<div id="aqBox"></div><div class="row"><button class="btn sm light" data-act="aqAdd">+ เพิ่มคำถาม</button><span class="tag" id="aqSum"></span></div><div class="hr"></div>' : '') +
     '<label class="chk"><input type="checkbox" id="i_pub"' + (it.published ? ' checked' : '') + '> เผยแพร่ให้นักศึกษาเห็น</label>' +
     '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ปิด</button><button class="btn gold" data-act="itemSave" data-p="' + (it.id || '') + '">บันทึก</button></div>', c.color);
   S._editing = { kind: 'item', courseId: cid, id: it.id, type: it.type };
   if (it.type === 'quiz') qzRender();
+  if (it.type === 'assignment') { aqRender(); $('i_max').addEventListener('input', aqSumTxt); }
+}
+function aqRender() {
+  var box = $('aqBox'); if (!box) return;
+  box.innerHTML = S._aq.map(function (q, k) {
+    return '<div class="qz"><div class="row"><b>คำถามข้อ ' + (k + 1) + '</b><span class="sp"></span><label class="tag">คะแนน <input type="number" min="0" step="0.5" value="' + (q.points || '') + '" placeholder="–" style="width:64px" oninput="S._aq[' + k + '].points=Number(this.value)||0;aqSumTxt()"></label>' +
+      (k ? '<span class="x" data-act="aqUp" data-p="' + k + '" title="เลื่อนขึ้น">↑ เลื่อนขึ้น</span>' : '') + ' <span class="x" data-act="aqDel" data-p="' + k + '">✕ ลบ</span></div>' +
+      '<textarea class="qin" placeholder="พิมพ์คำถามข้อ ' + (k + 1) + '" oninput="S._aq[' + k + '].q=this.value">' + esc(q.q || '') + '</textarea></div>';
+  }).join('') || '<p class="tag">ยังไม่มีคำถาม</p>';
+  aqSumTxt();
+}
+function aqSumTxt() {
+  var e = $('aqSum'); if (!e) return;
+  var t = S._aq.reduce(function (a, q) { return a + (Number(q.points) || 0); }, 0), mx = Number(v_('i_max')) || 0;
+  e.innerHTML = S._aq.length ? S._aq.length + ' ข้อ' + (t ? ' · รวมคะแนนรายข้อ ' + fx(t) + (mx !== t ? ' (คะแนนเต็มของงาน ' + fx(mx) + ') <a href="javascript:void 0" data-act="aqUseSum">ใช้ผลรวมเป็นคะแนนเต็ม</a>' : ' = คะแนนเต็มของงาน') : '') : '';
 }
 function qzRender() {
   var box = $('qzBox'); if (!box) return;
@@ -1412,14 +1496,26 @@ var LMS_ACTIONS = {
     call('stuSubmit', S.token, p, { answers: ans }).then(function (r) { reStu('ได้คะแนน ' + r.score + '/' + r.max); }).catch(function (x) { busy(el, false); fail(x); });
   },
   sSubmit: function (p, el) {
-    var files = Array.prototype.slice.call($('sb_files').files), text = $('sb_text').value.trim(), old = stuSub(p);
-    if (!text && !files.length && !(old && old.files.length)) return toast('กรุณาพิมพ์คำตอบหรือแนบไฟล์', true);
+    var it = S.stu.items.filter(function (x) { return x.id === p; })[0], old = stuSub(p), qs = subQs(it);
+    var files = Array.prototype.slice.call($('sb_files').files), text = $('sb_text').value.trim();
+    var ans = qs.map(function (q, k) { var e = $('sb_a' + k); return e ? e.value.trim() : ''; }), nAns = ans.filter(Boolean).length;
+    var keep = old ? (S._sFiles || []) : [];
+    if (!text && !files.length && !keep.length && !nAns) return toast(qs.length ? 'กรุณาพิมพ์คำตอบอย่างน้อย 1 ข้อ' : 'กรุณาพิมพ์คำตอบหรือแนบไฟล์', true);
     if (files.some(function (f) { return f.size > 15 * 1024 * 1024; })) return toast('มีไฟล์ใหญ่เกิน 15MB', true);
+    if (qs.length && nAns < qs.length && !confirm('ยังไม่ได้ตอบ ' + (qs.length - nAns) + ' ข้อ ต้องการส่งเลยหรือไม่?')) return;
     busy(el, true);
     var up = [], chain = Promise.resolve();
     files.forEach(function (f) { chain = chain.then(function () { $('sbMsg').textContent = 'กำลังอัปโหลด ' + f.name + '…'; return readB64(f); }).then(function (b) { return call('stuUpload', S.token, p, { name: f.name, mime: f.type }, b); }).then(function (r) { up.push(r); }); });
-    chain.then(function () { return call('stuSubmit', S.token, p, { text: text, files: files.length ? up : (old ? old.files : []) }); })
-      .then(function () { reStu('ส่งงานเรียบร้อย'); }).catch(function (x) { busy(el, false); fail(x); });
+    chain.then(function () { $('sbMsg').textContent = 'กำลังส่ง…'; return call('stuSubmit', S.token, p, { text: text, answers: ans, files: keep.concat(up) }); })
+      .then(function () { S._sEdit = null; S._sFiles = null; reStu(old ? 'บันทึกการแก้ไขและส่งงานแล้ว' : 'ส่งงานเรียบร้อย'); }).catch(function (x) { busy(el, false); $('sbMsg').textContent = ''; fail(x); });
+  },
+  sEdit: function (p) { var s = stuSub(p); S._sEdit = p; S._sFiles = ((s && s.files) || []).slice(); render(); },
+  sCancel: function () { S._sEdit = null; S._sFiles = null; render(); },
+  sFileDel: function (p) { S._sFiles.splice(Number(p), 1); $('sbFiles').innerHTML = sbFilesHtml(); },
+  sDel: function (p, el) {
+    if (!confirm('ลบงานที่ส่งทั้งหมด (คำตอบและไฟล์แนบ)?\nลบแล้วกู้คืนไม่ได้ ต้องส่งงานใหม่')) return;
+    busy(el, true);
+    call('stuDeleteSubmission', S.token, p).then(function () { S._sEdit = null; reStu('ลบงานที่ส่งแล้ว'); }).catch(function (x) { busy(el, false); fail(x); });
   },
   sReportPdf: function (p, el) { exportCall(el, call('stuReportPdf', S.token, p)); },
   /* teacher: course */
@@ -1459,12 +1555,16 @@ var LMS_ACTIONS = {
   itemEdit: function (p) { var it = L().items.filter(function (x) { return x.id === p; })[0]; itemForm(it.courseId, it); },
   itemDel: function (p) { if (!confirm('ลบงานนี้และคะแนนทั้งหมดของงานนี้?')) return; var cid = S._course; call('deleteItem', S.token, p).then(function () { return loadLms(); }).then(function () { S.tab.tc = 'items'; go('tcourse', cid); }).catch(fail); },
   itemSave: function (p, el) {
-    var e = S._editing, it = { id: p, courseId: e.courseId, type: $('i_type').value, title: v_('i_title'), maxScore: v_('i_max'), dueDate: v_('i_due'), lessonId: $('i_lesson').value, instructions: $('i_ins').value, published: $('i_pub').checked, quiz: S._quiz };
+    var e = S._editing, it = { id: p, courseId: e.courseId, type: $('i_type').value, title: v_('i_title'), maxScore: v_('i_max'), dueDate: v_('i_due'), lessonId: $('i_lesson').value, instructions: $('i_ins').value, published: $('i_pub').checked, quiz: S._quiz, questions: S._aq };
     if (!it.title) return toast('กรุณาระบุชื่องาน', true);
     if (it.type === 'quiz') it.quiz = S._quiz.map(function (q) { return { q: q.q, choices: q.choices.filter(function (c) { return String(c).trim(); }), answer: Number(q.answer) || 0, points: Number(q.points) || 1 }; });
     busy(el, true);
     call('saveItem', S.token, it).then(function (id) { closeModal(); return loadLms().then(function () { go('titem', id); toast('บันทึกงานแล้ว'); }); }).catch(function (x) { busy(el, false); fail(x); });
   },
+  aqAdd: function () { S._aq.push({ q: '', points: 0 }); aqRender(); var t = document.querySelectorAll('#aqBox textarea'); if (t.length) t[t.length - 1].focus(); },
+  aqDel: function (p) { var q = S._aq[Number(p)]; if (q && String(q.q || '').trim() && !confirm('ลบคำถามข้อ ' + (Number(p) + 1) + '?')) return; S._aq.splice(Number(p), 1); aqRender(); },
+  aqUp: function (p) { var k = Number(p); if (k < 1) return; var x = S._aq[k]; S._aq[k] = S._aq[k - 1]; S._aq[k - 1] = x; aqRender(); },
+  aqUseSum: function () { $('i_max').value = S._aq.reduce(function (a, q) { return a + (Number(q.points) || 0); }, 0); aqSumTxt(); },
   qzAdd: function () { S._quiz.push({ q: '', choices: ['', '', '', ''], answer: 0, points: 1 }); qzRender(); },
   qzDel: function (p) { S._quiz.splice(Number(p), 1); qzRender(); },
   /* AI */
@@ -1494,28 +1594,35 @@ var LMS_ACTIONS = {
   },
   /* grading */
   gradeSave: function (p, el) {
-    var sid = el.getAttribute('data-k'); busy(el, true);
-    call('gradeSubmission', S.token, { itemId: p, sid: sid, score: v_('sc_' + sid), feedback: $('fb_' + sid).value }).then(function () { busy(el, false); el.textContent = '✓ บันทึก'; return loadLms().then(renderNav); }).catch(function (x) { busy(el, false); fail(x); });
+    var sid = el.getAttribute('data-k'), it = L().items.filter(function (x) { return x.id === p; })[0]; busy(el, true);
+    call('gradeSubmission', S.token, { itemId: p, sid: sid, score: v_('sc_' + sid), feedback: $('fb_' + sid).value, qScores: collectQS(sid, subQs(it).length) }).then(function () { busy(el, false); el.textContent = '✓ บันทึก'; return loadLms().then(renderNav); }).catch(function (x) { busy(el, false); fail(x); });
   },
   gradeAll: function (p, el) {
     var it = L().items.filter(function (x) { return x.id === p; })[0], studs = tEnrolled(it.courseId), chain = Promise.resolve(), n = 0;
     busy(el, true);
     studs.forEach(function (s) {
-      var sc = v_('sc_' + s.id), fb = $('fb_' + s.id).value, sb = tSub(p, s.id);
+      var sc = v_('sc_' + s.id), fb = $('fb_' + s.id).value, sb = tSub(p, s.id), nq = subQs(it).length, qv = collectQS(s.id, nq);
       if (sc === '' && !fb && !sb) return;
-      if (sb && String(sb.score) === sc && (sb.feedback || '') === fb) return;
-      chain = chain.then(function () { n++; return call('gradeSubmission', S.token, { itemId: p, sid: s.id, score: sc, feedback: fb }); });
+      if (sb && String(sb.score) === sc && (sb.feedback || '') === fb && (!qv || JSON.stringify(normQS(qv, nq)) === JSON.stringify(normQS(sb.qScores, nq)))) return;
+      chain = chain.then(function () { n++; return call('gradeSubmission', S.token, { itemId: p, sid: s.id, score: sc, feedback: fb, qScores: qv }); });
     });
     chain.then(function () { return reLms('บันทึกคะแนน ' + n + ' รายการแล้ว'); }).catch(function (x) { busy(el, false); fail(x); });
   },
   gradeCell: function (p, el) {
     var sid = el.getAttribute('data-k'), it = L().items.filter(function (x) { return x.id === p; })[0], sb = tSub(p, sid), st = tStudent(sid);
     openModal('<h3>ให้คะแนน: ' + esc(it.title) + '</h3><p class="tag">' + esc(st.studentId + ' ' + st.name) + ' · เต็ม ' + it.maxScore + '</p>' +
-      (sb ? (sb.text ? '<div class="wd" style="white-space:pre-wrap;max-height:160px;overflow:auto">' + esc(sb.text) + '</div>' : '') + fileList(sb.files) : '<p class="tag">ยังไม่มีงานส่ง (ให้คะแนนกิจกรรม/ในชั้นเรียนได้)</p>') +
+      (sb ? '<div class="row">' + subChips(it, sb) + '</div>' + qaHtml(it, sb, true) + (sb.text ? '<div class="wd" style="white-space:pre-wrap;max-height:160px;overflow:auto">' + esc(sb.text) + '</div>' : '') + fileList(sb.files) : '<p class="tag">ยังไม่มีงานส่ง (ให้คะแนนกิจกรรม/ในชั้นเรียนได้)</p>') +
       '<div class="grid g2"><div class="f"><label>คะแนน</label><input id="sc_' + sid + '" type="number" step="0.5" min="0" max="' + it.maxScore + '" value="' + esc(sb && sb.score !== '' ? sb.score : '') + '"></div></div><div class="f"><label>ความเห็น</label><textarea id="fb_' + sid + '">' + esc(sb ? sb.feedback : '') + '</textarea></div>' +
       '<div class="row"><span class="sp"></span><button class="btn light" data-act="close">ยกเลิก</button><button class="btn gold" data-act="gradeCellSave" data-p="' + p + '" data-k="' + sid + '">บันทึก</button></div>', tCourse(it.courseId).color);
   },
-  gradeCellSave: function (p, el) { var sid = el.getAttribute('data-k'); busy(el, true); call('gradeSubmission', S.token, { itemId: p, sid: sid, score: v_('sc_' + sid), feedback: $('fb_' + sid).value }).then(function () { closeModal(); return reLms('บันทึกคะแนนแล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
+  gradeCellSave: function (p, el) { var sid = el.getAttribute('data-k'), it = L().items.filter(function (x) { return x.id === p; })[0]; busy(el, true); call('gradeSubmission', S.token, { itemId: p, sid: sid, score: v_('sc_' + sid), feedback: $('fb_' + sid).value, qScores: collectQS(sid, subQs(it).length) }).then(function () { closeModal(); return reLms('บันทึกคะแนนแล้ว'); }).catch(function (x) { busy(el, false); fail(x); }); },
+  returnSub: function (p, el) {
+    var sid = el.getAttribute('data-k'), fb = $('fb_' + sid).value.trim();
+    if (!fb) { toast('เขียนในช่อง “ความเห็น” ก่อน ว่าต้องการให้นักศึกษาแก้ไขอะไร', true); $('fb_' + sid).focus(); return; }
+    if (!confirm('ส่งงานคืนให้นักศึกษาแก้ไข?\n(คำตอบเดิมยังอยู่ นักศึกษาแก้แล้วส่งใหม่ได้ · คะแนนของงานนี้จะถูกล้าง)')) return;
+    busy(el, true);
+    call('returnSubmission', S.token, p, fb).then(function () { reLms('ส่งคืนให้แก้ไขแล้ว'); }).catch(function (x) { busy(el, false); fail(x); });
+  },
   subReset: function (p) { if (confirm('ลบงานที่ส่งนี้ เพื่อให้นักศึกษาส่ง/ทำใหม่?')) call('resetSubmission', S.token, p).then(function () { reLms('รีเซ็ตแล้ว'); }).catch(fail); },
   gbXlsx: function (p, el) { exportCall(el, call('exportGradebook', S.token, p)); },
   /* students */
